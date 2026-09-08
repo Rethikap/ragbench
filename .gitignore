@@ -8,6 +8,3 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 .ipynb_checkpoints/
-
-# The frozen corpus manifest and the human-verified question set ARE committed:
-!data/corpus_manifest.json

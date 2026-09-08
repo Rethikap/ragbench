@@ -1,0 +1,26 @@
+# Line endings are normalised to LF in the index AND in the working tree.
+#
+# This project is content-addressed: chunk ids, source digests and cache keys all
+# come from hashing.py over file bytes. If git rewrote LF to CRLF on checkout,
+# the same JATS fixture would hash differently on Windows than on Kaggle/Colab,
+# which would silently break the cross-machine reproducibility guarantee.
+# eol=lf overrides core.autocrlf, so this holds regardless of local git config.
+* text=auto eol=lf
+
+# Text formats that carry fixtures or artefacts. Redundant under text=auto, but
+# explicit so a future binary-looking heuristic can never misclassify them.
+*.xml    text
+*.json   text
+*.jsonl  text
+*.yaml   text
+*.yml    text
+*.py     text
+*.md     text
+*.toml   text
+
+# Binary: never touch the bytes, never try to diff or merge them.
+*.png     -text
+*.jpg     -text
+*.jpeg    -text
+*.gz      -text
+*.parquet -text
