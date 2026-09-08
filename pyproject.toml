@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragbench"
+version = "0.1.0"
+description = "Controlled 2x2x2 factorial benchmark of RAG design choices for scientific-literature QA"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pyyaml>=6.0",
+    "lxml>=5.0",
+    "requests>=2.31",
+    "tenacity>=8.2",
+    "psutil>=5.9",
+    "numpy>=1.26",
+    "langchain-text-splitters>=0.2",
+    "transformers>=4.40",
+    "torch>=2.2",
+    "sentence-transformers>=3.0",
+    "chromadb>=0.5",
+]
+
+[project.optional-dependencies]
+# specter2 needs the adapters library; it is not importable alongside every
+# transformers version, so it stays optional until the embedding stage is built.
+specter = ["adapters>=1.0"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[project.scripts]
+ragbench = "ragbench.cli.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+markers = [
+    "network: hits the NCBI API; deselected by default with -m 'not network'",
+    "slow: downloads or runs a model",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

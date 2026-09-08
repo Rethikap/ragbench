@@ -1,0 +1,52 @@
+# Everything that is FIXED across all 8 runs.
+# Factor-varying values live in factors.yaml; corpus definition in corpus.yaml.
+# Nothing in this file may be overridden anywhere except by a factor level.
+schema_version: 1
+seed: 20260813
+
+chunking:
+  # strategy is supplied by the factor level
+  target_tokens: 512
+  overlap_tokens: 0
+  # Canonical chunk tokenizer, used for BOTH embedding arms so that chunking is
+  # embedder-independent. This is what makes the design a clean factorial: two
+  # chunk sets, not four. Do not point this at the embedding model.
+  tokenizer_id: BAAI/bge-base-en-v1.5
+  min_chunk_tokens: 0        # 0 = keep tail chunks and report the distribution honestly
+  separators: ["\n\n", "\n", ". ", " ", ""]
+
+embedding:
+  # name / model_id / adapter_id / query_instruction come from the factor level
+  normalize: true
+  max_seq_tokens: 512
+  batch_size: 32
+
+rerank:
+  # enabled comes from the factor level
+  model_id: BAAI/bge-reranker-base
+  batch_size: 16
+
+retrieval:
+  depth: 30                       # dense candidates pulled from Chroma before reranking
+  context_token_budget: 2000      # THE controlled variable: constant tokens, not constant k
+  budget_tokenizer_id: Qwen/Qwen2.5-7B-Instruct   # budget is measured in generator tokens
+  fill_policy: stop_at_overflow   # never truncate a chunk; stop at the first that will not fit
+
+generation:
+  model_id: Qwen/Qwen2.5-7B-Instruct
+  quantization: awq               # fits a free-tier T4; null for full precision
+  temperature: 0.0
+  top_p: 1.0
+  max_new_tokens: 512
+  seed: 20260813
+  prompt_template_id: v1
+
+judge:
+  provider: openrouter
+  # Pin an exact id. Free-tier model slugs rotate, and the judge identity must be
+  # recorded with the results.
+  model_id: meta-llama/llama-3.3-70b-instruct
+  temperature: 0.0
+  rubric_id: v1
+  max_retries: 5
+  requests_per_minute: 20

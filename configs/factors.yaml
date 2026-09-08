@@ -1,0 +1,31 @@
+# The 2x2x2 design. The 8 run configs are the Cartesian product of these levels
+# merged onto base.yaml. Adding a level here changes the experiment size and
+# nothing else needs editing anywhere in the codebase.
+#
+# Level order is significant only for display; config hashes are order-independent.
+factors:
+  chunking:
+    fixed:
+      strategy: fixed
+    recursive:
+      strategy: recursive
+
+  embedding:
+    bge:
+      name: bge_base
+      model_id: BAAI/bge-base-en-v1.5
+      adapter_id: null
+      # bge is trained with an asymmetric query prefix; specter2 is not. Applied
+      # at query time only, never to documents.
+      query_instruction: "Represent this sentence for searching relevant passages: "
+    specter2:
+      name: specter2_proximity
+      model_id: allenai/specter2_base
+      adapter_id: allenai/specter2
+      query_instruction: ""
+
+  rerank:
+    off:
+      enabled: false
+    on:
+      enabled: true

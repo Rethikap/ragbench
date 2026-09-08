@@ -1,0 +1,45 @@
+# Corpus definition. Selection runs ONCE and is then frozen into
+# data/corpus_manifest.json; every later run reads the manifest and never queries
+# NCBI again. PMC grows continuously, so an unpinned esearch is not reproducible.
+corpus:
+  name: alzheimer_biomarkers
+  db: pmc
+
+  # Free-text esearch term. PMC field tags, not PubMed MeSH.
+  query: >-
+    ("alzheimer disease" OR "alzheimer's disease" OR "alzheimers disease")
+    AND (biomarker OR biomarkers)
+    AND "open access"[filter]
+
+  # Inclusive publication-date bound. The upper bound is what makes the query
+  # stable over time: papers published after it can never enter the corpus.
+  date_from: "2018/01/01"
+  date_to: "2024/12/31"
+
+  # Hard filter applied to the JATS article-type attribute after fetching. This is
+  # authoritative, unlike a query-side publication-type guess, and it keeps the
+  # corpus homogeneous (Alzheimer's OA is a mix of trials and reviews).
+  allowed_article_types: ["research-article"]
+
+  # CC-BY only. Matched against the license URL in <permissions>; by-nc / by-sa /
+  # by-nd are rejected and the exact license string of every kept paper is recorded.
+  allowed_license_patterns: ["creativecommons.org/licenses/by/"]
+
+  target_papers: 100
+  # Search headroom: many hits fail the license or article-type filter, so we
+  # consider this many candidates in ascending PMCID order and keep the first
+  # target_papers that pass.
+  candidate_pool: 600
+
+  # Parse policy. Recorded into every parsed paper's metadata.
+  drop_references: true
+  drop_figure_captions: true
+  drop_bibliographic_xrefs: true
+  table_policy: placeholder        # placeholder | linearize | drop
+  equation_policy: placeholder     # placeholder | keep | drop
+  keep_abstract: true
+
+  # Set by `ragbench build-corpus` once the corpus is frozen. Paste the printed
+  # value here to pin the corpus into every config hash. "unfrozen" is allowed for
+  # development but `run` will warn.
+  manifest_sha: unfrozen
