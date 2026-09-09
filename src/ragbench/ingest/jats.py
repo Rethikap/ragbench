@@ -151,6 +151,12 @@ def parse_article(xml: bytes, policy: Mapping[str, Any]) -> ParsedPaper:
         parser_version=PARSER_VERSION,
         parse_metadata={
             **stats,
+            # Derived from the rendered stream, not from the replacements made:
+            # placeholders created outside <body> (PMC's <floats-group>) never
+            # reach the text and must not be counted as if they had.
+            "tables_placeholdered": body.count("[TABLE:"),
+            "equations_placeholdered": body.count("[EQUATION]"),
+            "tables_outside_body": stats["tables_replaced"] - body.count("[TABLE:"),
             "retained_chars": len(body),
             "abstract_chars": len(abstract),
             "n_sections": len(sections),

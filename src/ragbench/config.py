@@ -120,6 +120,11 @@ def parsed_papers_dir(manifest_sha: str, root: Path = DEFAULT_DATA_ROOT) -> Path
     return Path(root) / "parsed" / parsed_papers_key(manifest_sha)
 
 
+def chunk_set_dir(chunk_set_id: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
+    """One chunk set. There are exactly two of these across the 8 runs."""
+    return Path(root) / "chunks" / chunk_set_id
+
+
 def raw_xml_dir(root: Path = DEFAULT_DATA_ROOT) -> Path:
     """Raw JATS cache.
 

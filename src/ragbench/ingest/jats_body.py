@@ -86,12 +86,16 @@ def _replace_with_text(element: etree._Element, text: str) -> None:
 
 def apply_policy(article: etree._Element, policy: Mapping[str, Any]) -> dict[str, int]:
     """Rewrite the tree in place; return the counts that go into parse metadata."""
+    # Counts are document-wide. PMC often parks tables in <floats-group>, outside
+    # <body>, where they are replaced here but never rendered into the text
+    # stream -- so these are NOT the number of placeholders a reader will see.
+    # parse_article derives the retained counts from the rendered body.
     stats = {
         "sections_dropped": 0,
         "figures_dropped": 0,
         "xrefs_dropped": 0,
-        "tables_placeholdered": 0,
-        "equations_placeholdered": 0,
+        "tables_replaced": 0,
+        "equations_replaced": 0,
         "inline_math_kept": 0,
     }
 
@@ -115,7 +119,7 @@ def apply_policy(article: etree._Element, policy: Mapping[str, Any]) -> dict[str
         for element in article.findall(".//table-wrap"):
             label = text_of(element.find("label")) or "Table"
             _replace_with_text(element, f"[TABLE: {label}]")
-            stats["tables_placeholdered"] += 1
+            stats["tables_replaced"] += 1
     elif policy.get("table_policy") == "drop":
         for element in article.findall(".//table-wrap"):
             _detach(element)
@@ -123,7 +127,7 @@ def apply_policy(article: etree._Element, policy: Mapping[str, Any]) -> dict[str
     if policy.get("equation_policy", "placeholder") == "placeholder":
         for element in article.findall(".//disp-formula"):
             _replace_with_text(element, "[EQUATION]")
-            stats["equations_placeholdered"] += 1
+            stats["equations_replaced"] += 1
     elif policy.get("equation_policy") == "drop":
         for element in article.findall(".//disp-formula"):
             _detach(element)

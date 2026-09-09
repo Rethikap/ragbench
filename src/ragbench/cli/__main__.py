@@ -24,7 +24,7 @@ from ..config import (
     resolve_config,
     run_dir,
 )
-from . import ingest_cmd
+from . import chunk_cmd, ingest_cmd, report_cmd
 
 STAGES: tuple[str, ...] = (
     "ingest",
@@ -56,10 +56,14 @@ EXIT_NOT_IMPLEMENTED = 4
 Handler = Callable[[argparse.Namespace, dict[str, Any], Path], int]
 HANDLERS: dict[str, Handler | None] = dict.fromkeys(STAGES)
 HANDLERS["ingest"] = ingest_cmd.run
+HANDLERS["chunk"] = chunk_cmd.run
+HANDLERS["report"] = report_cmd.run
 
 #: Extra options registered per stage, beyond the common ones.
 STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "ingest": ingest_cmd.add_options,
+    "chunk": chunk_cmd.add_options,
+    "report": report_cmd.add_options,
 }
 
 

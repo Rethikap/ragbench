@@ -81,16 +81,21 @@ def test_parsed_papers_key_tracks_the_manifest() -> None:
     assert parsed_papers_key(SHA) != parsed_papers_key("ffffffffffff")
 
 
+#: Sentinels, so these tests keep working after a real version bump.
+BUMPED_PARSER = "parser-bumped-for-test"
+BUMPED_CHUNKER = "chunker-bumped-for-test"
+
+
 def test_parsed_papers_key_tracks_the_parser_version(monkeypatch: pytest.MonkeyPatch) -> None:
     before = parsed_papers_key(SHA)
-    monkeypatch.setattr(cache_keys, "PARSER_VERSION", "2")
+    monkeypatch.setattr(cache_keys, "PARSER_VERSION", BUMPED_PARSER)
     assert parsed_papers_key(SHA) != before
 
 
 def test_parsed_papers_key_ignores_the_chunker_version(monkeypatch: pytest.MonkeyPatch) -> None:
     """A chunker change must not force a re-fetch and re-parse of 100 papers."""
     before = parsed_papers_key(SHA)
-    monkeypatch.setattr(cache_keys, "CHUNKER_VERSION", "2")
+    monkeypatch.setattr(cache_keys, "CHUNKER_VERSION", BUMPED_CHUNKER)
     assert parsed_papers_key(SHA) == before
 
 
@@ -99,10 +104,10 @@ def test_chunk_set_key_tracks_both_version_stamps(
 ) -> None:
     params = _arm(resolved, "fixed")
     before = chunk_set_key(SHA, params)
-    monkeypatch.setattr(cache_keys, "CHUNKER_VERSION", "2")
+    monkeypatch.setattr(cache_keys, "CHUNKER_VERSION", BUMPED_CHUNKER)
     after_chunker = chunk_set_key(SHA, params)
     assert after_chunker != before
-    monkeypatch.setattr(cache_keys, "PARSER_VERSION", "2")
+    monkeypatch.setattr(cache_keys, "PARSER_VERSION", BUMPED_PARSER)
     assert chunk_set_key(SHA, params) != after_chunker
 
 

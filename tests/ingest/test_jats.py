@@ -117,6 +117,21 @@ def test_parse_metadata_counts_what_the_policy_did(xml: bytes) -> None:
     assert metadata["inline_math_kept"] == 1
 
 
+def test_placeholders_outside_the_body_are_not_counted_as_retained() -> None:
+    """PMC parks tables in <floats-group>, which is never rendered. Counting the
+    replacements made would overstate what is actually in the corpus text."""
+    xml = FIXTURE.read_bytes().replace(
+        b"</body>",
+        b"</body><floats-group><table-wrap id='T9'><label>Table 9</label>"
+        b"<table><tbody><tr><td>x</td></tr></tbody></table></table-wrap></floats-group>",
+    )
+    metadata = parse_article(xml, POLICY).parse_metadata
+    assert metadata["tables_replaced"] == 2
+    assert metadata["tables_placeholdered"] == 1
+    assert metadata["tables_outside_body"] == 1
+    assert "[TABLE: Table 9]" not in parse_article(xml, POLICY).body
+
+
 def test_retained_chars_matches_the_body(xml: bytes) -> None:
     paper = parse_article(xml, POLICY)
     assert paper.parse_metadata["retained_chars"] == len(paper.body)

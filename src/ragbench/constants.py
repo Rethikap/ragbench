@@ -8,6 +8,6 @@ old and new artefacts.
 
 from __future__ import annotations
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 CHUNKER_VERSION = "1"
 CONFIG_SCHEMA_VERSION = 1
