@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from ragbench.cache_keys import run_key
 from ragbench.config import (
     RESOLVED_FILENAME,
     ConfigError,
-    config_digest,
     dump_resolved,
     resolve_config,
     run_dir,
@@ -60,6 +60,21 @@ def test_schema_version_mismatch_is_rejected(tmp_path: Path) -> None:
         resolve_config(base)
 
 
+def test_yaml_boolean_level_names_are_rejected(tmp_path: Path) -> None:
+    """Bare `on:` is True in YAML 1.1; a level name must survive as a string."""
+    _write_config_set(tmp_path)
+    (tmp_path / "factors.yaml").write_text(
+        "factors:\n  rerank:\n    on:\n      enabled: true\n", encoding="utf-8"
+    )
+    with pytest.raises(ConfigError, match="non-string level name"):
+        resolve_config(tmp_path / "base.yaml")
+
+
+def test_shipped_factor_levels_are_strings() -> None:
+    factors = resolve_config(BASE_CONFIG)["factors"]
+    assert set(factors["rerank"]) == {"on", "off"}
+
+
 def test_missing_top_level_key_is_reported(tmp_path: Path) -> None:
     _write_config_set(tmp_path)
     (tmp_path / "factors.yaml").write_text("chunking: {}\n", encoding="utf-8")
@@ -75,30 +90,24 @@ def test_absent_file_is_reported(tmp_path: Path) -> None:
 # --------------------------------------------------------------------- run ids
 
 
-def test_digest_is_order_independent() -> None:
-    resolved = resolve_config(BASE_CONFIG)
-    shuffled = dict(reversed(list(resolved.items())))
-    assert config_digest(shuffled) == config_digest(resolved)
-
-
 def test_run_dir_is_named_after_the_digest(tmp_path: Path) -> None:
     resolved = resolve_config(BASE_CONFIG)
-    assert run_dir(resolved, tmp_path).name == config_digest(resolved)
+    assert run_dir(resolved, tmp_path).name == run_key(resolved)
 
 
 def test_freezing_the_manifest_changes_the_run_id() -> None:
     """Invariant I4: pinning the corpus must not silently reuse an old run."""
     resolved = resolve_config(BASE_CONFIG)
-    before = config_digest(resolved)
+    before = run_key(resolved)
     resolved["corpus"]["manifest_sha"] = "0123456789ab"
-    assert config_digest(resolved) != before
+    assert run_key(resolved) != before
 
 
 def test_changing_the_budget_changes_the_run_id() -> None:
     resolved = resolve_config(BASE_CONFIG)
-    before = config_digest(resolved)
+    before = run_key(resolved)
     resolved["base"]["retrieval"]["context_token_budget"] = 4000
-    assert config_digest(resolved) != before
+    assert run_key(resolved) != before
 
 
 # --------------------------------------------------------------------- dump

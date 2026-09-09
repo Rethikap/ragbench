@@ -17,13 +17,16 @@ from typing import Any
 
 import yaml
 
+from .cache_keys import parsed_papers_key, run_key
 from .constants import CONFIG_SCHEMA_VERSION
-from .hashing import canonical_json, stable_hash
+from .hashing import canonical_json
 
 CORPUS_FILENAME = "corpus.yaml"
 FACTORS_FILENAME = "factors.yaml"
+MANIFEST_FILENAME = "corpus_manifest.jsonl"
 RESOLVED_FILENAME = "resolved_config.json"
 DEFAULT_RUNS_ROOT = Path("runs")
+DEFAULT_DATA_ROOT = Path("data")
 
 
 class ConfigError(Exception):
@@ -56,6 +59,28 @@ def _section(data: dict[str, Any], key: str, path: Path) -> dict[str, Any]:
     return section
 
 
+def _validate_factors(factors: dict[str, Any], path: Path) -> dict[str, Any]:
+    """Reject non-string factor or level names.
+
+    YAML 1.1 reads bare ``on``/``off``/``yes``/``no`` as booleans, so ``on:`` as a
+    level name silently becomes ``True``. Level names reach run ids and reports,
+    and a bool key sorted alongside a string key makes canonical_json raise. Fail
+    loudly at load time instead.
+    """
+    for factor, levels in factors.items():
+        if not isinstance(factor, str):
+            raise ConfigError(f"{path}: factor name {factor!r} is not a string; quote it")
+        if not isinstance(levels, dict):
+            raise ConfigError(f"{path}: factor '{factor}' must map level names to parameters")
+        for level in levels:
+            if not isinstance(level, str):
+                raise ConfigError(
+                    f"{path}: factor '{factor}' has non-string level name {level!r}. "
+                    'YAML 1.1 reads bare on/off/yes/no as booleans -- quote it as "on".'
+                )
+    return factors
+
+
 def resolve_config(base_path: Path) -> dict[str, Any]:
     """Load base + corpus + factors into one mapping.
 
@@ -78,21 +103,31 @@ def resolve_config(base_path: Path) -> dict[str, Any]:
         "schema_version": CONFIG_SCHEMA_VERSION,
         "base": base,
         "corpus": _section(_load_yaml(corpus_path), "corpus", corpus_path),
-        "factors": _section(_load_yaml(factors_path), "factors", factors_path),
+        "factors": _validate_factors(
+            _section(_load_yaml(factors_path), "factors", factors_path), factors_path
+        ),
     }
 
 
-def config_digest(resolved: dict[str, Any]) -> str:
-    """Run id: a short digest of the resolved config.
-
-    Order-independent, because :func:`~ragbench.hashing.canonical_json` sorts
-    keys -- reordering a YAML mapping must not invent a new run.
-    """
-    return stable_hash(resolved)
-
-
 def run_dir(resolved: dict[str, Any], root: Path = DEFAULT_RUNS_ROOT) -> Path:
-    return Path(root) / config_digest(resolved)
+    """Per-run output directory, keyed on the whole resolved config."""
+    return Path(root) / run_key(resolved)
+
+
+def parsed_papers_dir(manifest_sha: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
+    """Parsed-paper cache: shared by all 8 runs, so it lives under data/ rather
+    than inside any one run directory."""
+    return Path(root) / "parsed" / parsed_papers_key(manifest_sha)
+
+
+def raw_xml_dir(root: Path = DEFAULT_DATA_ROOT) -> Path:
+    """Raw JATS cache.
+
+    Keyed by nothing but the PMCID: the bytes NCBI returns for a frozen PMCID do
+    not depend on our parser, so a PARSER_VERSION bump must re-parse but must not
+    re-download.
+    """
+    return Path(root) / "raw_jats"
 
 
 def dump_resolved(resolved: dict[str, Any], directory: Path) -> Path:

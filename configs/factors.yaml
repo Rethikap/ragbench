@@ -25,7 +25,11 @@ factors:
       query_instruction: ""
 
   rerank:
-    off:
+    # Quoted: YAML 1.1 reads bare on/off/yes/no as booleans, which would make
+    # these level names True/False instead of "on"/"off". Level names appear in
+    # run ids and reports, and mixing a bool key with a string key breaks the
+    # sorted-key canonical JSON that every hash depends on.
+    "off":
       enabled: false
-    on:
+    "on":
       enabled: true
