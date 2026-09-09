@@ -36,7 +36,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q -m 'not network'"
 markers = [
     "network: hits the NCBI API; deselected by default with -m 'not network'",
     "slow: downloads or runs a model",

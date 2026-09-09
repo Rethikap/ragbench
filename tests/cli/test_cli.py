@@ -19,7 +19,16 @@ from pathlib import Path
 
 import pytest
 
-from ragbench.cli.__main__ import EXIT_CONFIG, EXIT_NOT_IMPLEMENTED, STAGES, build_parser, main
+from ragbench.cli.__main__ import (
+    EXIT_CONFIG,
+    EXIT_NOT_IMPLEMENTED,
+    HANDLERS,
+    STAGES,
+    build_parser,
+    main,
+)
+
+PENDING_STAGES = [stage for stage in STAGES if HANDLERS[stage] is None]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASE_CONFIG = REPO_ROOT / "configs" / "base.yaml"
@@ -151,7 +160,7 @@ def test_help_lists_every_stage(capsys: pytest.CaptureFixture[str]) -> None:
         assert stage in printed
 
 
-@pytest.mark.parametrize("stage", STAGES)
+@pytest.mark.parametrize("stage", PENDING_STAGES)
 def test_unimplemented_stage_exits_nonzero_without_traceback(
     stage: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

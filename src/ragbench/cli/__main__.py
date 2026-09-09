@@ -24,6 +24,7 @@ from ..config import (
     resolve_config,
     run_dir,
 )
+from . import ingest_cmd
 
 STAGES: tuple[str, ...] = (
     "ingest",
@@ -54,6 +55,12 @@ EXIT_NOT_IMPLEMENTED = 4
 # still parses and still resolves config, it just refuses to pretend it ran.
 Handler = Callable[[argparse.Namespace, dict[str, Any], Path], int]
 HANDLERS: dict[str, Handler | None] = dict.fromkeys(STAGES)
+HANDLERS["ingest"] = ingest_cmd.run
+
+#: Extra options registered per stage, beyond the common ones.
+STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
+    "ingest": ingest_cmd.add_options,
+}
 
 
 def _add_common_options(parser: argparse.ArgumentParser) -> None:
@@ -125,6 +132,9 @@ def build_parser() -> argparse.ArgumentParser:
         _add_common_options(subparser)
         if stage == "retrieve":
             _add_retrieval_options(subparser)
+        register_extra = STAGE_OPTIONS.get(stage)
+        if register_extra is not None:
+            register_extra(subparser)
 
     return parser
 

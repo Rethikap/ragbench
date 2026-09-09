@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pmc-articleset>
+  <article article-type="research-article"
+           xmlns:ali="http://www.niso.org/schemas/ali/1.0/"
+           xmlns:xlink="http://www.w3.org/1999/xlink">
+    <front>
+      <journal-meta>
+        <journal-title-group>
+          <journal-title>Journal of Test Biomarkers</journal-title>
+        </journal-title-group>
+      </journal-meta>
+      <article-meta>
+        <article-id pub-id-type="pmcid">PMC9999001</article-id>
+        <article-id pub-id-type="pmcid">PMC9999001.2</article-id>
+        <article-id pub-id-type="doi">10.1234/test.2021.001</article-id>
+        <title-group>
+          <article-title>A Controlled Study of Test Biomarkers</article-title>
+        </title-group>
+        <pub-date pub-type="collection"><month>7</month><year>2021</year></pub-date>
+        <pub-date pub-type="epub"><day>3</day><month>6</month><year>2021</year></pub-date>
+        <permissions>
+          <copyright-statement>&#169; 2021 The Authors.</copyright-statement>
+          <license>
+            <ali:license_ref>https://creativecommons.org/licenses/by/4.0/</ali:license_ref>
+            <license-p>Open access under the CC BY 4.0 license.</license-p>
+          </license>
+        </permissions>
+        <abstract><p>We measured a biomarker in plasma.</p></abstract>
+      </article-meta>
+    </front>
+    <body>
+      <sec sec-type="intro">
+        <title>Introduction</title>
+        <p>Amyloid levels rise with age <xref ref-type="bibr" rid="B1">[1]</xref>, as shown before.</p>
+        <p>The ratio <inline-formula><tex-math>A\beta_{42}/A\beta_{40}</tex-math></inline-formula> is diagnostic.</p>
+        <fig id="F1">
+          <label>Figure 1</label>
+          <caption><p>This caption must not reach the body stream.</p></caption>
+        </fig>
+      </sec>
+      <sec sec-type="methods">
+        <title>Methods</title>
+        <p>We fitted the following model.</p>
+        <disp-formula id="E1"><tex-math>y = mx + b</tex-math></disp-formula>
+        <table-wrap id="T1">
+          <label>Table 2</label>
+          <caption><p>Participant demographics.</p></caption>
+          <table><tbody><tr><td>age</td><td>71</td></tr></tbody></table>
+        </table-wrap>
+        <sec>
+          <title>Participants</title>
+          <p>Fifty adults enrolled.</p>
+        </sec>
+      </sec>
+    </body>
+    <back>
+      <ref-list>
+        <title>References</title>
+        <ref id="B1"><mixed-citation>Someone A. A prior study. Journal. 2019.</mixed-citation></ref>
+      </ref-list>
+    </back>
+  </article>
+</pmc-articleset>

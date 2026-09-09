@@ -48,6 +48,26 @@ class SectionSpan(JsonRecord):
 
 
 @dataclass(frozen=True, slots=True)
+class ManifestEntry(JsonRecord):
+    """One selected paper, frozen at corpus-selection time.
+
+    `article_type` and `license_text` are audit fields: they make the manifest
+    self-evidencing, so the two hard filters (research-article, CC-BY) can be
+    verified from the manifest alone without re-fetching anything from NCBI.
+    """
+
+    pmcid: str
+    doi: str | None
+    title: str
+    journal: str | None
+    pub_date: str
+    license_url: str
+    source_url: str
+    article_type: str
+    license_text: str
+
+
+@dataclass(frozen=True, slots=True)
 class ParsedPaper(JsonRecord):
     """A PMC paper after JATS extraction. `body` is the single concatenated stream
     that both chunkers operate on; `sections` maps back into it."""
