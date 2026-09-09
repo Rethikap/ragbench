@@ -26,9 +26,15 @@ corpus:
   allowed_license_patterns: ["creativecommons.org/licenses/by/"]
 
   target_papers: 100
-  # Search headroom: many hits fail the license or article-type filter, so we
-  # consider this many candidates in ascending PMCID order and keep the first
-  # target_papers that pass.
+  # Search headroom: many hits fail the license or article-type filter, so this
+  # many candidates are considered and the first target_papers that pass are kept.
+  #
+  # Candidate ORDER is a seeded sample (base.yaml `seed`) of the canonical
+  # PMCID-sorted hit list -- not the ascending-PMCID prefix. PMCIDs are assigned
+  # at deposit, so the lowest 600 of this query are all from 2018: taking them
+  # would yield a single-year corpus while claiming a 2018-2024 range. The seeded
+  # sample is equally reproducible and spreads across the range in proportion to
+  # the literature. NCBI result order is never used for anything.
   candidate_pool: 600
 
   # Parse policy. Recorded into every parsed paper's metadata.
@@ -42,4 +48,4 @@ corpus:
   # Set by `ragbench build-corpus` once the corpus is frozen. Paste the printed
   # value here to pin the corpus into every config hash. "unfrozen" is allowed for
   # development but `run` will warn.
-  manifest_sha: unfrozen
+  manifest_sha: e12570533916
