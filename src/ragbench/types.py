@@ -122,23 +122,48 @@ class Chunk(JsonRecord):
 
 
 @dataclass(frozen=True, slots=True)
+class GoldSpan(JsonRecord):
+    """Where the answer lives: a character range in ``ParsedPaper.body``.
+
+    A character span, never a chunk id. Chunk ids are arm-specific -- the same id
+    names different text in the fixed and recursive chunk sets -- so a gold set
+    labelled with them would be two incomparable gold sets wearing one name, and
+    the across-arm comparison the experiment exists to make would be comparing
+    each arm against its own private notion of correct. The body stream is the
+    one representation both arms share. See invariant I5.
+
+    Per-arm relevant chunks are derived at eval time by offset overlap; nothing
+    persists them.
+    """
+
+    pmcid: str
+    char_start: int
+    char_end: int
+    section: str
+
+    def __len__(self) -> int:
+        return max(0, self.char_end - self.char_start)
+
+
+@dataclass(frozen=True, slots=True)
 class Query(JsonRecord):
-    """One evaluation item. `gold_chunk_ids` is populated by the question-generation
-    step, which records which passage the question was written from; it is what
-    makes recall@budget computable."""
+    """One evaluation item: a question, its reference answer, and the passage the
+    question was written from.
+
+    ``reference_answer`` rather than ``answer`` because ``GeneratedAnswer.answer``
+    is the other thing in this file, and the judge stage holds both at once.
+    """
 
     query_id: str
-    text: str
+    question: str
     reference_answer: str
-    gold_pmcids: tuple[str, ...] = ()
-    gold_chunk_ids: tuple[str, ...] = ()
+    gold: GoldSpan
     verified: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Query:
         data = dict(data)
-        data["gold_pmcids"] = tuple(data.get("gold_pmcids", ()))
-        data["gold_chunk_ids"] = tuple(data.get("gold_chunk_ids", ()))
+        data["gold"] = GoldSpan(**data["gold"])
         fields = {f.name for f in dataclasses.fields(cls)}
         return cls(**{k: v for k, v in data.items() if k in fields})
 

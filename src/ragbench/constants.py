@@ -9,5 +9,9 @@ old and new artefacts.
 from __future__ import annotations
 
 PARSER_VERSION = "2"
-CHUNKER_VERSION = "1"
+# 1 -> 2: windows are trimmed to the token target after slicing. A window cut
+# mid-word re-tokenizes to more tokens than it contains, so the fixed arm was
+# emitting 513-514-token chunks against a 512 target (54 of 1,586) while the
+# recursive arm, which cuts on separators, emitted none. See chunking.base.fit_window.
+CHUNKER_VERSION = "2"
 CONFIG_SCHEMA_VERSION = 1

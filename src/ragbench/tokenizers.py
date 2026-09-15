@@ -10,6 +10,12 @@ canonical chunk tokenizer draws chunk boundaries and is fixed across all 8 runs;
 the budget tokenizer measures the generator's context window. They disagree
 substantially -- the same sentence is 24 bge tokens and 31 Qwen tokens -- which
 is exactly why the budget is measured with the generator's own tokenizer.
+
+Both are addressed by ``model_id`` *and* a commit ``revision``. A Hub id is a
+mutable pointer: the repo behind it can gain a new commit, and a tokenizer that
+re-draws one boundary re-chunks the corpus. The revision is the thing that is
+actually reproducible, and it is what reaches the chunk-set cache key -- so the
+same config resolves to the same chunk boundaries on this laptop and on Kaggle.
 """
 
 from __future__ import annotations
@@ -34,13 +40,22 @@ class Tokenizer(Protocol):
 
 
 class HuggingFaceTokenizer:
-    """A fast HF tokenizer, used only for counting and for offset mapping."""
+    """A fast HF tokenizer, used only for counting and for offset mapping.
 
-    def __init__(self, model_id: str) -> None:
+    ``revision`` is required, not optional: an unpinned id is a moving target,
+    and the whole chunk set is a function of how this tokenizer segments text.
+    """
+
+    def __init__(self, model_id: str, revision: str) -> None:
         from transformers import AutoTokenizer
 
-        self.name = model_id
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        if not revision:
+            raise ValueError(
+                f"{model_id}: a commit revision is required. Hub ids are mutable; "
+                "pin the 40-character commit sha from the model repo."
+            )
+        self.name = f"{model_id}@{revision}"
+        tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
         if not tokenizer.is_fast:
             raise ValueError(f"{model_id} has no fast tokenizer, so offsets are unavailable")
         # Chunking tokenizes whole papers, which are far longer than the model's
@@ -78,11 +93,11 @@ class WhitespaceTokenizer:
 
 
 @lru_cache(maxsize=4)
-def load_tokenizer(model_id: str) -> Tokenizer:
+def load_tokenizer(model_id: str, revision: str = "") -> Tokenizer:
     """Cached loader. ``whitespace`` selects the stand-in without any download."""
     if model_id == "whitespace":
         return WhitespaceTokenizer()
-    return HuggingFaceTokenizer(model_id)
+    return HuggingFaceTokenizer(model_id, revision)
 
 
 class DocumentTokens:

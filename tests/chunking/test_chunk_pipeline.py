@@ -30,8 +30,10 @@ CHUNKING = {
     "target_tokens": 20,
     "overlap_tokens": 0,
     "tokenizer_id": "whitespace",
+    "tokenizer_revision": "offline-stand-in",
     "min_chunk_tokens": 0,
     "separators": ["\n\n", "\n", ". ", " ", ""],
+    "chunk_abstract": False,
 }
 
 FACTORS = {
@@ -163,6 +165,33 @@ def test_fixed_records_no_separator_levels(
     resolved, manifest_path, data_root = workspace
     report = chunk_one_arm(resolved, "fixed", manifest_path, data_root)
     assert set(report["separator_levels"]) <= {"whole"}
+
+
+def test_chunking_the_abstract_is_refused_rather_than_silently_ignored(
+    workspace: tuple[dict[str, Any], Path, Path],
+) -> None:
+    """The flag is declarative, but it is not decorative.
+
+    Abstracts are parsed and kept for question generation and deliberately stay
+    out of the retrievable corpus. If someone flips the flag expecting that to
+    do something, it has to say no rather than chunk the body anyway and record
+    a chunk-set id that claims abstracts are in there.
+    """
+    resolved, manifest_path, data_root = workspace
+    resolved["base"]["chunking"]["chunk_abstract"] = True
+    with pytest.raises(ValueError, match="chunk_abstract"):
+        chunk_one_arm(resolved, "fixed", manifest_path, data_root)
+
+
+def test_the_chunk_set_id_records_the_tokenizer_revision(
+    workspace: tuple[dict[str, Any], Path, Path],
+) -> None:
+    """A Hub id is mutable; two revisions of it are two different chunk sets."""
+    resolved, manifest_path, data_root = workspace
+    before = chunk_one_arm(resolved, "fixed", manifest_path, data_root)["chunk_set_id"]
+    resolved["base"]["chunking"]["tokenizer_revision"] = "0" * 40
+    after = chunk_one_arm(resolved, "fixed", manifest_path, data_root)["chunk_set_id"]
+    assert after != before
 
 
 def test_missing_parsed_papers_are_reported(

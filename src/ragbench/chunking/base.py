@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, NamedTuple, Protocol
 
 from ..hashing import sha256_text
-from ..tokenizers import DocumentTokens, Tokenizer
+from ..tokenizers import DocumentTokens, Offsets, Tokenizer
 from ..types import Chunk, ParsedPaper
 
 
@@ -32,6 +32,40 @@ class Chunker(Protocol):
 
     def split(self, document: DocumentTokens) -> list[Piece]:
         """Boundaries over ``document.text``, in document order."""
+
+
+def fit_window(
+    text: str, spans: Offsets, index: int, take: int, target: int, tokenizer: Tokenizer
+) -> int:
+    """Largest width <= ``take`` whose emitted text costs at most ``target`` tokens.
+
+    A span of N document tokens does not necessarily cost N tokens once it is
+    sliced out and tokenized on its own. A subword tokenizer charges by where a
+    string *starts*: BAAI/bge-base-en-v1.5 segments "informatics" as
+    ``inform`` + ``##atics``, but the substring "atics" -- the same characters as
+    that second token -- costs ``at`` + ``##ics`` standing alone. So a window cut
+    mid-word re-tokenizes to more tokens than it contains, and a window of
+    exactly ``target`` document tokens can emit ``target + 1``.
+
+    Only a chunker that cuts without consulting a separator can start a window
+    mid-word, which made this an asymmetry between the arms rather than a shared
+    offset: 54 of the fixed arm's 1,586 chunks were 513-514 canonical tokens
+    against a 512 target, and none of the recursive arm's were.
+
+    Callers must resume from the returned width rather than from ``take``, or the
+    trimmed tokens belong to no chunk at all.
+    """
+    start = spans[index][0]
+    while take > 1:
+        emitted = text[start : spans[index + take - 1][1]].strip()
+        excess = tokenizer.count(emitted) - target
+        if excess <= 0:
+            break
+        # Drop at least the overshoot. Overshoot is one or two tokens in
+        # practice, so this converges immediately; undershooting only ever
+        # yields a slightly smaller chunk, never a lost character.
+        take -= max(1, excess)
+    return max(take, 1)
 
 
 def sections_for(paper: ParsedPaper, start: int, end: int) -> tuple[str, ...]:

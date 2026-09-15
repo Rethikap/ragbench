@@ -1,0 +1,71 @@
+# The evaluation set: 20 hand-verified questions over the frozen corpus.
+#
+# Gold passages are CHARACTER SPANS into ParsedPaper.body, never chunk ids. Chunk
+# ids are arm-specific, so per-arm gold labels would make retrieval metrics
+# incomparable across exactly the comparison RQ1 exists to make. Per-arm relevant
+# chunks are derived at eval time by offset overlap. See invariant I5.
+gold:
+  n_questions: 20
+
+  # Passages drafted from, per question wanted. The surplus is what the three
+  # checks and the hand-verification pass consume; quoting a rejection rate
+  # requires having had something to reject.
+  candidate_multiplier: 2
+
+  # One question per paper. Two questions from one paper share its abstract, its
+  # vocabulary and its distractors, so they are not independent measurements of
+  # retrieval -- and with 100 papers there is no reason to accept the correlation.
+  max_per_paper: 1
+
+  # A gold span is one prose paragraph. The bounds are in canonical chunk tokens
+  # (chunking.tokenizer_id), so they are comparable with target_tokens: 512.
+  # Below the floor there is not enough content to ask about; above the ceiling
+  # the span is a section, not a passage, and "did retrieval find it" stops
+  # having a crisp answer.
+  min_passage_tokens: 40
+  max_passage_tokens: 220
+
+  # Sections that are prose but not science. A question about who funded the work
+  # is answerable by retrieval and tells us nothing about retrieving findings.
+  # Matched case-insensitively as substrings of the section title.
+  excluded_section_patterns:
+    - acknowledg
+    - funding
+    - conflict of interest
+    - competing interest
+    - author contribution
+    - data availability
+    - ethic
+    - consent
+    - abbreviation
+    - supplementary
+
+  # How candidates are drafted. `qwen` is the real drafter and the one the frozen
+  # set should come from; `replay:<path>` re-plays drafts recorded elsewhere,
+  # which is how a GPU-drafted or hand-authored set enters the same validation
+  # path; `stand-in` is the offline smoke-test drafter and `gold freeze` refuses
+  # to freeze its output.
+  drafter: replay:configs/gold_drafts.jsonl
+  draft_prompt_id: v1
+
+  # Thresholds for the three mechanical rejection checks. They make rejection
+  # auditable rather than a matter of the annotator's memory; they are a floor,
+  # and every survivor is still read by hand.
+  validation:
+    # 1. Answerable without the passage. An answer whose tokens are not in the
+    #    passage was not drawn from it; an answer with no token rarer than this
+    #    many of the 100 papers says nothing that distinguishes this paper from
+    #    the rest of the corpus, which is what "general knowledge" means here.
+    min_answer_grounding: 0.45
+    max_anchor_df: 25
+    # 3. Answer also in the abstract. Either the answer is restated there, or the
+    #    passage is -- a long shared token n-gram is near-duplicate phrasing,
+    #    which bag-of-words overlap alone cannot distinguish from two paragraphs
+    #    of the same paper simply being about the same thing.
+    max_abstract_overlap: 0.8
+    max_shared_ngram: 10
+
+  # Set by `ragbench gold freeze`. Paste the printed value here to pin the
+  # evaluation set into every config hash, the way manifest_sha pins the corpus.
+  # "unfrozen" is allowed during development but scoring will refuse to run.
+  gold_set_sha: 8a2dc4a591f7

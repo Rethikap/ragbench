@@ -41,7 +41,18 @@ def arm_params(resolved: dict[str, Any], level: str) -> dict[str, Any]:
     except KeyError:
         known = ", ".join(sorted(resolved["factors"]["chunking"]))
         raise ValueError(f"unknown chunking level {level!r}; known: {known}") from None
-    return {**resolved["base"]["chunking"], **override}
+    params = {**resolved["base"]["chunking"], **override}
+    if params.get("chunk_abstract", False):
+        # ParsedPaper.body does not contain the abstract, and gold spans are
+        # character offsets into that stream. Prepending abstracts would shift
+        # every offset in the gold set and hand the specter2 arm the retrieval
+        # task it was trained on. See the comment on chunking.chunk_abstract.
+        raise ValueError(
+            "chunking.chunk_abstract: true is not implemented. Abstracts are kept "
+            "in ParsedPaper.abstract for question generation but are deliberately "
+            "not part of the chunked, retrievable corpus."
+        )
+    return params
 
 
 def chunk_one_arm(
@@ -66,7 +77,7 @@ def chunk_one_arm(
             return {**meta, "reused": True, "directory": directory}
 
     store = ArticleStore(Path(data_root) / "raw_jats", parsed_papers_dir(digest, data_root))
-    tokenizer = load_tokenizer(params["tokenizer_id"])
+    tokenizer = load_tokenizer(params["tokenizer_id"], params["tokenizer_revision"])
     chunker = build_chunker(params["strategy"], params, tokenizer)
 
     all_chunks: list[Chunk] = []
@@ -105,6 +116,7 @@ def chunk_one_arm(
         "parser_version": PARSER_VERSION,
         "chunker_version": CHUNKER_VERSION,
         "tokenizer_id": params["tokenizer_id"],
+        "tokenizer_revision": params["tokenizer_revision"],
         "params": {key: params[key] for key in sorted(params)},
         "n_papers": len(entries),
         "n_chunks": len(all_chunks),

@@ -22,6 +22,7 @@ import pytest
 from ragbench.cli.__main__ import (
     EXIT_CONFIG,
     EXIT_NOT_IMPLEMENTED,
+    EXTRA_COMMANDS,
     HANDLERS,
     STAGES,
     build_parser,
@@ -186,3 +187,25 @@ def test_config_is_required() -> None:
     with pytest.raises(SystemExit) as exit_info:
         build_parser().parse_args(["chunk"])
     assert exit_info.value.code == 2
+
+
+# --------------------------------------------------------------- gold command
+
+
+def test_gold_is_a_command_but_not_a_pipeline_stage() -> None:
+    """The gold set is an input to `retrieve`, built once and frozen like the
+    corpus manifest. Listing it among the stages would imply it is rebuilt per
+    run, which is the thing freezing exists to prevent."""
+    assert "gold" in EXTRA_COMMANDS
+    assert "gold" not in STAGES
+    assert HANDLERS["gold"] is not None
+
+
+def test_gold_offers_build_and_freeze_separately() -> None:
+    """Drafting candidates is repeatable from the seed; deciding which ones are
+    good is not. They are separate subcommands so the irreversible one is an
+    explicit act."""
+    parser = build_parser()
+    gold = _subparser(parser, "gold")
+    actions = {action.dest: action for action in gold._actions}
+    assert set(actions["action"].choices) == {"build", "freeze"}

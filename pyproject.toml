@@ -14,7 +14,6 @@ dependencies = [
     "tenacity>=8.2",
     "psutil>=5.9",
     "numpy>=1.26",
-    "langchain-text-splitters>=0.2",
     "transformers>=4.40",
     "torch>=2.2",
     "sentence-transformers>=3.0",

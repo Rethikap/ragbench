@@ -18,7 +18,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ..tokenizers import DocumentTokens, Tokenizer
-from .base import Piece
+from .base import Piece, fit_window
 
 Span = tuple[int, int]
 
@@ -107,14 +107,30 @@ class RecursiveChunker:
     def _token_split(
         self, document: DocumentTokens, start: int, end: int, level: int
     ) -> list[Piece]:
-        """Last resort: cut on token boundaries inside the span."""
+        """Last resort: cut on token boundaries inside the span.
+
+        The only place this arm can start a piece mid-word, so the only place it
+        can overshoot the target; trimmed the same way the fixed arm is. It does
+        not fire on the frozen corpus -- every recursive chunk comes from a
+        separator level -- but the guarantee should not depend on that.
+        """
         spans = document.spans_in(start, end)
         if not spans:
             return [Piece(start, end, level)]
         pieces: list[Piece] = []
-        for index in range(0, len(spans), self.target):
-            window = spans[index : index + self.target]
+        index = 0
+        while index < len(spans):
+            take = fit_window(
+                document.text,
+                spans,
+                index,
+                min(self.target, len(spans) - index),
+                self.target,
+                self.tokenizer,
+            )
+            window = spans[index : index + take]
             pieces.append(Piece(window[0][0], window[-1][1], level))
+            index += take
         return pieces
 
     @staticmethod

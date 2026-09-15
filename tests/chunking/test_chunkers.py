@@ -19,6 +19,54 @@ from ragbench.types import ParsedPaper, SectionSpan
 SEPARATORS = ["\n\n", "\n", ". ", " ", ""]
 TOKENIZER = WhitespaceTokenizer()
 
+#: A two-piece vocabulary: "mark" may begin a word, "er" may only continue one.
+INITIAL_PIECES = ("mark",)
+CONTINUATION_PIECES = ("er",)
+
+
+class SubwordStandIn:
+    """Greedy longest-match subword tokenizer -- WordPiece's two rules, no more.
+
+    It exists to reproduce offline the one property of BAAI/bge-base-en-v1.5 that
+    the chunkers have to defend against: what a string costs depends on where it
+    starts. "marker" is two tokens in a document (``mark`` + ``er``), but slice
+    out that second token on its own and "er" costs two, because "er" is not a
+    piece that may begin a word. A window of N document tokens can therefore emit
+    more than N once it is sliced out, which is how the fixed arm produced
+    513-token chunks against a 512 target.
+
+    Everything outside the vocabulary is one token per character, which keeps the
+    arithmetic in the tests below checkable by hand.
+    """
+
+    name = "subword-stand-in"
+
+    def offsets(self, text: str) -> list[tuple[int, int]]:
+        spans: list[tuple[int, int]] = []
+        for match in re.finditer(r"\S+", text):
+            cursor = match.start()
+            while cursor < match.end():
+                vocabulary = INITIAL_PIECES if cursor == match.start() else CONTINUATION_PIECES
+                piece = next(
+                    (
+                        candidate
+                        for candidate in vocabulary
+                        if text.startswith(candidate, cursor)
+                        and cursor + len(candidate) <= match.end()
+                    ),
+                    None,
+                )
+                width = len(piece) if piece else 1
+                spans.append((cursor, cursor + width))
+                cursor += width
+        return spans
+
+    def count(self, text: str) -> int:
+        return len(self.offsets(text))
+
+
+SUBWORD = SubwordStandIn()
+
 
 def params(**overrides):
     base = {
@@ -26,8 +74,10 @@ def params(**overrides):
         "target_tokens": 10,
         "overlap_tokens": 0,
         "tokenizer_id": "whitespace",
+        "tokenizer_revision": "offline-stand-in",
         "min_chunk_tokens": 0,
         "separators": SEPARATORS,
+        "chunk_abstract": False,
     }
     return {**base, **overrides}
 
@@ -80,6 +130,60 @@ def test_no_content_is_lost(strategy: str) -> None:
 def test_splitting_is_deterministic(strategy: str) -> None:
     chunker = build_chunker(strategy, params(strategy=strategy), TOKENIZER)
     assert chunker.split(document(PARAGRAPHS)) == chunker.split(document(PARAGRAPHS))
+
+
+@pytest.mark.parametrize("strategy", ["fixed", "recursive"])
+def test_no_chunk_exceeds_the_target_under_a_subword_tokenizer(strategy: str) -> None:
+    """The regression: a window cut mid-word must be trimmed, not emitted over-long.
+
+    Slicing exactly ``target_tokens`` document tokens is not enough, because a
+    word fragment costs more standing alone than it does in context. Only the
+    fixed arm could hit this on the frozen corpus -- 54 of its 1,586 chunks came
+    out at 513-514 canonical tokens -- but both arms are asserted, because the
+    recursive arm's token-level fallback cuts the same way.
+    """
+    text = "a b c marker d e f g h marker i j"
+    chunker = build_chunker(
+        strategy,
+        params(strategy=strategy, target_tokens=4, tokenizer_id="subword-stand-in"),
+        SUBWORD,
+    )
+    for piece in chunker.split(DocumentTokens(text, SUBWORD)):
+        emitted = text[piece.char_start : piece.char_end].strip()
+        assert SUBWORD.count(emitted) <= 4, f"{emitted!r} costs {SUBWORD.count(emitted)}"
+
+
+@pytest.mark.parametrize("strategy", ["fixed", "recursive"])
+def test_trimming_a_window_does_not_drop_its_tail(strategy: str) -> None:
+    """Trim and resume, never trim and skip.
+
+    Shrinking a window without resuming from the trim point would leave the
+    dropped tokens in no chunk at all -- a quieter bug than the one being fixed,
+    because the chunk lengths would then look right.
+    """
+    text = "a b c marker d e f g h marker i j"
+    chunker = build_chunker(
+        strategy,
+        params(strategy=strategy, target_tokens=4, tokenizer_id="subword-stand-in"),
+        SUBWORD,
+    )
+    pieces = chunker.split(DocumentTokens(text, SUBWORD))
+    rebuilt = "".join(text[p.char_start : p.char_end] for p in pieces)
+    assert re.sub(r"\s+", "", rebuilt) == re.sub(r"\s+", "", text)
+
+
+def test_fixed_trims_the_window_that_starts_mid_word() -> None:
+    """The arithmetic, on the smallest case that shows it.
+
+    Document tokens are a, b, c, mark, er, d, e, f, g. With target 4 the second
+    window is spans[4:8] = "er d e f", which re-tokenizes to e, r, d, e, f = 5.
+    It has to give a token back, and that token has to start the next chunk.
+    """
+    text = "a b c marker d e f g"
+    pieces = FixedChunker(
+        params(target_tokens=4, tokenizer_id="subword-stand-in"), SUBWORD
+    ).split(DocumentTokens(text, SUBWORD))
+    assert chunk_texts(text, pieces) == ["a b c mark", "er d e", "f g"]
 
 
 def test_unknown_strategy_is_rejected() -> None:

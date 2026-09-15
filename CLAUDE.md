@@ -53,10 +53,10 @@ chunking and embedding non-orthogonal, and destroy the factorial design.
 
 Two tokenizers exist in this project and they are never interchangeable:
 
-| Tokenizer | Config key | Role |
-|---|---|---|
-| `BAAI/bge-base-en-v1.5` | `chunking.tokenizer_id` | Draws chunk boundaries. Fixed across all 8 runs. |
-| `Qwen/Qwen2.5-7B-Instruct` | `retrieval.budget_tokenizer_id` | Measures the context budget. Fixed across all 8 runs. |
+| Tokenizer | Config keys | Pinned revision | Role |
+|---|---|---|---|
+| `BAAI/bge-base-en-v1.5` | `chunking.tokenizer_id` / `.tokenizer_revision` | `a5beb1e3e68b9ab74eb54cfd186867f64f240e1a` | Draws chunk boundaries. Fixed across all 8 runs. |
+| `Qwen/Qwen2.5-7B-Instruct` | `retrieval.budget_tokenizer_id` / `.budget_tokenizer_revision` | `a09a35458c702b33eeacc393d103063234e8bc28` | Measures the context budget. Fixed across all 8 runs. |
 
 ### I3 — One hashing path
 
@@ -70,6 +70,34 @@ Corpus selection queries NCBI **once**, then writes a manifest whose digest is p
 `configs/corpus.yaml` as `manifest_sha`. PMC grows continuously, so an unpinned query is
 not reproducible. After freezing, every stage reads the manifest and **never queries NCBI
 again**.
+
+### I5 — Gold labels are character spans, never chunk ids
+
+A gold passage is `(pmcid, char_start, char_end)` into `ParsedPaper.body`, plus the
+question, the answer and the section it came from. It is **never** a chunk id.
+
+Chunk ids are arm-specific. `PMC10045805-0007` names different text in the `fixed` and
+`recursive` chunk sets, so a gold set labelled with chunk ids would be two different gold
+sets wearing one name, and the RQ1 comparison it exists to support would be comparing each
+arm against its own private notion of correct. The body stream is the one representation
+both arms share, which is exactly why the labels live there.
+
+Per-arm relevant chunks are **derived at eval time** by offset overlap against whichever
+chunk set is loaded. Nothing persists them.
+
+> A function that stores, caches or accepts a gold chunk id is a bug, however convenient.
+
+The primary retrieval metric is **span coverage**: the fraction of a gold span's characters
+present in the retrieved context. Recall@k and nDCG@10 are secondary and reported for
+comparability with the literature, not relied on. Their denominator is the number of
+chunks *that arm* needs to hold the span, so the two arms are not asked the same question —
+and which arm the bias favours is not fixed, it follows whichever arm's boundaries align
+with the unit the gold spans were drawn from. Measured on this corpus: gold spans are prose
+paragraphs, the recursive arm splits on paragraphs, so recursive covers all 20 spans in one
+chunk while fixed needs two for 6 of them. Here Recall@k flatters the *finer* arm; sample
+the spans differently and it would flatter the coarser one. Span coverage is
+granularity-neutral by construction: it asks whether the generator can see the answer,
+which is the thing retrieval is for.
 
 ---
 
@@ -100,6 +128,13 @@ Pipeline stages, in order:
 ingest → chunk → index → retrieve → generate → judge → report
 ```
 
+`gold` is a command, not a stage. The evaluation set — 20 hand-verified questions with
+character-span labels ([`configs/gold.yaml`](configs/gold.yaml), pinned by `gold_set_sha`) —
+is an *input* to `retrieve`, built once and frozen the way the corpus manifest is. Making it
+a stage would imply it is rebuilt per run, which is what freezing exists to prevent. It is
+also why `resolve_config` reads four files, not three: a result scored against a different
+set of questions is a different result, however identical every other setting.
+
 ---
 
 ## Parse policy
@@ -113,7 +148,13 @@ Applied during `ingest` when converting JATS XML to `ParsedPaper.body`:
 - **Display equations** → replace with `[EQUATION]`.
 - **Inline math** → keep as plain-text / LaTeX source, inline in the body stream. Do not
   placeholder it; it carries meaning mid-sentence.
-- **Keep** the abstract.
+- **Keep** the abstract — in `ParsedPaper.abstract`, which is *not* part of the body
+  stream and is *not* chunked (`chunking.chunk_abstract: false`). Abstracts exist here to
+  draft questions from and to check drafted questions against; they are not retrievable.
+  An abstract near-duplicates its own body, so indexing both would put two correct
+  passages in the index for one gold span, and abstract-level retrieval is specter2's
+  training task, which would favour one embedding arm for reasons unrelated to the
+  experiment.
 
 The `body` is a single concatenated stream; `ParsedPaper.sections` maps back into it by
 character offset. Both chunkers operate on that one stream.
@@ -140,9 +181,34 @@ length. These numbers get reported — they are evidence the corpus is what it c
   re-running it continues rather than restarting.
 - Each stage writes into a run/cache directory whose name derives from the resolved config
   hash, and dumps the resolved config next to its outputs. A run is self-describing.
-- **Network access happens only in `ingest`**, and only under the `network` pytest marker.
-  Nothing downstream may touch the network — if a later stage needs data, it came from the
-  manifest or a cache.
+- **Network access comes in two categories, governed by different rules.** Conflating
+  them is how an experiment stops being reproducible while every stage still looks
+  well-behaved.
+
+  **Data fetches** (NCBI esearch/efetch) happen **only in `ingest`**, and only under the
+  `network` pytest marker. Nothing downstream may touch the network for data — if a later
+  stage needs a paper, it came from the manifest or a cache. The corpus is a frozen set of
+  facts and freezing it is what makes it reproducible (I4).
+
+  **Model-artefact fetches** (tokenizers, embedding and reranking checkpoints, the
+  generator) are *not* confined to `ingest`. They happen wherever a model is first needed,
+  they are cached by the HF hub, and they are *expected* to happen again on Kaggle or
+  Colab, where nothing local is present. So what makes them reproducible is not *when*
+  they happen but *what they resolve to*:
+
+  - **Pin a revision, never a bare id.** A Hub id is a mutable pointer: the repo behind
+    `BAAI/bge-base-en-v1.5` can gain a commit, and a tokenizer that re-segments one word
+    re-chunks the corpus. Every model artefact is addressed by `<thing>_id` **and**
+    `<thing>_revision`, the 40-character commit sha. `HuggingFaceTokenizer` refuses to
+    construct without one rather than defaulting to `main`.
+  - **A revision that can change an artefact belongs in that artefact's cache key.**
+    `chunking.tokenizer_revision` is in `CHUNKING_KEY_FIELDS`, so re-pinning it builds a
+    new chunk set instead of silently re-drawing the boundaries under the old id.
+  - The two pinned tokenizers are in the I2 table above. `embedding.model_id`,
+    `rerank.model_id` and `generation.model_id` must each gain a `_revision` — and
+    `index_key` must key on it — when those stages are built.
+  - A model fetch still never happens on the CPU smoke path: the stand-ins (`whitespace`
+    and friends) are selected by id and download nothing.
 
 ---
 

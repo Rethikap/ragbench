@@ -12,8 +12,31 @@ chunking:
   # embedder-independent. This is what makes the design a clean factorial: two
   # chunk sets, not four. Do not point this at the embedding model.
   tokenizer_id: BAAI/bge-base-en-v1.5
+  # A Hub id is a mutable pointer; the revision is the reproducible thing.
+  # Chunk boundaries are a function of how this tokenizer segments text, so an
+  # unpinned id would let the corpus re-chunk itself between this laptop and
+  # Kaggle without anything in the config changing.
+  tokenizer_revision: a5beb1e3e68b9ab74eb54cfd186867f64f240e1a
   min_chunk_tokens: 0        # 0 = keep tail chunks and report the distribution honestly
   separators: ["\n\n", "\n", ". ", " ", ""]
+
+  # Abstracts are parsed and kept (corpus.keep_abstract) but are NOT chunked,
+  # so they are not retrievable. Three reasons, in order of how much they matter:
+  #
+  #  1. An abstract restates its own body. Chunking both puts two correct
+  #     passages in the index for one gold span, so a retrieval hit on the
+  #     abstract scores as a miss against a body-span label -- the metric would
+  #     be measuring a labelling artefact rather than retrieval quality.
+  #  2. Abstract-level retrieval is precisely what specter2 was trained on
+  #     (citation proximity over titles + abstracts). Indexing abstracts would
+  #     hand one embedding arm a home-field advantage that has nothing to do
+  #     with the question this experiment asks.
+  #  3. Gold spans are character offsets into ParsedPaper.body. An abstract is
+  #     not in that stream, so a chunk drawn from one has no offset to overlap.
+  #
+  # Only `false` is implemented; the key exists to state the decision and to
+  # pin it into the chunk-set cache key.
+  chunk_abstract: false
 
 embedding:
   # name / model_id / adapter_id / query_instruction come from the factor level
@@ -30,6 +53,7 @@ retrieval:
   depth: 30                       # dense candidates pulled from Chroma before reranking
   context_token_budget: 2000      # THE controlled variable: constant tokens, not constant k
   budget_tokenizer_id: Qwen/Qwen2.5-7B-Instruct   # budget is measured in generator tokens
+  budget_tokenizer_revision: a09a35458c702b33eeacc393d103063234e8bc28
   fill_policy: stop_at_overflow   # never truncate a chunk; stop at the first that will not fit
 
 generation:

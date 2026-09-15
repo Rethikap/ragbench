@@ -2,7 +2,8 @@
 
 Seven stages run in order; each resolves the same config and derives its own
 output directory from the config digest, so results can never be mixed between
-incomparable configurations.
+incomparable configurations. `gold` sits alongside them rather than among them,
+because the evaluation set is an input to the pipeline, not a step in it.
 
 Note the flag vocabulary: there is deliberately no way to say "retrieve N chunks
 for the generator". See :func:`_add_retrieval_options`.
@@ -24,7 +25,7 @@ from ..config import (
     resolve_config,
     run_dir,
 )
-from . import chunk_cmd, ingest_cmd, report_cmd
+from . import chunk_cmd, gold_cmd, ingest_cmd, report_cmd
 
 STAGES: tuple[str, ...] = (
     "ingest",
@@ -35,6 +36,15 @@ STAGES: tuple[str, ...] = (
     "judge",
     "report",
 )
+
+#: Subcommands that are not pipeline stages. The gold set is an *input* to
+#: `retrieve`, built once and frozen like the corpus manifest; listing it in
+#: STAGES would imply it is rebuilt per run, which is what freezing prevents.
+EXTRA_COMMANDS: tuple[str, ...] = ("gold",)
+
+COMMAND_HELP: dict[str, str] = {
+    "gold": "build and freeze the character-span gold set used to score retrieval",
+}
 
 STAGE_HELP: dict[str, str] = {
     "ingest": "fetch and parse the frozen PMC corpus into ParsedPaper records",
@@ -58,12 +68,14 @@ HANDLERS: dict[str, Handler | None] = dict.fromkeys(STAGES)
 HANDLERS["ingest"] = ingest_cmd.run
 HANDLERS["chunk"] = chunk_cmd.run
 HANDLERS["report"] = report_cmd.run
+HANDLERS["gold"] = gold_cmd.run
 
 #: Extra options registered per stage, beyond the common ones.
 STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "ingest": ingest_cmd.add_options,
     "chunk": chunk_cmd.add_options,
     "report": report_cmd.add_options,
+    "gold": gold_cmd.add_options,
 }
 
 
@@ -73,8 +85,8 @@ def _add_common_options(parser: argparse.ArgumentParser) -> None:
         type=Path,
         required=True,
         metavar="PATH",
-        help="path to configs/base.yaml; corpus.yaml and factors.yaml are read from "
-        "the same directory",
+        help="path to configs/base.yaml; corpus.yaml, factors.yaml and gold.yaml are "
+        "read from the same directory",
     )
     parser.add_argument(
         "--runs-root",
@@ -125,13 +137,14 @@ def build_parser() -> argparse.ArgumentParser:
         description="Controlled 2x2x2 factorial benchmark of RAG design choices.",
     )
     parser.add_argument("--version", action="version", version=f"ragbench {__version__}")
-    subparsers = parser.add_subparsers(dest="stage", metavar="STAGE", required=True)
+    subparsers = parser.add_subparsers(dest="stage", metavar="COMMAND", required=True)
 
-    for stage in STAGES:
+    for stage in (*STAGES, *EXTRA_COMMANDS):
+        help_text = STAGE_HELP.get(stage) or COMMAND_HELP[stage]
         subparser = subparsers.add_parser(
             stage,
-            help=STAGE_HELP[stage],
-            description=STAGE_HELP[stage].capitalize() + ".",
+            help=help_text,
+            description=help_text.capitalize() + ".",
         )
         _add_common_options(subparser)
         if stage == "retrieve":

@@ -34,8 +34,14 @@ CHUNKING_KEY_FIELDS: tuple[str, ...] = (
     "target_tokens",
     "overlap_tokens",
     "tokenizer_id",
+    # The revision, not just the id: the id is a mutable Hub pointer, and a
+    # tokenizer that re-segments one word re-draws the boundaries around it.
+    "tokenizer_revision",
     "min_chunk_tokens",
     "separators",
+    # Whether abstracts enter the chunked corpus at all. Only `false` is
+    # implemented, but it decides what is in the chunk set, so it is keyed.
+    "chunk_abstract",
 )
 
 

@@ -29,17 +29,30 @@ def _write_config_set(directory: Path, schema_version: int = 1) -> Path:
     (directory / "factors.yaml").write_text(
         "factors:\n  rerank:\n    off:\n      enabled: false\n", encoding="utf-8"
     )
+    (directory / "gold.yaml").write_text(
+        "gold:\n  n_questions: 2\n  gold_set_sha: unfrozen\n", encoding="utf-8"
+    )
     return base
 
 
 # --------------------------------------------------------------------- resolution
 
 
-def test_resolve_reads_all_three_files() -> None:
+def test_resolve_reads_every_config_file() -> None:
     resolved = resolve_config(BASE_CONFIG)
-    assert set(resolved) == {"schema_version", "base", "corpus", "factors"}
+    assert set(resolved) == {"schema_version", "base", "corpus", "factors", "gold"}
     assert resolved["corpus"]["db"] == "pmc"
     assert set(resolved["factors"]) == {"chunking", "embedding", "rerank"}
+    assert resolved["gold"]["n_questions"] == 20
+
+
+def test_the_gold_set_is_pinned_into_the_run_id() -> None:
+    """Results scored against a different set of questions are different results,
+    however identical every other setting is."""
+    resolved = resolve_config(BASE_CONFIG)
+    before = run_key(resolved)
+    resolved["gold"]["gold_set_sha"] = "0123456789ab"
+    assert run_key(resolved) != before
 
 
 def test_factors_describe_a_2x2x2_design() -> None:

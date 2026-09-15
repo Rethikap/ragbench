@@ -31,6 +31,14 @@ PLACEHOLDER = re.compile(r"\[TABLE:|\[EQUATION\]")
 
 PERCENTILES = (10, 25, 50, 75, 90)
 
+#: Canonical-token thresholds for the tiny-chunk census. `min_chunk_tokens: 0`
+#: keeps short tail chunks instead of merging them into a neighbour. Merging
+#: would make a chunk's boundaries depend on the size of the chunk before it --
+#: a second, undeclared chunking rule that neither factor level asked for, and
+#: one that would bite the two arms unequally. The honest alternative is to keep
+#: them and say how many there are, which is what this counts.
+TINY_THRESHOLDS = (10, 25, 50, 100)
+
 
 def distribution(values: list[int]) -> dict[str, float]:
     if not values:
@@ -84,6 +92,28 @@ def budget_fill(costs: list[int], budget: int, seed: int, trials: int) -> dict[s
     }
 
 
+def tiny_census(chunks: list[Chunk], last_index: dict[str, int]) -> dict[str, Any]:
+    """How many chunks are short, and how many of those are a paper's last chunk.
+
+    The split matters: a short *final* chunk is the arithmetic remainder of a
+    body that did not divide evenly and is expected in both arms. A short
+    *mid-body* chunk is the chunker leaving a stub behind, which only the
+    recursive arm can do -- a paragraph shorter than the target that could not be
+    packed with its neighbour.
+    """
+    rows: dict[str, Any] = {}
+    for threshold in TINY_THRESHOLDS:
+        small = [chunk for chunk in chunks if chunk.n_tokens < threshold]
+        final = sum(1 for chunk in small if chunk.chunk_index == last_index[chunk.pmcid])
+        rows[f"under_{threshold}"] = {
+            "n": len(small),
+            "share": round(len(small) / len(chunks), 4) if chunks else 0.0,
+            "final_chunk_of_paper": final,
+            "mid_body": len(small) - final,
+        }
+    return rows
+
+
 def _arm_report(
     level: str,
     directory: Path,
@@ -120,6 +150,8 @@ def _arm_report(
         "chars": distribution([len(c.text) for c in chunks]),
         "budget_tokens": distribution(budget_costs),
         "separator_levels": meta.get("separator_levels", {}),
+        "over_target": sum(1 for c in chunks if c.n_tokens > meta["params"]["target_tokens"]),
+        "tiny": tiny_census(chunks, last_index),
         "budget_fill": budget_fill(budget_costs, budget, seed, trials),
         "mid_sentence": {
             "n": len(truncated),
@@ -142,7 +174,9 @@ def build_report(
     digest = str(corpus.get("manifest_sha", ""))
     retrieval = resolved["base"]["retrieval"]
     budget = int(retrieval["context_token_budget"])
-    budget_tokenizer = load_tokenizer(retrieval["budget_tokenizer_id"])
+    budget_tokenizer = load_tokenizer(
+        retrieval["budget_tokenizer_id"], retrieval["budget_tokenizer_revision"]
+    )
     seed = int(resolved["base"]["seed"])
 
     arms: list[dict[str, Any]] = []
@@ -164,6 +198,8 @@ def build_report(
             "context_token_budget": budget,
             "budget_tokenizer_id": retrieval["budget_tokenizer_id"],
             "chunk_tokenizer_id": resolved["base"]["chunking"]["tokenizer_id"],
+            "target_tokens": int(resolved["base"]["chunking"]["target_tokens"]),
+            "min_chunk_tokens": int(resolved["base"]["chunking"]["min_chunk_tokens"]),
             "fill_policy": retrieval["fill_policy"],
         },
         "arms": arms,

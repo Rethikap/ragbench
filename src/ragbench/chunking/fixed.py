@@ -3,6 +3,12 @@
 The simplest possible boundary rule, and the control arm of the chunking factor:
 it ignores document structure entirely and cuts every ``target_tokens`` tokens,
 wherever that lands.
+
+"Wherever that lands" includes the middle of a word, and a window cut mid-word
+re-tokenizes to more tokens than it contains -- see :func:`~.base.fit_window`.
+Each window is therefore trimmed until the text it emits fits, and the next
+window resumes from the trim point, so the arm both respects the target and
+still tiles the body.
 """
 
 from __future__ import annotations
@@ -11,7 +17,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ..tokenizers import DocumentTokens, Tokenizer
-from .base import Piece
+from .base import Piece, fit_window
 
 
 class FixedChunker:
@@ -30,15 +36,22 @@ class FixedChunker:
         spans = document.spans
         if not spans:
             return []
-        step = self.target - self.overlap
         pieces: list[Piece] = []
-        for start_index in range(0, len(spans), step):
-            window = spans[start_index : start_index + self.target]
-            if not window:
-                break
+        index = 0
+        while index < len(spans):
+            take = fit_window(
+                document.text,
+                spans,
+                index,
+                min(self.target, len(spans) - index),
+                self.target,
+                self.tokenizer,
+            )
+            window = spans[index : index + take]
             # separator_level is None throughout: this strategy never consults
             # the separator hierarchy, which is what makes it the control arm.
             pieces.append(Piece(window[0][0], window[-1][1], None))
-            if start_index + self.target >= len(spans):
-                break
+            # Advance by what was emitted, not by the untrimmed target: the
+            # overlap stays exactly overlap_tokens and no token is skipped.
+            index += max(1, take - self.overlap)
         return pieces

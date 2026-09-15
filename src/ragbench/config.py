@@ -1,13 +1,14 @@
 """Config resolution and run-directory derivation.
 
-`--config` points at ``configs/base.yaml``; its siblings ``corpus.yaml`` and
-``factors.yaml`` are read from the same directory. The three files are one
-logical config split for editing convenience, and a run id is only meaningful if
-all three are pinned -- so they are resolved together, once, at CLI entry.
+`--config` points at ``configs/base.yaml``; its siblings ``corpus.yaml``,
+``factors.yaml`` and ``gold.yaml`` are read from the same directory. The four
+files are one logical config split for editing convenience, and a run id is only
+meaningful if all of them are pinned -- so they are resolved together, once, at
+CLI entry.
 
 The resolved mapping is the sole input to the run id, which means changing any
-of them (including freezing ``manifest_sha``) yields a different run directory
-rather than silently overwriting incomparable results.
+of them (including freezing ``manifest_sha`` or ``gold_set_sha``) yields a
+different run directory rather than silently overwriting incomparable results.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from .hashing import canonical_json
 
 CORPUS_FILENAME = "corpus.yaml"
 FACTORS_FILENAME = "factors.yaml"
+GOLD_FILENAME = "gold.yaml"
 MANIFEST_FILENAME = "corpus_manifest.jsonl"
 RESOLVED_FILENAME = "resolved_config.json"
 DEFAULT_RUNS_ROOT = Path("runs")
@@ -82,7 +84,7 @@ def _validate_factors(factors: dict[str, Any], path: Path) -> dict[str, Any]:
 
 
 def resolve_config(base_path: Path) -> dict[str, Any]:
-    """Load base + corpus + factors into one mapping.
+    """Load base + corpus + factors + gold into one mapping.
 
     No merging of factor levels happens here: this is the *shared* config that
     all 8 runs agree on. Expanding the Cartesian product is the caller's job.
@@ -99,6 +101,7 @@ def resolve_config(base_path: Path) -> dict[str, Any]:
     directory = base_path.parent
     corpus_path = directory / CORPUS_FILENAME
     factors_path = directory / FACTORS_FILENAME
+    gold_path = directory / GOLD_FILENAME
     return {
         "schema_version": CONFIG_SCHEMA_VERSION,
         "base": base,
@@ -106,6 +109,10 @@ def resolve_config(base_path: Path) -> dict[str, Any]:
         "factors": _validate_factors(
             _section(_load_yaml(factors_path), "factors", factors_path), factors_path
         ),
+        # The evaluation set is pinned into the run id for the same reason the
+        # corpus is: results scored against a different set of questions are not
+        # the same results, however identical every other setting.
+        "gold": _section(_load_yaml(gold_path), "gold", gold_path),
     }
 
 
@@ -123,6 +130,15 @@ def parsed_papers_dir(manifest_sha: str, root: Path = DEFAULT_DATA_ROOT) -> Path
 def chunk_set_dir(chunk_set_id: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
     """One chunk set. There are exactly two of these across the 8 runs."""
     return Path(root) / "chunks" / chunk_set_id
+
+
+def gold_candidates_dir(manifest_sha: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
+    """Working directory for drafted candidates, before any are verified.
+
+    Under ``data/`` because it is regenerable from the seed and the drafter; the
+    *verified* set is not, and lands in ``configs/`` instead.
+    """
+    return Path(root) / "gold" / parsed_papers_key(manifest_sha)
 
 
 def raw_xml_dir(root: Path = DEFAULT_DATA_ROOT) -> Path:

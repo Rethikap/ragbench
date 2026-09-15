@@ -123,12 +123,15 @@ def built(tmp_path: Path) -> tuple[dict[str, Any], Path]:
                 "target_tokens": 20,
                 "overlap_tokens": 0,
                 "tokenizer_id": "whitespace",
+                "tokenizer_revision": "offline-stand-in",
                 "min_chunk_tokens": 0,
+                "chunk_abstract": False,
                 "separators": ["\n\n", "\n", ". ", " ", ""],
             },
             "retrieval": {
                 "context_token_budget": 100,
                 "budget_tokenizer_id": "whitespace",
+                "budget_tokenizer_revision": "offline-stand-in",
                 "fill_policy": "stop_at_overflow",
             },
         },
@@ -165,6 +168,26 @@ def test_every_arm_reports_the_required_sections(built: tuple[dict[str, Any], Pa
         assert "mid_sentence" in arm
         assert "placeholders" in arm
         assert arm["placeholders"]["n_chunks_with_placeholder"] >= 1
+        assert arm["over_target"] == 0
+        assert set(arm["tiny"]) == {"under_10", "under_25", "under_50", "under_100"}
+        for row in arm["tiny"].values():
+            assert row["n"] == row["final_chunk_of_paper"] + row["mid_body"]
+
+
+def test_no_arm_exceeds_the_token_target(built: tuple[dict[str, Any], Path]) -> None:
+    """The measurement the 513-token defect would have shown.
+
+    A chunk longer than target_tokens is not a rounding artefact: it is one arm
+    quietly getting a larger unit of retrieval than the other, which is the
+    thing the chunking factor is supposed to be varying deliberately.
+    """
+    from ragbench.chunking.pipeline import load_chunks
+
+    resolved, data_root = built
+    target = resolved["base"]["chunking"]["target_tokens"]
+    for arm in build_report(resolved, data_root, trials=50)["arms"]:
+        for chunk in load_chunks(arm["directory"]):
+            assert chunk.n_tokens <= target
 
 
 def test_unbuilt_chunk_set_is_a_clean_error(tmp_path: Path) -> None:
@@ -175,12 +198,15 @@ def test_unbuilt_chunk_set_is_a_clean_error(tmp_path: Path) -> None:
                 "target_tokens": 20,
                 "overlap_tokens": 0,
                 "tokenizer_id": "whitespace",
+                "tokenizer_revision": "offline-stand-in",
                 "min_chunk_tokens": 0,
+                "chunk_abstract": False,
                 "separators": [" ", ""],
             },
             "retrieval": {
                 "context_token_budget": 100,
                 "budget_tokenizer_id": "whitespace",
+                "budget_tokenizer_revision": "offline-stand-in",
                 "fill_policy": "stop_at_overflow",
             },
         },

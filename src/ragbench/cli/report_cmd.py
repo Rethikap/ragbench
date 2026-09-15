@@ -1,4 +1,4 @@
-"""The `report` subcommand. Currently one topic: `chunks`."""
+"""The `report` subcommand. Two topics: `chunks` and `gold`."""
 
 from __future__ import annotations
 
@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from ..config import DEFAULT_DATA_ROOT
+from ..gold.freeze import GoldSetError
+from ..report import gold as gold_report
 from ..report.chunks import build_report
 
 EXIT_DATA = 5
-TOPICS = ("chunks",)
+TOPICS = ("chunks", "gold")
 
 
 def add_options(parser: argparse.ArgumentParser) -> None:
@@ -29,14 +31,21 @@ def add_options(parser: argparse.ArgumentParser) -> None:
         default=20000,
         metavar="N",
         help="random fills used to estimate how many chunks a budget holds "
-        "(default: %(default)s)",
+        "(default: %(default)s); `chunks` topic only",
     )
 
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
-        report = build_report(resolved, args.data_root, trials=args.trials)
-    except (ValueError, KeyError) as exc:
+        if args.topic == "gold":
+            report = gold_report.build_report(
+                resolved, Path(args.config).parent, args.data_root
+            )
+            rendered = render_gold(report)
+        else:
+            report = build_report(resolved, args.data_root, trials=args.trials)
+            rendered = render(report, resolved)
+    except (ValueError, KeyError, GoldSetError) as exc:
         print(f"ragbench: {exc}")
         return EXIT_DATA
 
@@ -44,9 +53,91 @@ def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> 
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8", newline="")
 
-    print(render(report, resolved))
+    print(rendered)
     print(f"\nJSON artefact: {target}")
     return 0
+
+
+def render_gold(report: dict[str, Any]) -> str:
+    levels = list(report["arms"])
+    lines: list[str] = []
+    add = lines.append
+
+    add("=" * 100)
+    add("GOLD SET")
+    add(f"  gold_set_sha        : {report['gold_set_sha']}")
+    add(f"  corpus manifest_sha : {report['manifest_sha']}")
+    add(
+        f"  {report['n_questions']} questions from {report['n_papers']} papers"
+        f"   (span length: median {report['span_chars']['median']:.0f} chars,"
+        f" {report['span_chars']['min']}-{report['span_chars']['max']})"
+    )
+    add("=" * 100)
+
+    add("")
+    header = f"  {'id':<5} {'pmcid':<12} {'span':>14} {'chars':>6}"
+    for level in levels:
+        header += f" {level[:9]:>9}"
+    add(header + "   section")
+    add(
+        f"  {'':<5} {'':<12} {'':>14} {'':>6}"
+        + "".join(f" {'chunks':>9}" for _ in levels)
+        + "   (to cover the span)"
+    )
+    for question in report["questions"]:
+        gold = question["gold"]
+        row = (
+            f"  {question['query_id']:<5} {gold['pmcid']:<12}"
+            f" {gold['char_start']:>6}-{gold['char_end']:<7}"
+            f" {question['span_chars']:>6}"
+        )
+        for level in levels:
+            row += f" {question['cover'][level]['n_chunks_to_cover']:>9}"
+        add(row + f"   {(gold['section'] or '(untitled)')[:34]}")
+    add("")
+    add("--- QUESTIONS")
+    for question in report["questions"]:
+        add(f"  [{question['query_id']}] {question['question']}")
+        add(f"        -> {question['reference_answer']}")
+
+    add("")
+    add("--- SELECTION")
+    selection = report["selection"]
+    add(f"  drafted    {selection['n_candidates']}")
+    add(f"  accepted   {selection['n_accepted']}")
+    add(f"  rejected   {selection['n_rejected']}  (auto: {selection['n_auto_rejected']})")
+    for reason, count in selection["rejected_by_reason"].items():
+        add(f"    {reason:<36} {count}")
+        for note in selection["notes"].get(reason, []):
+            add(f"        {note}")
+    add(f"  drafted by {'; '.join(selection['drafters'])}")
+
+    add("")
+    add("--- CHUNKS EACH ARM MUST RETRIEVE TO COVER A GOLD SPAN")
+    add("  The denominator Recall@k divides by, and the reason it is not the primary metric.")
+    for level, arm in report["arms"].items():
+        stats = arm["chunks_to_cover"]
+        add("")
+        add(f"  {level} ({arm['strategy']}, {arm['n_chunks']:,} chunks)")
+        add(
+            f"    chunks per span   mean {stats['mean']:.2f}  median {stats['median']:.1f}"
+            f"  min {stats['min']}  max {stats['max']}"
+        )
+        add(
+            "    histogram         "
+            + "  ".join(f"{k} chunk(s): {v}" for k, v in arm["histogram"].items())
+        )
+        add(
+            f"    spans needing >1  {arm['spans_needing_more_than_one_chunk']}"
+            f"/{report['n_questions']}"
+        )
+        add(f"    mean max coverage {arm['mean_max_coverage']}")
+        add(
+            f"    context cost      median {arm['covering_chunk_tokens']['median']:.0f}"
+            f" canonical tokens to hold a full span"
+        )
+    add("=" * 100)
+    return "\n".join(lines)
 
 
 def _row(label: str, stats: dict[str, Any]) -> str:
@@ -121,6 +212,23 @@ def render(report: dict[str, Any], resolved: dict[str, Any]) -> str:
                 add(f"    {label:<28} {count:>6}  {share:5.1f}%")
         else:
             add("  separator levels: n/a (fixed windows never consult the hierarchy)")
+
+        add("")
+        tiny = arm["tiny"]
+        add(
+            f"  chunks over the {budget['target_tokens']}-token target"
+            f"   {arm['over_target']:>6}   (must be 0)"
+        )
+        add(
+            f"  short chunks (min_chunk_tokens: {budget['min_chunk_tokens']}"
+            " -- kept, never merged):"
+        )
+        for key, row in tiny.items():
+            label = f"under {key.removeprefix('under_')} tokens"
+            add(
+                f"    {label:<28} {row['n']:>6}  {row['share'] * 100:5.1f}%"
+                f"   (paper-final {row['final_chunk_of_paper']}, mid-body {row['mid_body']})"
+            )
 
         add("")
         mid = arm["mid_sentence"]
