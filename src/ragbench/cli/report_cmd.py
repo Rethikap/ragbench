@@ -45,7 +45,9 @@ def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> 
             candidates = load_candidates(working)
             if not candidates:
                 raise ValueError(f"no candidates in {working}; run `ragbench gold build` first")
-            report = gold_report.build_report(resolved, candidates, args.data_root)
+            report = gold_report.build_report(
+                resolved, candidates, args.data_root, trials=max(1, args.trials // 1000)
+            )
             rendered = render_gold(report)
         else:
             report = build_report(resolved, args.data_root, trials=args.trials)
@@ -123,6 +125,43 @@ def render_gold(report: dict[str, Any]) -> str:
         for note in selection["notes"].get(reason, []):
             add(f"        {note}")
     add(f"  drafted by {'; '.join(selection['drafters'])}")
+
+    add("")
+    add("--- WHAT ELSE IS IN THE WINDOW")
+    budget = report["budget"]
+    add(
+        f"  Filled to {budget['context_token_budget']} generator tokens"
+        f" ({budget['fill_policy']}); gold chunk at rank 1, remaining slots drawn at random."
+    )
+    add("  Ranking quality is held fixed. What varies is the geometry each arm imposes.")
+    add("")
+    add(
+        f"    {'':<12}{'density':>9}{'distract':>9}{'chunks':>8}{'tokens':>8}"
+        f"{'recall@10':>11}{'nDCG@10':>9}"
+    )
+    for level, arm in report["arms"].items():
+        window = arm["window"]
+        add(
+            f"    {level:<12}{window['mean_evidence_density'] * 100:>8.2f}%"
+            f"{window['mean_distractor_count']:>9.1f}"
+            f"{window['chunks_in_window']['mean']:>8.1f}"
+            f"{window['tokens_used']['mean']:>8.0f}"
+            f"{window['recall_at_10']:>11.2f}{window['ndcg_at_10']:>9.2f}"
+        )
+    add("")
+    add("  generator tokens before the gold chunk, if a ranker puts it at rank r:")
+    first = next(iter(report["arms"].values()))["window"]["tokens_before_gold_at_rank"]
+    ranks = sorted(first, key=int)
+    add(f"    {'':<12}" + "".join(f"{'r=' + r:>9}" for r in ranks))
+    for level, arm in report["arms"].items():
+        offsets = arm["window"]["tokens_before_gold_at_rank"]
+        add(
+            f"    {level:<12}"
+            + "".join(
+                f"{offsets[r]:>9.0f}" if offsets[r] is not None else f"{'--':>9}"
+                for r in ranks
+            )
+        )
 
     add("")
     add("--- CHUNKS EACH ARM MUST RETRIEVE TO COVER A GOLD SPAN")

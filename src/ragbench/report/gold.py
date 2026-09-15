@@ -16,16 +16,23 @@ frozen, because that is the state someone is deciding about it in.
 
 from __future__ import annotations
 
+import random
 from pathlib import Path
 from typing import Any
 
 from ..cache_keys import chunk_set_key
 from ..chunking.pipeline import arm_params, load_chunks
 from ..config import chunk_set_dir
-from ..eval.spans import minimum_cover
+from ..eval.context import context_profile
+from ..eval.spans import covering_chunks, minimum_cover, ndcg_at_k, recall_at_k
 from ..gold.pipeline import selected_queries
+from ..tokenizers import load_tokenizer
 from ..types import Chunk, Query
 from .chunks import distribution
+
+#: Ranks the gold-bearing chunk is placed at when measuring where in the window
+#: the evidence lands. 1 is the oracle; the rest say what a worse ranker costs.
+PROBE_RANKS = (1, 2, 3, 5)
 
 
 def _per_arm_cover(
@@ -55,14 +62,126 @@ def _per_arm_cover(
     return by_query, summary
 
 
+def assemble_window(
+    gold: Any,
+    chunks: list[Chunk],
+    budget: int,
+    cost: dict[str, int],
+    rng: random.Random,
+    gold_rank: int = 1,
+) -> list[Chunk]:
+    """Build one context the way retrieval will: to a token budget, no truncation.
+
+    Retrieval does not exist yet, so ranking quality is held fixed rather than
+    guessed at -- the gold-bearing chunks are placed at ``gold_rank`` and the
+    other slots are filled from the same chunk set at random. That isolates what
+    this report is for: the *geometry* the arm imposes on the window, which is a
+    property of the chunk set and is measurable now. Nothing here predicts what a
+    retriever will rank; the numbers are what each arm makes possible.
+
+    Fills greedily and stops at the first chunk that will not fit, matching
+    ``fill_policy: stop_at_overflow`` (I1). No chunk is ever truncated.
+    """
+    needed = covering_chunks(gold, chunks)
+    pool = [chunk for chunk in chunks if chunk not in needed]
+    window: list[Chunk] = []
+    used = 0
+    position = 1
+
+    def fits(chunk: Chunk) -> bool:
+        return used + cost[chunk.chunk_id] <= budget
+
+    while True:
+        if position == gold_rank:
+            if not all(fits(chunk) for chunk in needed):
+                break
+            for chunk in needed:
+                window.append(chunk)
+                used += cost[chunk.chunk_id]
+            position += len(needed)
+            continue
+        filler = pool[rng.randrange(len(pool))]
+        if not fits(filler):
+            break
+        window.append(filler)
+        used += cost[filler.chunk_id]
+        position += 1
+    return window
+
+
+def _window_metrics(
+    queries: list[Query],
+    chunks: list[Chunk],
+    budget: int,
+    cost: dict[str, int],
+    seed: int,
+    trials: int,
+) -> dict[str, Any]:
+    """Per-arm window measurements, averaged over seeded fills of the budget."""
+    rng = random.Random(seed)
+    token_cost = lambda chunk: cost[chunk.chunk_id]  # noqa: E731
+
+    density: list[float] = []
+    distractors: list[int] = []
+    n_chunks: list[int] = []
+    tokens_used: list[int] = []
+    recall: list[float] = []
+    ndcg: list[float] = []
+    offsets: dict[int, list[int]] = {rank: [] for rank in PROBE_RANKS}
+
+    for query in queries:
+        for _ in range(trials):
+            window = assemble_window(query.gold, chunks, budget, cost, rng, gold_rank=1)
+            profile = context_profile(query.gold, window, token_cost)
+            density.append(float(profile["evidence_density"]))
+            distractors.append(int(profile["distractor_count"]))
+            n_chunks.append(int(profile["n_chunks"]))
+            tokens_used.append(int(profile["context_tokens"]))
+            recall.append(recall_at_k(query.gold, window, chunks, 10))
+            ndcg.append(ndcg_at_k(query.gold, window, chunks, 10))
+        for rank in PROBE_RANKS:
+            window = assemble_window(query.gold, chunks, budget, cost, rng, gold_rank=rank)
+            position = context_profile(query.gold, window, token_cost)
+            if position["rank"] is not None:
+                offsets[rank].append(int(position["tokens_before"]))
+
+    return {
+        "trials_per_query": trials,
+        "evidence_density": distribution([round(value * 10000) for value in density]),
+        "distractor_count": distribution(distractors),
+        "chunks_in_window": distribution(n_chunks),
+        "tokens_used": distribution(tokens_used),
+        "recall_at_10": round(sum(recall) / len(recall), 4) if recall else 0.0,
+        "ndcg_at_10": round(sum(ndcg) / len(ndcg), 4) if ndcg else 0.0,
+        "mean_evidence_density": round(sum(density) / len(density), 6) if density else 0.0,
+        "mean_distractor_count": round(sum(distractors) / len(distractors), 2)
+        if distractors
+        else 0.0,
+        "tokens_before_gold_at_rank": {
+            str(rank): round(sum(values) / len(values), 1) if values else None
+            for rank, values in offsets.items()
+        },
+    }
+
+
 def build_report(
-    resolved: dict[str, Any], candidates: list[dict[str, Any]], data_root: Path
+    resolved: dict[str, Any],
+    candidates: list[dict[str, Any]],
+    data_root: Path,
+    trials: int = 200,
 ) -> dict[str, Any]:
     queries = selected_queries(candidates)
     if not queries:
         raise ValueError("no candidates are selected; run `ragbench gold build` first")
     digest = str(resolved["corpus"].get("manifest_sha", ""))
     by_id = {record["query_id"]: record for record in candidates}
+
+    retrieval = resolved["base"]["retrieval"]
+    budget = int(retrieval["context_token_budget"])
+    budget_tokenizer = load_tokenizer(
+        retrieval["budget_tokenizer_id"], retrieval["budget_tokenizer_revision"]
+    )
+    seed = int(resolved["base"]["seed"])
 
     arms: dict[str, Any] = {}
     per_query_cover: dict[str, dict[str, Any]] = {}
@@ -73,7 +192,13 @@ def build_report(
             raise ValueError(f"chunk set for {level!r} not built; run `ragbench chunk` first")
         chunks = load_chunks(directory)
         by_query, summary = _per_arm_cover(queries, chunks)
-        arms[level] = {"strategy": params["strategy"], "n_chunks": len(chunks), **summary}
+        cost = {chunk.chunk_id: budget_tokenizer.count(chunk.text) for chunk in chunks}
+        arms[level] = {
+            "strategy": params["strategy"],
+            "n_chunks": len(chunks),
+            **summary,
+            "window": _window_metrics(queries, chunks, budget, cost, seed, trials),
+        }
         for query_id, row in by_query.items():
             per_query_cover.setdefault(query_id, {})[level] = row
 
@@ -113,6 +238,11 @@ def build_report(
             [query.gold.context_end - query.gold.context_start for query in queries]
         ),
         "selection": _selection(candidates),
+        "budget": {
+            "context_token_budget": budget,
+            "budget_tokenizer_id": retrieval["budget_tokenizer_id"],
+            "fill_policy": retrieval["fill_policy"],
+        },
         "arms": arms,
         "arms_if_labelled_by_paragraph": context_arms,
     }

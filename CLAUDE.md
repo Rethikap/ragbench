@@ -168,6 +168,23 @@ present in the retrieved context. Recall@k and nDCG@10 are secondary and reporte
 comparability with the literature, not relied on. Their denominator is the number of chunks
 *that arm* needs to hold the span, so the two arms are not asked the same question.
 
+**Coverage saturates on the current gold set, and three more metrics carry RQ1 through it.**
+Every gold span is short enough that both arms hold it in a single chunk, so coverage,
+Recall@k and nDCG@10 are all 1.0 for both. That is the metric running out of room, not a
+finding that chunking has no retrieval effect: the arms retrieve the *same span* inside
+*different context*, and coverage is blind to the difference by design. What differs is the
+window, measured by [`src/ragbench/eval/context.py`](src/ragbench/eval/context.py):
+
+| Metric | What it asks | Why it discriminates |
+|---|---|---|
+| `evidence_density` | gold characters ÷ all retrieved characters | precision at the budget; a 200-char answer in a 512-token chunk is a different prompt from the same answer in a 180-token one |
+| `gold_chunk_rank` | rank of the gold-bearing chunk, **and its token offset** from the window start | position drives attention, and the offset for a given rank is a function of the arm's chunk size |
+| `distractor_count` | chunks in the window that miss the span | the budget is constant (I1), so a finer arm fits more chunks in it — more context or more noise is exactly RQ1 |
+
+All three are computed at the real 2000-token budget under `stop_at_overflow`. Ranking
+quality is held fixed while retrieval does not exist, so what the report shows is the
+geometry each arm imposes, not a prediction of what a retriever will rank.
+
 A residual asymmetry survives narrowing, and it is real rather than an artefact. Measured
 against two null models over the same span lengths (so chunk size is controlled), the share
 of spans needing more than one chunk is:
@@ -197,6 +214,19 @@ which chunker is better has to be made.
 > exhibit the case where an answer straddles a paragraph boundary, which is where
 > `recursive` would pay. Report retrieval results as conditional on that; do not generalise
 > them to multi-paragraph answers.
+
+> **Future work — a v2 gold set stratified for paragraph-straddling spans. Do not build
+> this now.** Every span in the current set lies inside one paragraph, so it measures
+> *within-paragraph retrieval only*, and that is the regime in which the chunking arms
+> agree: both hold the span in one chunk, and coverage is 1.0 for both. The arms diverge
+> exactly where a span crosses a paragraph boundary — `recursive` splits there by
+> construction and would need two chunks, `fixed` would need two only when its own window
+> happens to land on the span. A v2 set would stratify deliberately: a stated proportion of
+> spans whose evidence crosses a paragraph boundary, sampled as such rather than found by
+> accident, and reported as a separate stratum so the within- and across-paragraph regimes
+> are never averaged together. That is where coverage would discriminate again. Until it
+> exists, retrieval results from this set are conditional on the within-paragraph regime and
+> must be reported that way.
 
 > **Corpus drift — a limitation of the frozen corpus, to be reported as one.** The frozen
 > query matched `"alzheimer" AND biomarker` as free text, which admits papers that merely
