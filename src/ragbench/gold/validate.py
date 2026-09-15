@@ -145,7 +145,11 @@ def check(
     }
     return {
         "flags": flags,
-        "evidence": {
+        # Named "signals" rather than "evidence": a candidate record already has
+        # an `evidence` field, and it is the gold span's text. Two meanings of
+        # the same word in one record is how a span quietly becomes a diagnostic
+        # dict -- which it did, once.
+        "signals": {
             "answer_grounding": round(grounding, 4),
             "rare_anchors": anchors[:8],
             "n_rare_anchors": len(anchors),

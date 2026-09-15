@@ -38,7 +38,23 @@ def chunk(index: int, start: int, end: int, pmcid: str = "PMC1") -> Chunk:
 COARSE = [chunk(0, 0, 300), chunk(1, 300, 600)]
 FINE = [chunk(i, i * 100, i * 100 + 100) for i in range(6)]
 
-GOLD = GoldSpan(pmcid="PMC1", char_start=120, char_end=260, section="Results")
+def gold(start: int, end: int, pmcid: str = "PMC1") -> GoldSpan:
+    """A span with a context wide enough to hold it.
+
+    The context is provenance and no metric reads it, so these tests set it to
+    the whole synthetic body and then forget about it.
+    """
+    return GoldSpan(
+        pmcid=pmcid,
+        char_start=start,
+        char_end=end,
+        section="Results",
+        context_start=0,
+        context_end=600,
+    )
+
+
+GOLD = gold(120, 260)
 
 
 # ------------------------------------------------------------- span coverage
@@ -78,10 +94,14 @@ def test_non_overlapping_chunks_score_zero() -> None:
     assert span_coverage(GOLD, [FINE[0], FINE[4]]) == 0.0
 
 
-def test_an_empty_gold_span_is_a_malformed_label_not_a_zero() -> None:
-    empty = GoldSpan(pmcid="PMC1", char_start=200, char_end=200, section="Results")
-    with pytest.raises(ValueError, match="empty"):
-        span_coverage(empty, COARSE)
+def test_an_empty_gold_span_cannot_be_constructed() -> None:
+    """A label with no characters cannot be covered, so it is refused where it is
+    made rather than scored as a zero where it is read."""
+    with pytest.raises(ValueError, match="empty evidence span"):
+        GoldSpan(
+            pmcid="PMC1", char_start=200, char_end=200, section="Results",
+            context_start=0, context_end=600,
+        )
 
 
 # --------------------------------------------------- derived per-arm relevance
@@ -144,6 +164,6 @@ def test_ndcg_is_zero_when_nothing_relevant_is_retrieved() -> None:
 
 def test_rank_metrics_are_zero_when_the_arm_has_no_relevant_chunk() -> None:
     """A gold span in a paper the chunk set does not contain."""
-    missing = GoldSpan(pmcid="PMC404", char_start=0, char_end=10, section="Results")
+    missing = gold(0, 10, pmcid="PMC404")
     assert recall_at_k(missing, FINE, FINE, 10) == 0.0
     assert ndcg_at_k(missing, FINE, FINE, 10) == 0.0

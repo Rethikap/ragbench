@@ -13,12 +13,14 @@ from typing import Any
 import pytest
 
 from ragbench.gold.draft import (
-    ReplayDrafter,
+    STAND_IN,
+    AuthoredDrafter,
     StandInDrafter,
     build_drafter,
     build_prompt,
     parse_reply,
 )
+from ragbench.gold.evidence import EvidenceError, contiguity_note, resolve, sentence_count
 from ragbench.gold.freeze import (
     GoldSetError,
     gold_set_sha,
@@ -27,10 +29,9 @@ from ragbench.gold.freeze import (
     write_gold_set,
 )
 from ragbench.gold.passages import Passage, blocks, candidates, deepest_section
-from ragbench.gold.pipeline import build_candidates, freeze_gold_set
+from ragbench.gold.pipeline import build_candidates, freeze_gold_set, selected_queries
 from ragbench.gold.validate import check, content_tokens, document_frequency, longest_shared_ngram
 from ragbench.ingest.jats import parse_article
-from ragbench.jsonl import write_jsonl
 from ragbench.tokenizers import WhitespaceTokenizer
 from ragbench.types import GoldSpan, ParsedPaper, Query
 
@@ -163,7 +164,7 @@ def test_an_answer_of_only_common_words_is_general_knowledge() -> None:
         params=VALIDATION,
     )
     assert verdict["flags"]["general_knowledge"] is True
-    assert verdict["evidence"]["n_rare_anchors"] == 0
+    assert verdict["signals"]["n_rare_anchors"] == 0
 
 
 def test_an_answer_not_drawn_from_the_passage_is_rejected() -> None:
@@ -177,7 +178,7 @@ def test_an_answer_not_drawn_from_the_passage_is_rejected() -> None:
         params=VALIDATION,
     )
     assert verdict["flags"]["general_knowledge"] is True
-    assert verdict["evidence"]["answer_grounding"] == 0.0
+    assert verdict["signals"]["answer_grounding"] == 0.0
 
 
 def test_a_question_about_a_dropped_artefact_is_rejected() -> None:
@@ -228,7 +229,7 @@ def test_a_passage_near_duplicated_in_the_abstract_is_rejected() -> None:
         params={**VALIDATION, "max_abstract_overlap": 0.99, "max_shared_ngram": 5},
     )
     assert verdict["flags"]["in_abstract"] is True
-    assert verdict["evidence"]["passage_abstract_shared_ngram"] >= 5
+    assert verdict["signals"]["passage_abstract_shared_ngram"] >= 5
 
 
 # ------------------------------------------------------------------ drafters
@@ -258,20 +259,27 @@ def test_the_stand_in_masks_the_rarest_token() -> None:
     assert "____" in question
 
 
-def test_replay_refuses_a_passage_it_has_no_draft_for(tmp_path: Path) -> None:
+def test_the_authored_drafter_refuses_a_passage_it_has_no_question_for() -> None:
     """A silent miss would drop a sampled passage and change what the rejection
     counts are measured against."""
-    path = tmp_path / "drafts.jsonl"
-    write_jsonl(path, [{"passage_id": "p1", "question": "q", "answer": "a"}])
-    drafter = ReplayDrafter(str(path))
+    drafter = AuthoredDrafter({"p1": {"question": "q", "answer": "a", "drafted_by": "someone"}})
     assert drafter.draft(Passage("p1", "PMC1", 0, 1, "", "x")) == ("q", "a")
-    with pytest.raises(ValueError, match="no recorded draft"):
+    assert drafter.drafted_by(Passage("p1", "PMC1", 0, 1, "", "x")) == "someone"
+    with pytest.raises(ValueError, match="no authored question"):
         drafter.draft(Passage("p2", "PMC1", 0, 1, "", "x"))
 
 
-def test_unknown_drafter_is_rejected() -> None:
+def test_there_is_no_generator_drafted_option() -> None:
+    """The system under test does not write the questions it will be scored on.
+
+    A model asked to draft its own eval writes in its own idiom and then scores
+    well partly because the questions sound like it. This is a design decision,
+    not a gap: the error message says so rather than implying a TODO.
+    """
+    with pytest.raises(ValueError, match="no generator-drafted option"):
+        build_drafter("qwen", {}, {})
     with pytest.raises(ValueError, match="unknown gold.drafter"):
-        build_drafter("gpt", {}, "v1", {})
+        build_drafter("gpt", {}, {})
 
 
 # --------------------------------------------------------------------- freeze
@@ -282,7 +290,14 @@ def _query(index: int, pmcid: str = "PMC1") -> Query:
         query_id=f"q{index:03d}",
         question=f"question {index}?",
         reference_answer=f"answer {index}",
-        gold=GoldSpan(pmcid=pmcid, char_start=10 * index, char_end=10 * index + 50, section="R"),
+        gold=GoldSpan(
+            pmcid=pmcid,
+            char_start=10 * index,
+            char_end=10 * index + 50,
+            section="R",
+            context_start=10 * index - 10,
+            context_end=10 * index + 200,
+        ),
         verified=True,
     )
 
@@ -300,7 +315,14 @@ def test_changing_a_span_changes_the_digest() -> None:
         query_id="q001",
         question="question 1?",
         reference_answer="answer 1",
-        gold=GoldSpan(pmcid="PMC1", char_start=11, char_end=60, section="R"),
+        gold=GoldSpan(
+            pmcid="PMC1",
+            char_start=11,
+            char_end=60,
+            section="R",
+            context_start=0,
+            context_end=210,
+        ),
         verified=True,
     )
     assert gold_set_sha([moved]) != before
@@ -339,12 +361,21 @@ def _candidate(index: int, **overrides: Any) -> dict[str, Any]:
     return {
         "query_id": f"q{index:03d}",
         "pmcid": "PMC1",
-        "char_start": 0,
-        "char_end": 50,
+        "char_start": 10,
+        "char_end": 60,
+        "context_start": 0,
+        "context_end": 200,
         "section": "Results",
         "question": "question?",
         "answer": "answer",
-        "drafted_by": "replay:drafts.jsonl",
+        "evidence": "evidence text",
+        "context": "context text",
+        "evidence_sentences": 1,
+        "contiguity_note": "",
+        "drafted_by": "a human",
+        "selected": True,
+        "rejection_reason": "",
+        "note": "",
         "verified": True,
         "auto_rejected": False,
         "reasons": [],
@@ -356,8 +387,8 @@ def _resolved(n_questions: int = 2) -> dict[str, Any]:
     return {"gold": {"n_questions": n_questions}}
 
 
-def test_freezing_writes_only_the_verified_candidates(tmp_path: Path) -> None:
-    candidates_list = [_candidate(1), _candidate(2), _candidate(3, verified=False)]
+def test_freezing_writes_only_the_selected_candidates(tmp_path: Path) -> None:
+    candidates_list = [_candidate(1), _candidate(2), _candidate(3, selected=False)]
     result = freeze_gold_set(_resolved(2), candidates_list, tmp_path)
     queries = read_gold_set(result["path"])
     assert [query.query_id for query in queries] == ["q001", "q002"]
@@ -367,28 +398,115 @@ def test_freezing_writes_only_the_verified_candidates(tmp_path: Path) -> None:
 
 def test_the_candidate_trail_is_written_beside_the_gold_set(tmp_path: Path) -> None:
     """A rejection rate quoted without the rejections is not evidence."""
-    candidates_list = [_candidate(1), _candidate(2), _candidate(3, verified=False)]
+    candidates_list = [_candidate(1), _candidate(2), _candidate(3, selected=False)]
     result = freeze_gold_set(_resolved(2), candidates_list, tmp_path)
     assert result["candidates_path"].is_file()
     assert len(result["candidates_path"].read_text(encoding="utf-8").splitlines()) == 3
 
 
 def test_freezing_a_stand_in_draft_is_refused(tmp_path: Path) -> None:
-    candidates_list = [_candidate(1, drafted_by=StandInDrafter.name), _candidate(2)]
+    candidates_list = [_candidate(1, drafted_by=STAND_IN), _candidate(2)]
     with pytest.raises(ValueError, match="stand-in"):
         freeze_gold_set(_resolved(2), candidates_list, tmp_path)
 
 
-def test_verifying_a_candidate_that_failed_a_check_is_refused(tmp_path: Path) -> None:
+def test_freezing_an_unverified_question_is_refused(tmp_path: Path) -> None:
+    """The guard that matters most.
+
+    Selection is editorial and cheap; verification is a claim that a human read
+    the question, the answer and the span and found them right. Freezing stamps
+    a digest over that claim, so an unverified record must stop it -- the same
+    way a stand-in draft does.
+    """
+    candidates_list = [_candidate(1), _candidate(2, verified=False)]
+    with pytest.raises(ValueError, match="not verified"):
+        freeze_gold_set(_resolved(2), candidates_list, tmp_path)
+
+
+def test_the_refusal_names_every_unverified_question(tmp_path: Path) -> None:
+    """So the author knows what is left to read, not just that something is."""
+    candidates_list = [_candidate(1, verified=False), _candidate(2, verified=False)]
+    with pytest.raises(ValueError) as caught:
+        freeze_gold_set(_resolved(2), candidates_list, tmp_path)
+    assert "q001" in str(caught.value)
+    assert "q002" in str(caught.value)
+
+
+def test_selection_alone_does_not_make_a_question_verified() -> None:
+    """The two flags are separate fields and must stay separate."""
+    queries = selected_queries([_candidate(1, verified=False), _candidate(2, selected=False)])
+    assert [query.query_id for query in queries] == ["q001"]
+    assert queries[0].verified is False
+
+
+def test_selecting_a_candidate_that_failed_a_check_is_refused(tmp_path: Path) -> None:
     """Hand verification may override taste, not the three checks."""
     failed = _candidate(2, auto_rejected=True, reasons=["in_abstract"])
-    with pytest.raises(ValueError, match="failed a check"):
+    with pytest.raises(ValueError, match="failed a mechanical check"):
         freeze_gold_set(_resolved(2), [_candidate(1), failed], tmp_path)
 
 
 def test_the_wrong_number_of_questions_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="n_questions"):
         freeze_gold_set(_resolved(20), [_candidate(1), _candidate(2)], tmp_path)
+
+
+# ------------------------------------------------------------ evidence spans
+
+
+def test_anchors_resolve_to_the_minimal_span(paper: ParsedPaper) -> None:
+    start, end = blocks(paper.body)[1]
+    text = paper.body[start:end]
+    words = text.split()
+    prefix, suffix = words[0], words[-1]
+    found = resolve(paper, start, end, prefix, suffix, "q001")
+    assert paper.body[found[0] : found[1]].startswith(prefix)
+    assert paper.body[found[0] : found[1]].endswith(suffix)
+    assert start <= found[0] < found[1] <= end
+
+
+def test_an_anchor_outside_the_paragraph_is_not_found(paper: ParsedPaper) -> None:
+    """Anchors match inside the context only, so a phrase occurring elsewhere in
+    the paper cannot drag the span out of the paragraph it belongs to."""
+    start, end = blocks(paper.body)[0]
+    with pytest.raises(EvidenceError, match="occurs 0 times"):
+        resolve(paper, start, end, "definitely not in this paragraph", "either", "q001")
+
+
+def test_an_ambiguous_anchor_is_refused(paper: ParsedPaper) -> None:
+    """A human writing "the" cannot have meant all four occurrences."""
+    body = paper.body
+    start = body.index("Amyloid")
+    end = start + 200
+    with pytest.raises(EvidenceError, match="occurs .* times"):
+        resolve(paper, start, end, " ", "e", "q001")
+
+
+def test_a_span_must_be_inside_its_context() -> None:
+    """The context is provenance for the span; a span outside it is incoherent."""
+    with pytest.raises(ValueError, match="not inside its context"):
+        GoldSpan(
+            pmcid="PMC1", char_start=5, char_end=50, section="R",
+            context_start=10, context_end=40,
+        )
+
+
+def test_an_empty_span_is_refused_at_construction() -> None:
+    with pytest.raises(ValueError, match="empty evidence span"):
+        GoldSpan(
+            pmcid="PMC1", char_start=10, char_end=10, section="R",
+            context_start=0, context_end=100,
+        )
+
+
+def test_a_multi_sentence_span_is_flagged_for_the_verifier() -> None:
+    """A question whose answer is stated in two places forces a wider span. That
+    is a signal about the question, and the author should see it while
+    verifying rather than discover it afterwards."""
+    assert sentence_count("One fact here.") == 1
+    assert sentence_count("One fact here. And another there.") == 2
+    assert contiguity_note("One fact here.") == ""
+    assert "more than one place" in contiguity_note("One fact. Filler. Another fact.")
 
 
 # ------------------------------------------------------------------ end to end
@@ -415,13 +533,19 @@ def test_the_whole_gold_path_runs_offline(tmp_path: Path, monkeypatch: Any) -> N
             "n_questions": 1,
             "candidate_multiplier": 2,
             "drafter": "stand-in",
+            "authored_filename": "gold_drafts.jsonl",
             "draft_prompt_id": "v1",
             "validation": VALIDATION,
         },
     }
-    report = build_candidates(resolved, tmp_path / "manifest.jsonl", tmp_path, tmp_path / "out")
+    report = build_candidates(
+        resolved, tmp_path / "manifest.jsonl", tmp_path, tmp_path / "out", tmp_path
+    )
     assert report["n_drafted"] >= 1
     assert report["drafter"] == "stand-in"
+    assert report["n_verified"] == 0
     for record in report["records"]:
         assert record["verified"] is False
-        assert stored.body[record["char_start"] : record["char_end"]] == record["passage"]
+        assert record["selected"] is False
+        assert stored.body[record["char_start"] : record["char_end"]] == record["evidence"]
+        assert stored.body[record["context_start"] : record["context_end"]] == record["context"]

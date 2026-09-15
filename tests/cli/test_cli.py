@@ -201,11 +201,12 @@ def test_gold_is_a_command_but_not_a_pipeline_stage() -> None:
     assert HANDLERS["gold"] is not None
 
 
-def test_gold_offers_build_and_freeze_separately() -> None:
-    """Drafting candidates is repeatable from the seed; deciding which ones are
-    good is not. They are separate subcommands so the irreversible one is an
-    explicit act."""
+def test_gold_separates_building_verifying_and_freezing() -> None:
+    """Building candidates is repeatable from the seed; deciding which ones are
+    good is not; attesting that a human read them is a third thing again. Three
+    subcommands, so the irreversible one is an explicit act taken after the
+    other two."""
     parser = build_parser()
     gold = _subparser(parser, "gold")
     actions = {action.dest: action for action in gold._actions}
-    assert set(actions["action"].choices) == {"build", "freeze"}
+    assert set(actions["action"].choices) == {"build", "sheet", "freeze"}

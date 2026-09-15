@@ -7,8 +7,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..config import DEFAULT_DATA_ROOT
+from ..config import DEFAULT_DATA_ROOT, gold_candidates_dir
 from ..gold.freeze import GoldSetError
+from ..gold.pipeline import load_candidates
 from ..report import gold as gold_report
 from ..report.chunks import build_report
 
@@ -38,9 +39,13 @@ def add_options(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
         if args.topic == "gold":
-            report = gold_report.build_report(
-                resolved, Path(args.config).parent, args.data_root
+            working = gold_candidates_dir(
+                str(resolved["corpus"].get("manifest_sha", "")), args.data_root
             )
+            candidates = load_candidates(working)
+            if not candidates:
+                raise ValueError(f"no candidates in {working}; run `ragbench gold build` first")
+            report = gold_report.build_report(resolved, candidates, args.data_root)
             rendered = render_gold(report)
         else:
             report = build_report(resolved, args.data_root, trials=args.trials)
@@ -64,13 +69,19 @@ def render_gold(report: dict[str, Any]) -> str:
     add = lines.append
 
     add("=" * 100)
-    add("GOLD SET")
+    add("GOLD SET" + ("" if report["frozen"] else "   [DRAFT -- NOT FROZEN]"))
     add(f"  gold_set_sha        : {report['gold_set_sha']}")
     add(f"  corpus manifest_sha : {report['manifest_sha']}")
+    add(f"  verified by hand    : {report['n_verified']}/{report['n_questions']}")
+    add(f"  {report['n_questions']} questions from {report['n_papers']} papers")
     add(
-        f"  {report['n_questions']} questions from {report['n_papers']} papers"
-        f"   (span length: median {report['span_chars']['median']:.0f} chars,"
-        f" {report['span_chars']['min']}-{report['span_chars']['max']})"
+        f"  evidence span       : median {report['span_chars']['median']:.0f} chars"
+        f"  ({report['span_chars']['min']}-{report['span_chars']['max']})   <- the label"
+    )
+    add(
+        f"  context paragraph   : median {report['context_chars']['median']:.0f} chars"
+        f"  ({report['context_chars']['min']}-{report['context_chars']['max']})"
+        "   provenance only"
     )
     add("=" * 100)
 
@@ -91,6 +102,7 @@ def render_gold(report: dict[str, Any]) -> str:
             f" {gold['char_start']:>6}-{gold['char_end']:<7}"
             f" {question['span_chars']:>6}"
         )
+
         for level in levels:
             row += f" {question['cover'][level]['n_chunks_to_cover']:>9}"
         add(row + f"   {(gold['section'] or '(untitled)')[:34]}")
@@ -104,7 +116,7 @@ def render_gold(report: dict[str, Any]) -> str:
     add("--- SELECTION")
     selection = report["selection"]
     add(f"  drafted    {selection['n_candidates']}")
-    add(f"  accepted   {selection['n_accepted']}")
+    add(f"  selected   {selection['n_selected']}")
     add(f"  rejected   {selection['n_rejected']}  (auto: {selection['n_auto_rejected']})")
     for reason, count in selection["rejected_by_reason"].items():
         add(f"    {reason:<36} {count}")
@@ -115,6 +127,27 @@ def render_gold(report: dict[str, Any]) -> str:
     add("")
     add("--- CHUNKS EACH ARM MUST RETRIEVE TO COVER A GOLD SPAN")
     add("  The denominator Recall@k divides by, and the reason it is not the primary metric.")
+    add("")
+    add("  Labelled by MINIMAL EVIDENCE SPAN (the gold set as it stands):")
+    add(f"    {'':<12}{'mean':>7}{'median':>8}{'max':>6}{'>1 chunk':>10}{'ceiling':>10}")
+    for level, arm in report["arms"].items():
+        stats = arm["chunks_to_cover"]
+        add(
+            f"    {level:<12}{stats['mean']:>7.2f}{stats['median']:>8.1f}{stats['max']:>6}"
+            f"{arm['spans_needing_more_than_one_chunk']:>7}/{report['n_questions']:<2}"
+            f"{arm['mean_max_coverage']:>10.4f}"
+        )
+    add("")
+    add("  Labelled by CONTEXT PARAGRAPH, for comparison (what the first cut did):")
+    add(f"    {'':<12}{'mean':>7}{'median':>8}{'max':>6}{'>1 chunk':>10}{'ceiling':>10}")
+    for level, arm in report["arms_if_labelled_by_paragraph"].items():
+        stats = arm["chunks_to_cover"]
+        add(
+            f"    {level:<12}{stats['mean']:>7.2f}{stats['median']:>8.1f}{stats['max']:>6}"
+            f"{arm['spans_needing_more_than_one_chunk']:>7}/{report['n_questions']:<2}"
+            f"{arm['mean_max_coverage']:>10.4f}"
+        )
+
     for level, arm in report["arms"].items():
         stats = arm["chunks_to_cover"]
         add("")

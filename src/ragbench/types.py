@@ -132,6 +132,21 @@ class GoldSpan(JsonRecord):
     each arm against its own private notion of correct. The body stream is the
     one representation both arms share. See invariant I5.
 
+    Two ranges, and only one of them is the label:
+
+    ``char_start``/``char_end``
+        The **minimal evidence span**: the sentence or two that actually answer
+        the question. This is the only range any metric may read.
+    ``context_start``/``context_end``
+        The paragraph the question was drafted from. Provenance only -- it says
+        where the span came from, and lets a reader check the span in context.
+
+    The distinction is a correction, not a refinement. Labelling the paragraph
+    made the gold set an artefact of one arm's boundaries: paragraphs are
+    exactly what the recursive chunker splits on, so it covered every span in
+    one chunk by construction and the chunking effect could not be separated
+    from the sampling unit. A minimal span belongs to no chunker's vocabulary.
+
     Per-arm relevant chunks are derived at eval time by offset overlap; nothing
     persists them.
     """
@@ -140,9 +155,23 @@ class GoldSpan(JsonRecord):
     char_start: int
     char_end: int
     section: str
+    context_start: int
+    context_end: int
 
     def __len__(self) -> int:
+        """Length of the *evidence* span. Nothing measures the context."""
         return max(0, self.char_end - self.char_start)
+
+    def __post_init__(self) -> None:
+        if self.char_end <= self.char_start:
+            raise ValueError(
+                f"{self.pmcid}: empty evidence span ({self.char_start}..{self.char_end})"
+            )
+        if not (self.context_start <= self.char_start and self.char_end <= self.context_end):
+            raise ValueError(
+                f"{self.pmcid}: evidence span ({self.char_start}..{self.char_end}) is not "
+                f"inside its context ({self.context_start}..{self.context_end})"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +187,8 @@ class Query(JsonRecord):
     question: str
     reference_answer: str
     gold: GoldSpan
+    #: Set only by the author, having read the question, the answer and the span.
+    #: `ragbench gold freeze` refuses to run while any selected record is False.
     verified: bool = False
 
     @classmethod

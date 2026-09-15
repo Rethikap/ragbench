@@ -4,6 +4,14 @@
 # ids are arm-specific, so per-arm gold labels would make retrieval metrics
 # incomparable across exactly the comparison RQ1 exists to make. Per-arm relevant
 # chunks are derived at eval time by offset overlap. See invariant I5.
+#
+# A gold span is the MINIMAL EVIDENCE SPAN -- the sentence or two that actually
+# answer the question -- not the paragraph the question was drafted from. The
+# paragraph is kept alongside as context, for provenance only; no metric reads
+# it. Labelling the paragraph made the gold set an artefact of one arm: a
+# paragraph is exactly what the recursive chunker splits on, so it covered every
+# span in a single chunk by construction and the chunking effect could not be
+# told apart from the sampling unit.
 gold:
   n_questions: 20
 
@@ -40,12 +48,23 @@ gold:
     - abbreviation
     - supplementary
 
-  # How candidates are drafted. `qwen` is the real drafter and the one the frozen
-  # set should come from; `replay:<path>` re-plays drafts recorded elsewhere,
-  # which is how a GPU-drafted or hand-authored set enters the same validation
-  # path; `stand-in` is the offline smoke-test drafter and `gold freeze` refuses
-  # to freeze its output.
-  drafter: replay:configs/gold_drafts.jsonl
+  # Where the questions come from.
+  #
+  # `authored` reads authored_filename below: questions written by a human
+  # author, working to the pinned prompt, against sampled passages. This is the
+  # real path.
+  #
+  # There is deliberately no generator-drafted option. Qwen2.5-7B-Instruct is the
+  # system under test at answer time; asked to write the questions too, it writes
+  # them in its own idiom and then scores well partly because they sound like it.
+  # Hand-verification does not remove that -- the questions a verifier sees are
+  # already drawn from the generator's distribution. A different author is the
+  # design, not a stopgap.
+  #
+  # `stand-in` is the offline, model-free smoke-test drafter; `gold freeze`
+  # refuses its output.
+  drafter: authored
+  authored_filename: gold_drafts.jsonl
   draft_prompt_id: v1
 
   # Thresholds for the three mechanical rejection checks. They make rejection
@@ -68,4 +87,8 @@ gold:
   # Set by `ragbench gold freeze`. Paste the printed value here to pin the
   # evaluation set into every config hash, the way manifest_sha pins the corpus.
   # "unfrozen" is allowed during development but scoring will refuse to run.
-  gold_set_sha: 8a2dc4a591f7
+  #
+  # Unfrozen on purpose: `gold freeze` will not run until every selected question
+  # carries "verified": true in the authored file, set by the author after
+  # reading the question, the answer and the evidence span.
+  gold_set_sha: unfrozen

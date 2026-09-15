@@ -1,24 +1,29 @@
-"""Drafting a candidate question from a sampled passage.
+"""Where a candidate question comes from.
 
-Three implementations behind one interface, because the real drafter is the 7B
-generator and this laptop has no GPU:
+**The generator does not draft its own evaluation questions.** Qwen2.5-7B-Instruct
+is the system under test at answer time; a model asked to write questions writes
+them in its own idiom -- its phrasing, its way of framing a fact, its vocabulary
+for hedging -- and then scores well at answer time partly because the questions
+sound like it. That is a measurement artefact wearing the costume of a result,
+and no amount of hand-verification removes it, because the questions a verifier
+sees are already drawn from the generator's distribution.
 
-``qwen``
-    The real one. Lazily imports transformers, greedy-decodes from the pinned
-    generator, and is the drafter the frozen gold set should be produced with.
-``replay:<path>``
-    Replays questions drafted earlier -- on Kaggle, or by hand -- keyed by
-    passage id, carrying each record's own ``drafted_by`` through to the
-    candidate. This is what makes a GPU-drafted set reproducible from a laptop
-    without re-running the model, and what lets a human-authored draft enter the
-    pipeline through the same validation as a model-authored one.
+So there is no Qwen drafter here, and there is deliberately no TODO for one. Two
+implementations, both behind one interface:
+
+``authored``
+    The real path. Questions are written by a different author than the system
+    under test -- recorded per record in ``drafted_by`` -- and read from the
+    authored file, which also carries the evidence anchors and the selection and
+    verification decisions. One committed file, one place a human decided
+    anything.
 ``stand-in``
     No model, no download. Masks the rarest token of the passage's longest
     sentence and asks for it back. Enough to smoke-test the whole path offline;
-    it is not a question-writing system and its output is labelled as such.
+    it is not a question-writing system, and ``gold freeze`` refuses its output.
 
-The prompt is pinned by ``gold.draft_prompt_id`` so a change to it is a change to
-the gold set's provenance rather than an invisible edit.
+The drafting prompt is kept and pinned by ``gold.draft_prompt_id`` because it is
+the brief the author wrote to, and changing it changes what the questions are.
 """
 
 from __future__ import annotations
@@ -26,8 +31,10 @@ from __future__ import annotations
 import re
 from typing import Any, Protocol
 
-from ..jsonl import read_jsonl
 from .passages import Passage
+
+#: Marks the model-free drafter. `gold freeze` refuses a set containing it.
+STAND_IN = "stand-in"
 
 DRAFT_PROMPT_V1 = """\
 You are helping build an evaluation set for scientific-literature retrieval.
@@ -43,6 +50,8 @@ Requirements:
 - Do not refer to tables, figures, equations or supplementary material.
 - Do not mention "the passage", "the study" or "the authors" in the question.
 - Answer in one or two sentences.
+- Mark the sentence or two that actually answer the question: these become the
+  gold span, and they must be narrower than the passage.
 
 Passage ({section}, {pmcid}):
 \"\"\"
@@ -64,6 +73,9 @@ class Drafter(Protocol):
     def draft(self, passage: Passage) -> tuple[str, str]:
         """Return ``(question, answer)`` for one passage."""
 
+    def drafted_by(self, passage: Passage) -> str:
+        """Who wrote it. Recorded per candidate, not per run."""
+
 
 def build_prompt(passage: Passage, prompt_id: str) -> str:
     try:
@@ -78,84 +90,43 @@ def build_prompt(passage: Passage, prompt_id: str) -> str:
 
 
 def parse_reply(reply: str) -> tuple[str, str]:
-    """Pull the two fields out of a completion, or say why it was unusable."""
+    """Pull the two fields out of a drafted reply, or say why it was unusable."""
     match = _REPLY.search(reply)
     if not match:
-        raise ValueError(f"drafter reply has no QUESTION/ANSWER pair: {reply[:160]!r}")
+        raise ValueError(f"drafted reply has no QUESTION/ANSWER pair: {reply[:160]!r}")
     return match.group("question").strip(), match.group("answer").strip()
 
 
-class QwenDrafter:
-    """The real drafter: the pinned generator, decoded greedily.
-
-    Greedy because ``generation.temperature`` is 0.0 everywhere else in this
-    project and a sampled draft would make the candidate set unreproducible for
-    no gain -- the human verification step is where quality comes from.
-    """
-
-    def __init__(self, generation: dict[str, Any], prompt_id: str) -> None:
-        import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-
-        model_id = generation["model_id"]
-        revision = generation.get("model_revision") or ""
-        if not revision:
-            raise ValueError(
-                "generation.model_revision is required: a Hub id is a mutable pointer "
-                "and the drafter's identity is part of the gold set's provenance."
-            )
-        self.name = f"qwen:{model_id}@{revision[:12]}"
-        self.prompt_id = prompt_id
-        self._max_new_tokens = int(generation.get("max_new_tokens", 512))
-        self._tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
-        self._model = AutoModelForCausalLM.from_pretrained(
-            model_id, revision=revision, torch_dtype="auto", device_map="auto"
-        )
-        torch.manual_seed(int(generation["seed"]))
-
-    def draft(self, passage: Passage) -> tuple[str, str]:
-        messages = [{"role": "user", "content": build_prompt(passage, self.prompt_id)}]
-        text = self._tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        inputs = self._tokenizer([text], return_tensors="pt").to(self._model.device)
-        generated = self._model.generate(
-            **inputs, max_new_tokens=self._max_new_tokens, do_sample=False
-        )
-        completion = self._tokenizer.decode(
-            generated[0][inputs["input_ids"].shape[-1] :], skip_special_tokens=True
-        )
-        return parse_reply(completion)
-
-
-class ReplayDrafter:
-    """Replays drafts recorded earlier, keyed by passage id.
+class AuthoredDrafter:
+    """Reads the authored questions, keyed by passage id.
 
     Refuses a passage it has no record for rather than inventing one: a silent
     miss would drop a sampled passage from the candidate set and change what the
     rejection counts are measured against.
     """
 
-    def __init__(self, path: str) -> None:
-        self.name = f"replay:{path}"
-        self._records: dict[str, dict[str, Any]] = {}
-        for record in read_jsonl(path):
-            self._records[record["passage_id"]] = record
-        if not self._records:
-            raise ValueError(f"no drafted questions in {path}")
+    name = "authored"
 
-    def drafted_by(self, passage: Passage) -> str:
-        return str(self._records[passage.passage_id].get("drafted_by") or self.name)
+    def __init__(self, records: dict[str, dict[str, Any]]) -> None:
+        if not records:
+            raise ValueError("no authored questions; nothing to draft from")
+        self._records = records
 
-    def draft(self, passage: Passage) -> tuple[str, str]:
+    def _record(self, passage: Passage) -> dict[str, Any]:
         try:
-            record = self._records[passage.passage_id]
+            return self._records[passage.passage_id]
         except KeyError:
             raise ValueError(
-                f"no recorded draft for passage {passage.passage_id}. The sample changed "
-                "since the drafts were recorded -- re-draft, or restore the seed and "
-                "sampling parameters that produced them."
+                f"no authored question for passage {passage.passage_id}. The sample "
+                "changed since the questions were written -- re-author, or restore the "
+                "seed and sampling parameters that produced them."
             ) from None
+
+    def drafted_by(self, passage: Passage) -> str:
+        return str(self._record(passage).get("drafted_by") or self.name)
+
+    def draft(self, passage: Passage) -> tuple[str, str]:
+        record = self._record(passage)
         return str(record["question"]).strip(), str(record["answer"]).strip()
 
 
@@ -169,10 +140,13 @@ class StandInDrafter:
     it. ``ragbench gold freeze`` refuses to.
     """
 
-    name = "stand-in"
+    name = STAND_IN
 
     def __init__(self, frequency: dict[str, int] | None = None) -> None:
         self._frequency = frequency or {}
+
+    def drafted_by(self, passage: Passage) -> str:
+        return self.name
 
     def draft(self, passage: Passage) -> tuple[str, str]:
         from .validate import content_tokens
@@ -188,14 +162,14 @@ class StandInDrafter:
 
 
 def build_drafter(
-    specification: str, generation: dict[str, Any], prompt_id: str, frequency: dict[str, int]
+    specification: str, authored: dict[str, dict[str, Any]], frequency: dict[str, int]
 ) -> Drafter:
-    if specification == "stand-in":
+    if specification == STAND_IN:
         return StandInDrafter(frequency)
-    if specification == "qwen":
-        return QwenDrafter(generation, prompt_id)
-    if specification.startswith("replay:"):
-        return ReplayDrafter(specification.removeprefix("replay:"))
+    if specification == "authored":
+        return AuthoredDrafter(authored)
     raise ValueError(
-        f"unknown gold.drafter {specification!r}; expected 'qwen', 'stand-in' or 'replay:<path>'"
+        f"unknown gold.drafter {specification!r}; expected 'authored' or 'stand-in'. "
+        "There is no generator-drafted option: the system under test does not write "
+        "the questions it will be scored on."
     )

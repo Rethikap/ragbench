@@ -87,17 +87,68 @@ chunk set is loaded. Nothing persists them.
 
 > A function that stores, caches or accepts a gold chunk id is a bug, however convenient.
 
+### I6 — The generator does not write its own evaluation questions
+
+Questions are drafted by an author other than the system under test, recorded per candidate
+in `drafted_by`. There is **no** generator-drafted path in `gold/draft.py`, and this is a
+decision, not a gap to be filled later: a model asked to write the questions it will be
+scored on writes them in its own idiom, and then answers them well partly because they
+sound like it. Hand-verification does not remove that — the questions a verifier sees are
+already drawn from the generator's distribution.
+
+The gold set as it stands was drafted by **claude-opus-5, manual local CPU session**,
+working to the pinned prompt `gold.draft_prompt_id: v1` against seeded passage samples, and
+is verified question-by-question by the author. That belongs in the methodology section of
+the write-up, not in a footnote.
+
+Two further rules follow, and both are enforced rather than documented:
+
+- **`selected` and `verified` are separate fields.** Selection is editorial — this
+  candidate is proposed for the set. Verification is a claim that a human read the
+  question, the answer and the span and found them right. Collapsing them into one flag is
+  how a gold set gets frozen claiming a verification that never happened.
+- **`gold freeze` refuses while any selected question is unverified**, naming each one, the
+  same way it refuses a stand-in draft.
+
+**The span is the minimal evidence — the sentence or two that answer the question — not
+the paragraph it was drafted from.** The paragraph is kept alongside as `context_start` /
+`context_end`, for provenance; no metric reads it, and `GoldSpan` refuses to construct if
+the evidence is not inside its context.
+
+This is a correction, not a refinement. The first cut labelled whole paragraphs (median 555
+chars), and a paragraph is exactly what the recursive chunker splits on — so recursive
+covered 20/20 spans in a single chunk *by construction*, and the chunking effect could not
+be told apart from the sampling unit. Narrowing to minimal spans (median 212 chars) moved
+fixed from 1.30 chunks per span to 1.10, and 6/20 spans needing two chunks to 3/20.
+
 The primary retrieval metric is **span coverage**: the fraction of a gold span's characters
 present in the retrieved context. Recall@k and nDCG@10 are secondary and reported for
-comparability with the literature, not relied on. Their denominator is the number of
-chunks *that arm* needs to hold the span, so the two arms are not asked the same question —
-and which arm the bias favours is not fixed, it follows whichever arm's boundaries align
-with the unit the gold spans were drawn from. Measured on this corpus: gold spans are prose
-paragraphs, the recursive arm splits on paragraphs, so recursive covers all 20 spans in one
-chunk while fixed needs two for 6 of them. Here Recall@k flatters the *finer* arm; sample
-the spans differently and it would flatter the coarser one. Span coverage is
-granularity-neutral by construction: it asks whether the generator can see the answer,
-which is the thing retrieval is for.
+comparability with the literature, not relied on. Their denominator is the number of chunks
+*that arm* needs to hold the span, so the two arms are not asked the same question.
+
+A residual asymmetry survives narrowing, and it is real rather than an artefact. Measured
+against two null models over the same span lengths (so chunk size is controlled), the share
+of spans needing more than one chunk is:
+
+| arm | mean chunk | observed | null: span anywhere in body | null: span inside a paragraph |
+|---|---|---|---|---|
+| `fixed` | 2121 chars | 15% (3/20) | 9.8% | 9.4% |
+| `recursive` | 1612 chars | 0% (0/20) | 12.9% | 0.3% |
+
+Read it this way. The observed rates match the in-paragraph nulls for both arms, so the 20
+spans are not special — nothing here is a property of which questions were picked. `fixed`
+is indifferent to paragraph structure: putting a span inside a paragraph does not help it
+(9.8% → 9.4%). `recursive` has *smaller* chunks and therefore more boundaries per character
+— hence its **higher** uniform rate — yet splits a paragraph-internal span 40× less often.
+Its boundaries carry information about where answers live, because both follow the
+document's paragraph structure. That is the chunking effect the factor exists to measure,
+not a confound.
+
+> **Scope limit of the gold set, from the same fact.** Every gold span lies inside one
+> paragraph, because passages are sampled as paragraphs. So the gold set measures
+> *within-paragraph* retrieval only, and cannot exhibit the case where an answer straddles a
+> paragraph boundary — which is where `recursive` would pay. Report retrieval results as
+> conditional on that, and do not generalise them to multi-paragraph answers.
 
 ---
 
@@ -128,12 +179,21 @@ Pipeline stages, in order:
 ingest → chunk → index → retrieve → generate → judge → report
 ```
 
-`gold` is a command, not a stage. The evaluation set — 20 hand-verified questions with
-character-span labels ([`configs/gold.yaml`](configs/gold.yaml), pinned by `gold_set_sha`) —
-is an *input* to `retrieve`, built once and frozen the way the corpus manifest is. Making it
-a stage would imply it is rebuilt per run, which is what freezing exists to prevent. It is
-also why `resolve_config` reads four files, not three: a result scored against a different
-set of questions is a different result, however identical every other setting.
+`gold` is a command, not a stage — `build`, then `sheet`, then `freeze`. The evaluation set
+— 20 questions with minimal-evidence character-span labels
+([`configs/gold.yaml`](configs/gold.yaml), pinned by `gold_set_sha`) — is an *input* to
+`retrieve`, built once and frozen the way the corpus manifest is. Making it a stage would
+imply it is rebuilt per run, which is what freezing exists to prevent. It is also why
+`resolve_config` reads four files, not three: a result scored against a different set of
+questions is a different result, however identical every other setting.
+
+Everything a human decided lives in one committed file,
+[`configs/gold_drafts.jsonl`](configs/gold_drafts.jsonl): the question, the answer, the two
+anchors that narrow the label to its evidence, whether the candidate is selected, why it was
+rejected if not, and whether it has been verified. Spans are authored as **anchors**, never
+as integers — an offset typed by hand goes stale silently, an anchor that stops matching is
+an error at load time. Everything else about the gold set is derived from that file plus the
+seed.
 
 ---
 

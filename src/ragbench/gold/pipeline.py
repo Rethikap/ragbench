@@ -1,15 +1,31 @@
-"""Gold-set orchestration: sample, draft, check, then freeze what a human kept.
+"""Gold-set orchestration: sample, draft, narrow, check, then freeze.
 
 Two entry points, matching the two things that actually happen:
 
 ``build_candidates``
-    Mechanical and repeatable. Samples passages, drafts a question from each,
-    runs the three checks, and writes every candidate with its evidence. Safe to
-    re-run: same seed, same passages.
+    Mechanical and repeatable. Samples passages, takes the authored question for
+    each, narrows the label to its minimal evidence span, runs the three checks,
+    and writes every candidate with its evidence. Safe to re-run: same seed,
+    same passages, same spans.
 ``freeze_gold_set``
-    Takes the candidates a person marked ``verified``, writes the gold set, and
-    pins its digest. This is the step that cannot be regenerated, which is why
-    it is separate and why it refuses to run on unverified or stand-in drafts.
+    Writes the gold set and returns its digest. This is the step that cannot be
+    regenerated, and it refuses to run unless every selected record has been
+    verified by hand.
+
+Three separate booleans, deliberately not one:
+
+``auto_rejected``
+    A mechanical check fired. Only the checks set it.
+``selected``
+    The author proposes this candidate for the gold set.
+``verified``
+    The author has read the question, the answer and the span, and attests they
+    are right.
+
+Collapsing `selected` and `verified` into one flag is what let a gold set be
+frozen claiming a verification that had not happened. Selection is editorial and
+cheap; verification is a claim about correctness. They are not the same act and
+they no longer share a field.
 """
 
 from __future__ import annotations
@@ -25,9 +41,10 @@ from ..ingest.store import ArticleStore
 from ..jsonl import read_jsonl, write_jsonl
 from ..tokenizers import load_tokenizer
 from ..types import GoldSpan, ParsedPaper, Query
-from .draft import StandInDrafter, build_drafter
+from .draft import STAND_IN, build_drafter
+from .evidence import contiguity_note, resolve, sentence_count
 from .freeze import CANDIDATES_FILENAME, GOLD_SET_FILENAME, gold_set_sha, write_gold_set
-from .passages import sample
+from .passages import Passage, sample
 from .validate import check, document_frequency
 
 Progress = Callable[[str], None] | None
@@ -48,11 +65,20 @@ def load_papers(
     return [store.read_parsed(entry.pmcid) for entry in entries]
 
 
+def load_authored(path: Path) -> dict[str, dict[str, Any]]:
+    """The one committed file carrying everything a human decided."""
+    records = {record["passage_id"]: record for record in read_jsonl(path)}
+    if not records:
+        raise ValueError(f"no authored questions in {path}")
+    return records
+
+
 def build_candidates(
     resolved: dict[str, Any],
     manifest_path: Path,
     data_root: Path,
     out_dir: Path,
+    configs_dir: Path,
     drafter_spec: str | None = None,
     on_progress: Progress = None,
 ) -> dict[str, Any]:
@@ -63,49 +89,65 @@ def build_candidates(
 
     frequency = document_frequency(paper.body for paper in papers)
     n_candidates = int(gold["n_questions"]) * int(gold["candidate_multiplier"])
-    passages = sample(
-        papers, tokenizer, gold, int(resolved["base"]["seed"]), n_candidates
-    )
+    passages = sample(papers, tokenizer, gold, int(resolved["base"]["seed"]), n_candidates)
 
     specification = drafter_spec or str(gold["drafter"])
-    drafter = build_drafter(
-        specification, resolved["base"]["generation"], str(gold["draft_prompt_id"]), frequency
-    )
+    authored_path = Path(configs_dir) / str(gold["authored_filename"])
+    authored = load_authored(authored_path) if specification == "authored" else {}
+    drafter = build_drafter(specification, authored, frequency)
     by_pmcid = {paper.pmcid: paper for paper in papers}
 
     records: list[dict[str, Any]] = []
     failures: list[dict[str, str]] = []
     for position, passage in enumerate(passages, start=1):
         paper = by_pmcid[passage.pmcid]
+        query_id = f"q{position:03d}"
+        decisions = authored.get(passage.passage_id, {})
         try:
             question, answer = drafter.draft(passage)
+            start, end = _evidence_span(paper, passage, decisions, query_id)
         except ValueError as exc:
             failures.append({"passage_id": passage.passage_id, "error": str(exc)})
             continue
+
+        evidence_text = paper.body[start:end]
+        # The checks judge the label, so they read the evidence span rather than
+        # the paragraph: an answer grounded only in text outside its own span is
+        # precisely what narrowing is meant to surface.
         verdict = check(
-            question, answer, passage.text, paper.abstract, frequency, gold["validation"]
+            question, answer, evidence_text, paper.abstract, frequency, gold["validation"]
         )
         records.append(
             {
-                "query_id": f"q{position:03d}",
+                "query_id": query_id,
                 "passage_id": passage.passage_id,
                 "pmcid": passage.pmcid,
-                "char_start": passage.char_start,
-                "char_end": passage.char_end,
                 "section": passage.section,
+                "char_start": start,
+                "char_end": end,
+                "context_start": passage.char_start,
+                "context_end": passage.char_end,
                 "question": question,
                 "answer": answer,
-                "passage": passage.text,
-                "drafted_by": getattr(drafter, "drafted_by", lambda _: drafter.name)(passage),
+                "evidence": evidence_text,
+                "context": passage.text,
+                "evidence_chars": end - start,
+                "context_chars": passage.char_end - passage.char_start,
+                "evidence_sentences": sentence_count(evidence_text),
+                "contiguity_note": contiguity_note(evidence_text),
+                "drafted_by": drafter.drafted_by(passage),
                 "draft_prompt_id": gold["draft_prompt_id"],
-                # Set by hand. The checks below can only reject; nothing here can
-                # promote a candidate into the gold set.
-                "verified": False,
+                "selected": bool(decisions.get("selected", False)),
+                "rejection_reason": str(decisions.get("rejection_reason", "")),
+                "note": str(decisions.get("note", "")),
+                # Never inferred, never defaulted true. The author sets it in the
+                # authored file after reading question, answer and span.
+                "verified": bool(decisions.get("verified", False)),
                 **verdict,
             }
         )
         if on_progress:
-            on_progress(f"{position}/{len(passages)} candidates drafted")
+            on_progress(f"{position}/{len(passages)} candidates built")
 
     out_dir = Path(out_dir)
     write_jsonl(out_dir / CANDIDATES_FILENAME, records)
@@ -114,6 +156,30 @@ def build_candidates(
         json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8", newline=""
     )
     return {**summary, "directory": out_dir, "records": records}
+
+
+def _evidence_span(
+    paper: ParsedPaper, passage: Passage, decisions: dict[str, Any], query_id: str
+) -> tuple[int, int]:
+    """Narrow the label, or refuse to pretend a paragraph is one.
+
+    An unselected candidate keeps the paragraph: it never becomes a label, so
+    there is nothing to narrow. A *selected* one without anchors is an error,
+    because the alternative is a gold set whose spans are silently the recursive
+    chunker's own splitting unit.
+    """
+    prefix = str(decisions.get("evidence_prefix", ""))
+    suffix = str(decisions.get("evidence_suffix", ""))
+    if not decisions.get("selected"):
+        return passage.char_start, passage.char_end
+    if not prefix or not suffix:
+        raise ValueError(
+            f"{query_id} ({passage.passage_id}) is selected but has no evidence anchors. "
+            "A selected candidate must narrow its label to the sentence(s) that answer "
+            "the question; keeping the paragraph would make the gold set an artefact of "
+            "one chunker's boundaries."
+        )
+    return resolve(paper, passage.char_start, passage.char_end, prefix, suffix, query_id)
 
 
 def _summarise(
@@ -127,6 +193,7 @@ def _summarise(
         for reason in record["reasons"]:
             reasons[reason] = reasons.get(reason, 0) + 1
     rejected = [record for record in records if record["auto_rejected"]]
+    selected = [record for record in records if record["selected"]]
     return {
         "drafter": drafter,
         "n_passages_sampled": n_passages,
@@ -142,6 +209,9 @@ def _summarise(
             str(count): sum(1 for r in rejected if len(r["reasons"]) == count)
             for count in sorted({len(r["reasons"]) for r in rejected})
         },
+        "n_selected": len(selected),
+        "n_verified": sum(1 for record in selected if record["verified"]),
+        "unverified": sorted(r["query_id"] for r in selected if not r["verified"]),
     }
 
 
@@ -149,38 +219,13 @@ def load_candidates(directory: Path) -> list[dict[str, Any]]:
     return list(read_jsonl(Path(directory) / CANDIDATES_FILENAME))
 
 
-def freeze_gold_set(
-    resolved: dict[str, Any], candidates: list[dict[str, Any]], configs_dir: Path
-) -> dict[str, Any]:
-    """Write the verified candidates as the gold set and return its digest.
+def selected_queries(candidates: list[dict[str, Any]]) -> list[Query]:
+    """The selected candidates as Query records, verified or not.
 
-    Refuses three things, all of which would produce a gold set that looks frozen
-    and is not: a stand-in draft, an unverified candidate, and the wrong number
-    of questions.
+    The report and the verification sheet both need this: an unfrozen,
+    unverified draft is exactly the state the author reads it in.
     """
-    gold = resolved["gold"]
-    wanted = int(gold["n_questions"])
-
-    kept = [record for record in candidates if record.get("verified")]
-    if any(record["drafted_by"] == StandInDrafter.name for record in kept):
-        raise ValueError(
-            "refusing to freeze a gold set containing stand-in drafts. The stand-in "
-            "builds cloze questions by string substitution; it exists to smoke-test "
-            "the pipeline, not to write an evaluation set."
-        )
-    if any(record["auto_rejected"] for record in kept):
-        raise ValueError(
-            "a candidate is marked verified but failed a check. Clear the flag or fix "
-            "the candidate -- verification may override taste, not the three checks."
-        )
-    if len(kept) != wanted:
-        raise ValueError(
-            f"gold.n_questions is {wanted} but {len(kept)} candidates are marked verified. "
-            "Freezing a different number would make the frozen set disagree with the "
-            "config that describes it."
-        )
-
-    queries = [
+    return [
         Query(
             query_id=record["query_id"],
             question=record["question"],
@@ -190,12 +235,58 @@ def freeze_gold_set(
                 char_start=int(record["char_start"]),
                 char_end=int(record["char_end"]),
                 section=record["section"],
+                context_start=int(record["context_start"]),
+                context_end=int(record["context_end"]),
             ),
-            verified=True,
+            verified=bool(record["verified"]),
         )
-        for record in kept
+        for record in candidates
+        if record.get("selected")
     ]
 
+
+def freeze_gold_set(
+    resolved: dict[str, Any], candidates: list[dict[str, Any]], configs_dir: Path
+) -> dict[str, Any]:
+    """Write the selected candidates as the gold set and return its digest.
+
+    Refuses four things, each of which would produce a gold set that looks
+    frozen and is not: an unverified record, a stand-in draft, a record that
+    failed a mechanical check, and the wrong number of questions.
+    """
+    gold = resolved["gold"]
+    wanted = int(gold["n_questions"])
+    kept = [record for record in candidates if record.get("selected")]
+
+    unverified = sorted(record["query_id"] for record in kept if not record.get("verified"))
+    if unverified:
+        shown = ", ".join(unverified[:8]) + ("..." if len(unverified) > 8 else "")
+        raise ValueError(
+            f"{len(unverified)} of {len(kept)} selected questions are not verified "
+            f"({shown}). Freezing would stamp a digest over content claiming a human "
+            'read it. Set "verified": true in the authored file, per question, after '
+            "reading the question, the answer and the evidence span; "
+            "`ragbench gold sheet` prints them."
+        )
+    if any(record["drafted_by"] == STAND_IN for record in kept):
+        raise ValueError(
+            "refusing to freeze a gold set containing stand-in drafts. The stand-in "
+            "builds cloze questions by string substitution; it exists to smoke-test "
+            "the pipeline, not to write an evaluation set."
+        )
+    if any(record["auto_rejected"] for record in kept):
+        raise ValueError(
+            "a selected candidate failed a mechanical check. Deselect it or fix it -- "
+            "verification may override taste, not the three checks."
+        )
+    if len(kept) != wanted:
+        raise ValueError(
+            f"gold.n_questions is {wanted} but {len(kept)} candidates are selected. "
+            "Freezing a different number would make the frozen set disagree with the "
+            "config that describes it."
+        )
+
+    queries = selected_queries(candidates)
     configs_dir = Path(configs_dir)
     write_gold_set(configs_dir / GOLD_SET_FILENAME, queries)
     write_jsonl(configs_dir / CANDIDATES_FILENAME, candidates)
