@@ -27,16 +27,24 @@ gold:
   # and the hand-verification pass consume; quoting a rejection rate requires
   # having had something to reject.
   #
-  # 3 rather than 2 because the first round's twenty selected questions did not
-  # survive review: nine asked for methods provenance and were dropped, so a
-  # second round of twenty candidates was drafted under the criteria below. Both
-  # rounds are kept in the authored file with their decisions.
-  candidate_multiplier: 3
+  # 3 -> 4 across three rounds of review. Round 1's twenty selected questions did
+  # not survive: nine asked for methods provenance. Round 2 replaced them. Round
+  # 3 replaced three more that were off-topic or half-provenance. Every round is
+  # kept in the authored file with its decisions, so the multiplier is a record
+  # of how much was drafted to get twenty, not a tuning knob.
+  candidate_multiplier: 4
 
-  # One question per paper. Two questions from one paper share its abstract, its
-  # vocabulary and its distractors, so they are not independent measurements of
-  # retrieval -- and with 100 papers there is no reason to accept the correlation.
+  # One question SELECTED per paper. Two questions from one paper share its
+  # abstract, its vocabulary and its distractors, so they are not independent
+  # measurements of retrieval. Enforced where it matters, at `gold freeze`.
   max_per_paper: 1
+
+  # How many passages a paper may OFFER as candidates. Higher than
+  # max_per_paper on purpose: the independence argument is about the gold set,
+  # not the pool, and a second candidate from a paper whose first was rejected
+  # costs nothing. Once the topic gate has excluded half the corpus, it is often
+  # the only on-topic material left.
+  candidate_passages_per_paper: 2
 
   # A gold passage is one prose paragraph. The bounds are in canonical chunk
   # tokens (chunking.tokenizer_id), so they are comparable with target_tokens:
@@ -111,6 +119,18 @@ gold:
   methods_section_kinds:
     - methods
 
+  # min_topic_terms is a GATE, not a preference. A paper scoring below it is not
+  # sampled at all. It used to be the first half of a tier key, which meant an
+  # off-topic paper could still be drawn once the on-topic pool ran short -- and
+  # four off-topic questions reached a reviewed set that way. A soft preference
+  # expressed as ordering is only a preference.
+  #
+  # Papers already written about are exempt from the gate, because their records
+  # carry decisions that must stay readable. They are stopped at selection
+  # instead: a selected candidate below the threshold needs
+  # "off_topic_override": true plus a note on its authored record, and
+  # `gold freeze` refuses an override with no note.
+  #
   # Corpus drift, handled where it can be handled honestly. The frozen query
   # ("alzheimer" AND "biomarker" as free text) admits papers whose subject is a
   # glioma cell line, a rat sciatic nerve or Drosophila and which merely mention

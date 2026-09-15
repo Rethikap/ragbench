@@ -124,6 +124,25 @@ asking about; distinguishing that from equipment identity is the judgement the c
 cannot make, so a Methods passage with no result language raises a *warning* for the
 verifier rather than an auto-rejection.
 
+**Topic is a gate, section kind is a tier, and the difference is not stylistic.** A paper
+scoring below `gold.min_topic_terms` is not sampled at all. It was once the first half of a
+tier key, which meant an off-topic paper was still drawn whenever the on-topic pool ran
+short — and four off-topic questions (cardiac echocardiography, hidradenitis suppurativa,
+CNN morphometry, a glioma line) reached a set that had already been reviewed. A soft
+preference expressed as ordering is only a preference. Papers already written about are
+exempt from the gate, because their records carry decisions that must stay readable; they
+are stopped at *selection* instead, where a below-threshold candidate needs
+`"off_topic_override": true` **and** a note saying why the score is wrong. `gold freeze`
+refuses an override with no note, because an override with no stated reason is
+indistinguishable from an oversight.
+
+The score is a proxy and it is wrong in both directions, which is what the override is for:
+one selected question (`q021`) comes from a paper scoring 2 whose title is *"...Shared
+Between Alzheimer's Disease and Temporal Lobe Epilepsy"*. Two caps, not one, follow from
+the same split: `candidate_passages_per_paper` bounds what a paper may *offer*,
+`max_per_paper` bounds what may be *selected* from it. The independence argument is about
+the gold set, not the pool.
+
 Two further rules follow, and both are enforced rather than documented:
 
 - **`selected` and `verified` are separate fields.** Selection is editorial — this

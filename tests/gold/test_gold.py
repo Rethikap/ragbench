@@ -28,7 +28,7 @@ from ragbench.gold.freeze import (
     verify_frozen,
     write_gold_set,
 )
-from ragbench.gold.passages import Passage, blocks, candidates, deepest_section
+from ragbench.gold.passages import Passage, blocks, candidates, deepest_section, sample
 from ragbench.gold.pipeline import build_candidates, freeze_gold_set, selected_queries
 from ragbench.gold.relevance import corpus_drift, section_kind, topic_score
 from ragbench.gold.validate import (
@@ -165,6 +165,41 @@ def test_deepest_section_wins(paper: ParsedPaper) -> None:
         return
     section = nested[0]
     assert deepest_section(paper, section.char_start, section.char_end) == section.title
+
+
+def test_an_off_topic_paper_is_not_sampled_at_all(paper: ParsedPaper) -> None:
+    """A gate, not a tier. The topic rule used to be the first half of a tier key,
+    which meant an off-topic paper was still drawn once the on-topic pool ran
+    short -- and a soft preference expressed as ordering is only a preference."""
+    params = {**GOLD_PARAMS, "topic_terms": ["glioma"], "min_topic_terms": 1}
+    assert sample([paper], TOKENIZER, params, seed=1, n_passages=10) == []
+
+
+def test_a_pinned_passage_bypasses_the_gate_and_says_so(paper: ParsedPaper) -> None:
+    """Its record carries decisions that must stay readable; selection stops it
+    instead, which is why the flag is carried through."""
+    params = {**GOLD_PARAMS, "topic_terms": ["glioma"], "min_topic_terms": 1}
+    first = candidates(paper, TOKENIZER, GOLD_PARAMS)[0]
+    drawn = sample([paper], TOKENIZER, params, seed=1, n_passages=10, pinned=[first.passage_id])
+    assert [p.passage_id for p in drawn] == [first.passage_id]
+    assert drawn[0].pinned is True
+
+
+def test_a_paper_may_offer_more_candidates_than_it_may_have_questions(
+    paper: ParsedPaper,
+) -> None:
+    """The independence argument is about the gold set, not the pool: a second
+    candidate from a paper whose first was rejected costs nothing, and once the
+    gate has excluded half the corpus it is often the only material left."""
+    params = {**GOLD_PARAMS, "max_per_paper": 1, "candidate_passages_per_paper": 2}
+    assert len(candidates(paper, TOKENIZER, params)) >= 2
+    assert len(sample([paper], TOKENIZER, params, seed=1, n_passages=10)) == 2
+
+
+def test_the_draw_runs_short_rather_than_reaching_past_the_gate(paper: ParsedPaper) -> None:
+    """Fewer candidates is a reportable shortfall; an off-topic one is a defect."""
+    params = {**GOLD_PARAMS, "candidate_passages_per_paper": 2}
+    assert len(sample([paper], TOKENIZER, params, seed=1, n_passages=50)) == 2
 
 
 def test_length_bounds_are_enforced(paper: ParsedPaper) -> None:
@@ -576,6 +611,9 @@ def _candidate(index: int, pmcid: str = "PMC1", **overrides: Any) -> dict[str, A
         "drafted_by": "a human",
         "section_kind": "results",
         "topic_score": 5,
+        "on_topic": True,
+        "off_topic_override": False,
+        "pinned": False,
         "warnings": [],
         "selected": True,
         "rejection_reason": "",
@@ -589,6 +627,31 @@ def _candidate(index: int, pmcid: str = "PMC1", **overrides: Any) -> dict[str, A
 
 def _resolved(n_questions: int = 2) -> dict[str, Any]:
     return {"gold": {"n_questions": n_questions}}
+
+
+def test_selecting_a_question_from_an_off_topic_paper_is_refused(tmp_path: Path) -> None:
+    """The gate keeps off-topic papers out of the sample, but a paper already
+    written about is exempt so its record stays readable -- so the gate has to
+    exist again at selection, or an off-topic question reaches the set the way
+    four of them did."""
+    off = _candidate(2, pmcid="PMC2", on_topic=False)
+    with pytest.raises(ValueError, match="below\ngold.min_topic_terms|min_topic_terms"):
+        freeze_gold_set(_resolved(2), [_candidate(1), off], tmp_path)
+
+
+def test_an_off_topic_override_needs_a_written_reason(tmp_path: Path) -> None:
+    """An override with no stated reason is indistinguishable from an oversight,
+    which is the failure it exists to prevent."""
+    silent = _candidate(2, pmcid="PMC2", on_topic=False, off_topic_override=True, note="")
+    with pytest.raises(ValueError, match="no note"):
+        freeze_gold_set(_resolved(2), [_candidate(1), silent], tmp_path)
+
+    spoken = _candidate(
+        2, pmcid="PMC2", on_topic=False, off_topic_override=True,
+        note="the topic score understates the paper; its subject is AD",
+    )
+    result = freeze_gold_set(_resolved(2), [_candidate(1), spoken], tmp_path)
+    assert result["n_questions"] == 2
 
 
 def test_two_selected_questions_from_one_paper_are_refused(tmp_path: Path) -> None:

@@ -103,6 +103,7 @@ def build_candidates(
     passages = sample(
         papers, tokenizer, gold, int(resolved["base"]["seed"]), n_candidates, pinned
     )
+    shortfall = n_candidates - len(passages)
     drafter = build_drafter(specification, authored, frequency)
     by_pmcid = {paper.pmcid: paper for paper in papers}
 
@@ -155,6 +156,12 @@ def build_candidates(
                 "contiguity_note": contiguity_note(evidence_text),
                 "drafted_by": drafter.drafted_by(passage),
                 "draft_prompt_id": gold["draft_prompt_id"],
+                "pinned": passage.pinned,
+                "on_topic": passage.topic_score >= int(gold["min_topic_terms"]),
+                # An off-topic paper cannot be sampled, but a pinned one can
+                # already be in the record. Selecting it takes a deliberate,
+                # written override -- see freeze_gold_set.
+                "off_topic_override": bool(decisions.get("off_topic_override", False)),
                 "selected": bool(decisions.get("selected", False)),
                 "rejection_reason": str(decisions.get("rejection_reason", "")),
                 "note": str(decisions.get("note", "")),
@@ -171,6 +178,9 @@ def build_candidates(
     write_jsonl(out_dir / CANDIDATES_FILENAME, records)
     summary = _summarise(records, specification, len(passages), failures)
     summary["corpus_drift"] = corpus_drift(papers, gold)
+    # Reported, never quietly made up by reaching past the gate.
+    summary["n_requested"] = n_candidates
+    summary["shortfall"] = max(0, shortfall)
     (out_dir / "candidates_summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8", newline=""
     )
@@ -240,6 +250,11 @@ def _summarise(
             for kind in sorted({r["section_kind"] for r in selected})
         },
         "n_with_warnings": sum(1 for r in records if r["warnings"]),
+        "n_off_topic_selected": sum(1 for r in selected if not r["on_topic"]),
+        "off_topic_overrides": sorted(
+            r["query_id"] for r in selected if r["off_topic_override"]
+        ),
+        "n_pinned": sum(1 for r in records if r["pinned"]),
     }
 
 
@@ -317,6 +332,26 @@ def freeze_gold_set(
     # distractors, so they are not independent measurements of retrieval. The
     # sampler enforces this while it draws; enforce it again on what is actually
     # frozen, because a candidate can be selected by hand.
+    ungated = sorted(
+        record["query_id"]
+        for record in kept
+        if not record.get("on_topic") and not record.get("off_topic_override")
+    )
+    if ungated:
+        raise ValueError(
+            f"{len(ungated)} selected questions come from papers below "
+            f"gold.min_topic_terms ({', '.join(ungated)}). The topic gate keeps them out "
+            'of the sample; selecting one anyway needs "off_topic_override": true and a '
+            "note saying why the score is wrong, recorded on the authored record."
+        )
+    overridden = [record for record in kept if record.get("off_topic_override")]
+    if any(not record.get("note") for record in overridden):
+        raise ValueError(
+            "an off_topic_override carries no note. An override without a stated "
+            "reason is indistinguishable from an oversight, which is the failure it "
+            "exists to prevent."
+        )
+
     per_paper = collections.Counter(record["pmcid"] for record in kept)
     doubled = sorted(pmcid for pmcid, count in per_paper.items() if count > 1)
     if doubled:

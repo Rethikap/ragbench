@@ -6,13 +6,25 @@ where the question came from rather than a judgement about where its answer
 might be found -- there is no annotator deciding after the fact which part of the
 paper "counts", and so no way for that judgement to favour one chunking arm.
 
-Passages are drawn in **tiers**, not uniformly. A uniform draw over a paper's
-paragraphs is a draw over its Methods section, because that is where most of the
-paragraphs are, and a question drafted from Methods asks which microscope was
-used. Tier order is: on-topic paper and a findings section first, then on-topic
-anywhere, then off-topic findings, then the rest. Within a tier the order is
-seeded and the sample is reproducible; between tiers it is not random at all,
-and is not meant to be.
+Two filters, and they are not the same kind of thing.
+
+**Topic is a gate.** A paper scoring below ``min_topic_terms`` is not sampled at
+all. It was a tier once, which meant an off-topic paper could still be drawn when
+a higher tier ran short -- and four off-topic questions reached a reviewed set
+that way, because a soft preference expressed as ordering is only a preference.
+A gate is a gate. Papers already written about are exempt, because their records
+carry decisions that must survive; they are marked ``pinned`` and are stopped at
+selection instead (see :func:`~.pipeline.freeze_gold_set`).
+
+**Section kind is a tier.** Results and Discussion are drawn first, Methods last.
+A uniform draw over a paper's paragraphs is a draw over its Methods section --
+that is where the paragraphs are -- and a question drafted from Methods asks
+which microscope was used. But a Methods passage can still earn a question when
+its answer is a design choice that changes how a result reads, so it is ordered
+last rather than excluded.
+
+Within a tier the order is seeded and reproducible; between tiers it is not
+random at all, and is not meant to be.
 
 Selection is seeded and reads only the parsed bodies, so the same config draws
 the same passages on any machine.
@@ -20,6 +32,7 @@ the same passages on any machine.
 
 from __future__ import annotations
 
+import collections
 import random
 import re
 from collections.abc import Sequence
@@ -49,6 +62,9 @@ class Passage(NamedTuple):
     text: str
     section_kind: str = "other"
     topic_score: int = 0
+    #: Drawn because it was already written about, not because it passed the
+    #: topic gate. Carried through so a candidate can say which it was.
+    pinned: bool = False
 
 
 def blocks(body: str) -> list[tuple[int, int]]:
@@ -138,13 +154,14 @@ def candidates(
     return found
 
 
+def on_topic(passage: Passage, params: dict[str, Any]) -> bool:
+    return passage.topic_score >= int(params.get("min_topic_terms", 0))
+
+
 def tier_of(passage: Passage, params: dict[str, Any]) -> int:
-    """Lower is drawn first. Topic dominates section, because a precise question
-    about the wrong subject is still a question about the wrong subject."""
-    preferred = set(params.get("preferred_section_kinds", []))
-    on_topic = passage.topic_score >= int(params.get("min_topic_terms", 0))
-    findings = passage.section_kind in preferred
-    return (0 if on_topic else 2) + (0 if findings else 1)
+    """Lower is drawn first. Only section kind orders the pool now -- topic is a
+    gate applied before tiering, so everything here is already on topic."""
+    return 0 if passage.section_kind in set(params.get("preferred_section_kinds", [])) else 1
 
 
 def sample(
@@ -161,15 +178,27 @@ def sample(
     how a passage already reviewed by hand survives a change to the sampling
     rules: re-sampling from scratch would discard the review, and the review is
     the expensive part. Papers a pinned passage comes from are then excluded
-    from the fresh draw, so the one-per-paper rule still holds across both.
+    from the fresh draw, so the one-per-paper rule still holds across both. A
+    pinned passage bypasses the topic gate -- its record exists and must stay
+    readable -- and is marked, so selection can stop it instead.
 
-    The per-paper cap is not cosmetic. Two questions from one paper share its
-    abstract, its vocabulary and its distractors, so they are not independent
-    measurements of retrieval; with 100 papers available there is no reason to
-    accept that correlation.
+    The fresh draw is gated: a paper below ``min_topic_terms`` contributes
+    nothing. If that leaves fewer eligible passages than asked for, fewer are
+    returned; the caller reports the shortfall rather than reaching for an
+    off-topic paper to make the number up.
+
+    Two caps, for two different reasons. ``candidate_passages_per_paper`` limits
+    how many passages a paper may *offer*; ``max_per_paper`` limits how many
+    questions may be *selected* from one paper, and is enforced where it matters,
+    at :func:`~.pipeline.freeze_gold_set`. They differ because the independence
+    argument is about the gold set, not about the pool: two questions from one
+    paper share its abstract, its vocabulary and its distractors and are not two
+    independent measurements, but a second *candidate* from a paper whose first
+    was rejected costs nothing and is often the only on-topic material left once
+    the gate has done its work.
     """
     rng = random.Random(seed)
-    per_paper = int(params.get("max_per_paper", 1))
+    per_paper = int(params.get("candidate_passages_per_paper", params.get("max_per_paper", 1)))
     wanted = set(pinned)
 
     by_paper: dict[str, list[Passage]] = {}
@@ -180,7 +209,11 @@ def sample(
 
     held: list[Passage] = []
     for group in by_paper.values():
-        held.extend(passage for passage in group if passage.passage_id in wanted)
+        held.extend(
+            passage._replace(pinned=True)
+            for passage in group
+            if passage.passage_id in wanted
+        )
     held.sort(key=lambda passage: pinned.index(passage.passage_id))
     missing = wanted - {passage.passage_id for passage in held}
     if missing:
@@ -190,14 +223,24 @@ def sample(
             "passage that has already been reviewed; restore them or unpin it."
         )
 
-    spoken_for = {passage.pmcid for passage in held}
+    already = collections.Counter(passage.pmcid for passage in held)
+    taken = {passage.passage_id for passage in held}
     pool: list[list[Passage]] = []
     for pmcid, group in by_paper.items():
-        if pmcid in spoken_for:
+        room = per_paper - already[pmcid]
+        if room <= 0:
             continue
-        shuffled = list(group)
-        rng.shuffle(shuffled)
-        pool.append(shuffled[:per_paper])
+        # The gate. Not a tier, not a weight: an off-topic paper is not drawn,
+        # however short the on-topic pool runs.
+        eligible = [
+            passage
+            for passage in group
+            if passage.passage_id not in taken and on_topic(passage, params)
+        ]
+        if not eligible:
+            continue
+        rng.shuffle(eligible)
+        pool.append(eligible[:room])
 
     rng.shuffle(pool)
     pool.sort(key=lambda group: tier_of(group[0], params))
