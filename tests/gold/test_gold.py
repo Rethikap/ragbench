@@ -30,7 +30,16 @@ from ragbench.gold.freeze import (
 )
 from ragbench.gold.passages import Passage, blocks, candidates, deepest_section
 from ragbench.gold.pipeline import build_candidates, freeze_gold_set, selected_queries
-from ragbench.gold.validate import check, content_tokens, document_frequency, longest_shared_ngram
+from ragbench.gold.relevance import corpus_drift, section_kind, topic_score
+from ragbench.gold.validate import (
+    check,
+    content_tokens,
+    corpus_tokens,
+    document_frequency,
+    elsewhere_in_corpus,
+    longest_shared_ngram,
+    provenance_markers,
+)
 from ragbench.ingest.jats import parse_article
 from ragbench.tokenizers import WhitespaceTokenizer
 from ragbench.types import GoldSpan, ParsedPaper, Query
@@ -51,14 +60,62 @@ GOLD_PARAMS: dict[str, Any] = {
     "max_passage_tokens": 200,
     "max_per_paper": 1,
     "excluded_section_patterns": ["acknowledg"],
+    "section_kinds": {
+        "results": ["results"],
+        "discussion": ["discussion"],
+        "methods": ["method"],
+        "introduction": ["introduction"],
+    },
+    "preferred_section_kinds": ["results", "discussion"],
+    "topic_terms": ["biomarker", "plasma", "amyloid"],
+    "min_topic_terms": 1,
 }
 
-VALIDATION = {
+VALIDATION: dict[str, Any] = {
     "min_answer_grounding": 0.45,
-    "max_anchor_df": 25,
+    "max_question_leakage": 0.8,
+    "max_other_papers_with_answer": 3,
+    "corpus_coverage": 0.85,
     "max_abstract_overlap": 0.8,
     "max_shared_ngram": 10,
+    "methods_section_kinds": ["methods"],
+    "provenance_markers": {
+        "vendor": ["sigma-aldrich", "hitachi"],
+        "artefact": ["kit", "microscope", "package", "housed"],
+        "equipment_unit": [" kv", "w/v"],
+    },
+    "result_markers": ["significant", "correlat", "lower", "higher", "associat"],
 }
+
+SECTION_PATTERNS = {
+    "results": ["results"],
+    "discussion": ["discussion", "conclusion"],
+    "methods": ["method", "statistical analysis", "staining"],
+    "introduction": ["introduction"],
+}
+
+
+def verdict(
+    question: str,
+    answer: str,
+    span: str,
+    abstract: str = "",
+    others: dict[str, str] | None = None,
+    section: str = "results",
+    **overrides: Any,
+) -> dict[str, Any]:
+    """Run `check` against a one-paper corpus unless more papers are supplied."""
+    corpus = {"PMC1": span, **(others or {})}
+    return check(
+        question,
+        answer,
+        span,
+        abstract,
+        "PMC1",
+        corpus_tokens(corpus.items()),
+        section,
+        {**VALIDATION, **overrides},
+    )
 
 
 @pytest.fixture
@@ -124,7 +181,10 @@ def test_content_tokens_drop_stopwords() -> None:
 
 
 def test_document_frequency_counts_papers_not_occurrences() -> None:
-    frequency = document_frequency(["amyloid amyloid amyloid", "amyloid tau"])
+    token_sets = corpus_tokens(
+        [("PMC1", "amyloid amyloid amyloid"), ("PMC2", "amyloid tau")]
+    )
+    frequency = document_frequency(token_sets)
     assert frequency["amyloid"] == 2
     assert frequency["tau"] == 1
 
@@ -137,99 +197,231 @@ def test_longest_shared_ngram_finds_repeated_phrasing() -> None:
     assert longest_shared_ngram(first, []) == 0
 
 
-PASSAGE_TEXT = "Plasma NfL was measured at 24.8 pg/mL in the WT161 cohort using a Simoa assay."
+SPAN_TEXT = (
+    "Plasma NfL was 24.8 pg/mL in carriers and was significantly higher than in "
+    "non-carriers, and correlated with hippocampal atrophy."
+)
 
 
-def test_a_grounded_specific_answer_passes_every_check() -> None:
-    verdict = check(
-        "At what concentration was plasma NfL measured in the WT161 cohort?",
-        "Plasma NfL was 24.8 pg/mL, measured with a Simoa assay.",
-        PASSAGE_TEXT,
+def test_a_grounded_specific_finding_passes_every_check() -> None:
+    result = verdict(
+        "How did plasma NfL in carriers compare with non-carriers?",
+        "It was significantly higher in carriers, at 24.8 pg/mL, and correlated with "
+        "hippocampal atrophy.",
+        SPAN_TEXT,
         abstract="This paper studies biomarkers of neurodegeneration.",
-        frequency={"plasma": 90, "nfl": 40, "24.8": 1, "simoa": 3, "wt161": 1},
-        params=VALIDATION,
     )
-    assert verdict["auto_rejected"] is False
-    assert verdict["reasons"] == []
+    assert result["auto_rejected"] is False
+    assert result["reasons"] == []
 
 
-def test_an_answer_of_only_common_words_is_general_knowledge() -> None:
-    """Nothing in it distinguishes this paper from the other 99."""
-    verdict = check(
-        "What was measured?",
-        "Plasma NfL was measured.",
-        PASSAGE_TEXT,
-        abstract="",
-        frequency={"plasma": 90, "nfl": 40, "measured": 95},
-        params=VALIDATION,
+# ---- 1. answerable without the span
+
+
+def test_a_question_that_states_its_own_answer_is_rejected() -> None:
+    """The most direct form of "answerable without the span"."""
+    result = verdict(
+        "Was plasma NfL significantly higher in carriers, correlating with hippocampal "
+        "atrophy, at 24.8 pg/mL?",
+        "Plasma NfL was significantly higher, 24.8 pg/mL, correlating with hippocampal "
+        "atrophy.",
+        SPAN_TEXT,
     )
-    assert verdict["flags"]["general_knowledge"] is True
-    assert verdict["signals"]["n_rare_anchors"] == 0
+    assert result["flags"]["answerable_without_span"] is True
+    assert result["signals"]["question_leakage"] >= 0.8
 
 
-def test_an_answer_not_drawn_from_the_passage_is_rejected() -> None:
+def test_an_answer_the_rest_of_the_corpus_already_states_is_rejected() -> None:
+    """Scored as a conjunction over other papers, not as a bag of rarities: what
+    matters is whether this answer is already in the literature."""
+    common = "Amyloid beta and tau are biomarkers of Alzheimer disease."
+    result = verdict(
+        "Which proteins are biomarkers of Alzheimer disease?",
+        "Amyloid beta and tau.",
+        common,
+        others={f"PMC{n}": common for n in range(2, 10)},
+    )
+    assert result["flags"]["answerable_without_span"] is True
+    assert result["signals"]["other_papers_with_answer"] >= 4
+
+
+def test_an_answer_of_ordinary_words_passes_if_its_combination_is_novel() -> None:
+    """The property the old rare-token rule did not have, and the reason it
+    steered nine questions into Methods: a finding made entirely of common words
+    must be able to pass."""
+    result = verdict(
+        "How did carrier and non-carrier levels compare?",
+        "Levels were significantly higher in carriers and correlated with hippocampal "
+        "atrophy.",
+        SPAN_TEXT,
+        others={
+            f"PMC{n}": "An unrelated paper about something else entirely."
+            for n in range(2, 20)
+        },
+    )
+    assert result["flags"]["answerable_without_span"] is False
+    assert result["signals"]["other_papers_with_answer"] == 0
+
+
+def test_an_answer_not_drawn_from_the_span_is_rejected() -> None:
     """The signature of a mislabelled span: the answer's tokens are not there."""
-    verdict = check(
+    result = verdict(
         "Which endonuclease cut the APOE amplicon?",
         "A 227 bp region cut by the CFo1 restriction endonuclease.",
-        PASSAGE_TEXT,
-        abstract="",
-        frequency={"cfo1": 1, "227": 2},
-        params=VALIDATION,
+        SPAN_TEXT,
     )
-    assert verdict["flags"]["general_knowledge"] is True
-    assert verdict["signals"]["answer_grounding"] == 0.0
+    assert result["flags"]["answerable_without_span"] is True
+    assert result["signals"]["answer_grounding"] == 0.0
+
+
+# ---- 2. methods provenance
+
+
+def test_an_answer_naming_apparatus_is_rejected() -> None:
+    """A provenance answer is retrieved by near-verbatim match under every
+    configuration, so it discriminates between no two arms."""
+    result = verdict(
+        "How were the exosomes imaged?",
+        "On a Hitachi H7600 transmission electron microscope, operated at 80 kV.",
+        "Imaging was performed on a Hitachi H7600 transmission electron microscope, "
+        "operated at 80 kV.",
+    )
+    assert result["flags"]["methods_provenance"] is True
+    assert "vendor:hitachi" in result["signals"]["provenance_markers"]
+
+
+def test_a_software_version_is_provenance() -> None:
+    result = verdict(
+        "How were the samples classified?",
+        "With XGBoost version 0.90.",
+        "The XGBoost package version 0.90 was used to classify the samples.",
+    )
+    assert result["flags"]["methods_provenance"] is True
+    assert "version-string" in result["signals"]["provenance_markers"]
+
+
+def test_provenance_markers_do_not_fire_on_findings_vocabulary() -> None:
+    """Kept tight on purpose: "database" and "samples" occur in real findings."""
+    assert provenance_markers(
+        "49 samples were enriched across the database.", VALIDATION["provenance_markers"]
+    ) == []
+
+
+def test_a_p_value_is_not_read_as_a_software_version() -> None:
+    result = verdict(
+        "How strong was the association?",
+        "It was significant, p = 0.0342, and correlated with atrophy.",
+        "The association was significant, p = 0.0342, and correlated with atrophy.",
+    )
+    assert result["flags"]["methods_provenance"] is False
+
+
+def test_a_methods_passage_without_result_language_warns_rather_than_rejects() -> None:
+    """A positivity threshold is a design choice worth asking about and carries no
+    result language either, so this is the verifier's call, not the checks'."""
+    result = verdict(
+        "What threshold defined tau positivity?",
+        "Tau positivity was defined as a value above 24.8 pg/mL.",
+        "Models tested associations with tau positivity (> 24.8 pg/mL).",
+        section="methods",
+    )
+    assert result["flags"]["methods_provenance"] is False
+    assert result["auto_rejected"] is False
+    assert result["warnings"]
+
+
+# ---- 3. placeholders
 
 
 def test_a_question_about_a_dropped_artefact_is_rejected() -> None:
-    verdict = check(
-        "What value does Table 3 report for plasma NfL?",
-        "24.8 pg/mL.",
-        PASSAGE_TEXT,
-        abstract="",
-        frequency={"24.8": 1},
-        params=VALIDATION,
-    )
-    assert verdict["flags"]["needs_placeholder"] is True
+    result = verdict("What value does Table 3 report?", "24.8 pg/mL.", SPAN_TEXT)
+    assert result["flags"]["needs_placeholder"] is True
 
 
-def test_a_passage_holding_a_placeholder_is_rejected() -> None:
-    verdict = check(
-        "What was the assay?",
-        "A Simoa assay measuring 24.8 pg/mL.",
-        "[TABLE: Table 3] Plasma NfL was 24.8 pg/mL using a Simoa assay.",
-        abstract="",
-        frequency={"24.8": 1, "simoa": 3},
-        params=VALIDATION,
+def test_a_span_holding_a_placeholder_is_rejected() -> None:
+    result = verdict(
+        "What was the level?",
+        "It was significantly higher, at 24.8 pg/mL.",
+        "[TABLE: Table 3] Levels were significantly higher, at 24.8 pg/mL.",
     )
-    assert verdict["flags"]["needs_placeholder"] is True
+    assert result["flags"]["needs_placeholder"] is True
+
+
+# ---- 4. the abstract
 
 
 def test_an_answer_restated_in_the_abstract_is_rejected() -> None:
-    verdict = check(
-        "At what concentration was plasma NfL measured?",
-        "Plasma NfL was 24.8 pg/mL using a Simoa assay.",
-        PASSAGE_TEXT,
-        abstract="Plasma NfL was 24.8 pg/mL using a Simoa assay in the WT161 cohort.",
-        frequency={"24.8": 1, "simoa": 3},
-        params=VALIDATION,
+    result = verdict(
+        "How did the levels compare?",
+        "Plasma NfL was significantly higher in carriers at 24.8 pg/mL.",
+        SPAN_TEXT,
+        abstract="Plasma NfL was significantly higher in carriers at 24.8 pg/mL.",
     )
-    assert verdict["flags"]["in_abstract"] is True
+    assert result["flags"]["in_abstract"] is True
 
 
-def test_a_passage_near_duplicated_in_the_abstract_is_rejected() -> None:
+def test_a_span_near_duplicated_in_the_abstract_is_rejected() -> None:
     """Caught by shared phrasing, which vocabulary overlap alone cannot see:
     two paragraphs of one paper always share vocabulary."""
-    verdict = check(
+    result = verdict(
         "What was the cohort?",
-        "The WT161 cohort, measured by Simoa.",
-        PASSAGE_TEXT,
-        abstract=PASSAGE_TEXT,
-        frequency={"wt161": 1, "simoa": 3},
-        params={**VALIDATION, "max_abstract_overlap": 0.99, "max_shared_ngram": 5},
+        "The carriers.",
+        SPAN_TEXT,
+        abstract=SPAN_TEXT,
+        max_abstract_overlap=0.99,
+        max_shared_ngram=5,
     )
-    assert verdict["flags"]["in_abstract"] is True
-    assert verdict["signals"]["passage_abstract_shared_ngram"] >= 5
+    assert result["flags"]["in_abstract"] is True
+    assert result["signals"]["span_abstract_shared_ngram"] >= 5
+
+
+# ---- corpus recoverability, directly
+
+
+def test_elsewhere_in_corpus_scores_the_answer_as_a_conjunction() -> None:
+    token_sets = corpus_tokens(
+        [
+            ("PMC1", "alpha beta gamma delta"),
+            ("PMC2", "alpha beta gamma delta"),
+            ("PMC3", "alpha beta"),
+        ]
+    )
+    tokens = ["alpha", "beta", "gamma", "delta"]
+    # PMC2 holds all four; PMC3 holds half, which is below the coverage bar.
+    assert elsewhere_in_corpus(tokens, "PMC1", token_sets, 0.85) == 1
+    assert elsewhere_in_corpus(tokens, "PMC1", token_sets, 0.4) == 2
+
+
+# --------------------------------------------------------- sections and topics
+
+
+def test_declared_section_type_beats_the_title() -> None:
+    assert section_kind("2. Materials and Methods", "methods", SECTION_PATTERNS) == "methods"
+    assert section_kind("Anything at all", "results", SECTION_PATTERNS) == "results"
+
+
+def test_a_numbered_heading_falls_back_to_its_title() -> None:
+    """Numbered headings usually carry no sec-type, which is why the fallback is
+    not optional."""
+    assert section_kind("2.4. Statistical Analysis", "", SECTION_PATTERNS) == "methods"
+    assert section_kind("3. Results", "", SECTION_PATTERNS) == "results"
+    assert section_kind("Cresyl Violet Staining", "", SECTION_PATTERNS) == "methods"
+    assert section_kind("SM-RR coupling", "", SECTION_PATTERNS) == "other"
+
+
+def test_topic_score_reads_the_front_matter_only(paper: ParsedPaper) -> None:
+    """A paper about something else still uses the vocabulary in its discussion;
+    what it is *about* is what it says in the title and abstract."""
+    assert topic_score(paper, ["biomarker", "plasma"]) >= 1
+    assert topic_score(paper, ["glioma", "sciatic"]) == 0
+
+
+def test_corpus_drift_is_quantified(paper: ParsedPaper) -> None:
+    """A limitation is only a limitation if it carries a number."""
+    drift = corpus_drift([paper], {"topic_terms": ["glioma"], "min_topic_terms": 1})
+    assert drift["n_off_topic"] == 1
+    assert drift["off_topic_pmcids"] == [paper.pmcid]
+    assert drift["off_topic_share"] == 1.0
 
 
 # ------------------------------------------------------------------ drafters
@@ -238,8 +430,17 @@ def test_a_passage_near_duplicated_in_the_abstract_is_rejected() -> None:
 def test_the_prompt_is_pinned_by_id() -> None:
     passage = Passage("p1", "PMC1", 0, 10, "Results", "Plasma NfL was 24.8 pg/mL.")
     assert "24.8" in build_prompt(passage, "v1")
+    assert "24.8" in build_prompt(passage, "v2")
     with pytest.raises(ValueError, match="draft_prompt_id"):
-        build_prompt(passage, "v2")
+        build_prompt(passage, "v3")
+
+
+def test_v2_is_the_prompt_that_asks_for_a_finding() -> None:
+    """v1 did not, and nine of the twenty questions it produced asked which
+    instrument or reagent was used."""
+    passage = Passage("p1", "PMC1", 0, 10, "Results", "Plasma NfL was 24.8 pg/mL.")
+    assert "MUST BE A FINDING" in build_prompt(passage, "v2")
+    assert "MUST BE A FINDING" not in build_prompt(passage, "v1")
 
 
 def test_a_reply_without_the_two_fields_is_an_error() -> None:
@@ -357,10 +558,10 @@ def test_an_unfrozen_gold_set_refuses_to_load(tmp_path: Path) -> None:
 # ------------------------------------------------------------- freeze guards
 
 
-def _candidate(index: int, **overrides: Any) -> dict[str, Any]:
+def _candidate(index: int, pmcid: str = "PMC1", **overrides: Any) -> dict[str, Any]:
     return {
         "query_id": f"q{index:03d}",
-        "pmcid": "PMC1",
+        "pmcid": pmcid,
         "char_start": 10,
         "char_end": 60,
         "context_start": 0,
@@ -373,6 +574,9 @@ def _candidate(index: int, **overrides: Any) -> dict[str, Any]:
         "evidence_sentences": 1,
         "contiguity_note": "",
         "drafted_by": "a human",
+        "section_kind": "results",
+        "topic_score": 5,
+        "warnings": [],
         "selected": True,
         "rejection_reason": "",
         "note": "",
@@ -387,8 +591,19 @@ def _resolved(n_questions: int = 2) -> dict[str, Any]:
     return {"gold": {"n_questions": n_questions}}
 
 
+def test_two_selected_questions_from_one_paper_are_refused(tmp_path: Path) -> None:
+    """Two questions from one paper share its abstract, its vocabulary and its
+    distractors, so they are not two independent measurements of retrieval."""
+    with pytest.raises(ValueError, match="more than one selected question"):
+        freeze_gold_set(_resolved(2), [_candidate(1), _candidate(2)], tmp_path)
+
+
 def test_freezing_writes_only_the_selected_candidates(tmp_path: Path) -> None:
-    candidates_list = [_candidate(1), _candidate(2), _candidate(3, selected=False)]
+    candidates_list = [
+        _candidate(1),
+        _candidate(2, pmcid="PMC2"),
+        _candidate(3, pmcid="PMC3", selected=False),
+    ]
     result = freeze_gold_set(_resolved(2), candidates_list, tmp_path)
     queries = read_gold_set(result["path"])
     assert [query.query_id for query in queries] == ["q001", "q002"]
@@ -398,14 +613,18 @@ def test_freezing_writes_only_the_selected_candidates(tmp_path: Path) -> None:
 
 def test_the_candidate_trail_is_written_beside_the_gold_set(tmp_path: Path) -> None:
     """A rejection rate quoted without the rejections is not evidence."""
-    candidates_list = [_candidate(1), _candidate(2), _candidate(3, selected=False)]
+    candidates_list = [
+        _candidate(1),
+        _candidate(2, pmcid="PMC2"),
+        _candidate(3, pmcid="PMC3", selected=False),
+    ]
     result = freeze_gold_set(_resolved(2), candidates_list, tmp_path)
     assert result["candidates_path"].is_file()
     assert len(result["candidates_path"].read_text(encoding="utf-8").splitlines()) == 3
 
 
 def test_freezing_a_stand_in_draft_is_refused(tmp_path: Path) -> None:
-    candidates_list = [_candidate(1, drafted_by=STAND_IN), _candidate(2)]
+    candidates_list = [_candidate(1, drafted_by=STAND_IN), _candidate(2, pmcid="PMC2")]
     with pytest.raises(ValueError, match="stand-in"):
         freeze_gold_set(_resolved(2), candidates_list, tmp_path)
 
@@ -418,14 +637,14 @@ def test_freezing_an_unverified_question_is_refused(tmp_path: Path) -> None:
     a digest over that claim, so an unverified record must stop it -- the same
     way a stand-in draft does.
     """
-    candidates_list = [_candidate(1), _candidate(2, verified=False)]
+    candidates_list = [_candidate(1), _candidate(2, pmcid="PMC2", verified=False)]
     with pytest.raises(ValueError, match="not verified"):
         freeze_gold_set(_resolved(2), candidates_list, tmp_path)
 
 
 def test_the_refusal_names_every_unverified_question(tmp_path: Path) -> None:
     """So the author knows what is left to read, not just that something is."""
-    candidates_list = [_candidate(1, verified=False), _candidate(2, verified=False)]
+    candidates_list = [_candidate(1, verified=False), _candidate(2, pmcid="PMC2", verified=False)]
     with pytest.raises(ValueError) as caught:
         freeze_gold_set(_resolved(2), candidates_list, tmp_path)
     assert "q001" in str(caught.value)
@@ -434,21 +653,23 @@ def test_the_refusal_names_every_unverified_question(tmp_path: Path) -> None:
 
 def test_selection_alone_does_not_make_a_question_verified() -> None:
     """The two flags are separate fields and must stay separate."""
-    queries = selected_queries([_candidate(1, verified=False), _candidate(2, selected=False)])
+    queries = selected_queries(
+        [_candidate(1, verified=False), _candidate(2, pmcid="PMC2", selected=False)]
+    )
     assert [query.query_id for query in queries] == ["q001"]
     assert queries[0].verified is False
 
 
 def test_selecting_a_candidate_that_failed_a_check_is_refused(tmp_path: Path) -> None:
     """Hand verification may override taste, not the three checks."""
-    failed = _candidate(2, auto_rejected=True, reasons=["in_abstract"])
+    failed = _candidate(2, pmcid="PMC2", auto_rejected=True, reasons=["in_abstract"])
     with pytest.raises(ValueError, match="failed a mechanical check"):
         freeze_gold_set(_resolved(2), [_candidate(1), failed], tmp_path)
 
 
 def test_the_wrong_number_of_questions_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="n_questions"):
-        freeze_gold_set(_resolved(20), [_candidate(1), _candidate(2)], tmp_path)
+        freeze_gold_set(_resolved(20), [_candidate(1), _candidate(2, pmcid="PMC2")], tmp_path)
 
 
 # ------------------------------------------------------------ evidence spans
@@ -534,7 +755,8 @@ def test_the_whole_gold_path_runs_offline(tmp_path: Path, monkeypatch: Any) -> N
             "candidate_multiplier": 2,
             "drafter": "stand-in",
             "authored_filename": "gold_drafts.jsonl",
-            "draft_prompt_id": "v1",
+            "draft_prompt_id": "v2",
+            "methods_section_kinds": ["methods"],
             "validation": VALIDATION,
         },
     }

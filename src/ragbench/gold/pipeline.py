@@ -30,6 +30,7 @@ they no longer share a field.
 
 from __future__ import annotations
 
+import collections
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -45,7 +46,8 @@ from .draft import STAND_IN, build_drafter
 from .evidence import contiguity_note, resolve, sentence_count
 from .freeze import CANDIDATES_FILENAME, GOLD_SET_FILENAME, gold_set_sha, write_gold_set
 from .passages import Passage, sample
-from .validate import check, document_frequency
+from .relevance import corpus_drift
+from .validate import check, corpus_tokens, document_frequency
 
 Progress = Callable[[str], None] | None
 
@@ -87,13 +89,20 @@ def build_candidates(
     chunking = resolved["base"]["chunking"]
     tokenizer = load_tokenizer(chunking["tokenizer_id"], chunking["tokenizer_revision"])
 
-    frequency = document_frequency(paper.body for paper in papers)
+    token_sets = corpus_tokens((paper.pmcid, paper.body) for paper in papers)
+    frequency = document_frequency(token_sets)
     n_candidates = int(gold["n_questions"]) * int(gold["candidate_multiplier"])
-    passages = sample(papers, tokenizer, gold, int(resolved["base"]["seed"]), n_candidates)
 
     specification = drafter_spec or str(gold["drafter"])
     authored_path = Path(configs_dir) / str(gold["authored_filename"])
     authored = load_authored(authored_path) if specification == "authored" else {}
+    # Passages already written about are pinned, in the order they were first
+    # drawn, so a change to the sampling rules cannot discard a completed review.
+    pinned = list(authored) if gold.get("pin_authored_passages") and authored else []
+
+    passages = sample(
+        papers, tokenizer, gold, int(resolved["base"]["seed"]), n_candidates, pinned
+    )
     drafter = build_drafter(specification, authored, frequency)
     by_pmcid = {paper.pmcid: paper for paper in papers}
 
@@ -115,7 +124,14 @@ def build_candidates(
         # the paragraph: an answer grounded only in text outside its own span is
         # precisely what narrowing is meant to surface.
         verdict = check(
-            question, answer, evidence_text, paper.abstract, frequency, gold["validation"]
+            question,
+            answer,
+            evidence_text,
+            paper.abstract,
+            paper.pmcid,
+            token_sets,
+            passage.section_kind,
+            {**gold["validation"], "methods_section_kinds": gold["methods_section_kinds"]},
         )
         records.append(
             {
@@ -123,6 +139,8 @@ def build_candidates(
                 "passage_id": passage.passage_id,
                 "pmcid": passage.pmcid,
                 "section": passage.section,
+                "section_kind": passage.section_kind,
+                "topic_score": passage.topic_score,
                 "char_start": start,
                 "char_end": end,
                 "context_start": passage.char_start,
@@ -152,6 +170,7 @@ def build_candidates(
     out_dir = Path(out_dir)
     write_jsonl(out_dir / CANDIDATES_FILENAME, records)
     summary = _summarise(records, specification, len(passages), failures)
+    summary["corpus_drift"] = corpus_drift(papers, gold)
     (out_dir / "candidates_summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8", newline=""
     )
@@ -212,6 +231,15 @@ def _summarise(
         "n_selected": len(selected),
         "n_verified": sum(1 for record in selected if record["verified"]),
         "unverified": sorted(r["query_id"] for r in selected if not r["verified"]),
+        "section_kinds": {
+            kind: sum(1 for r in records if r["section_kind"] == kind)
+            for kind in sorted({r["section_kind"] for r in records})
+        },
+        "selected_section_kinds": {
+            kind: sum(1 for r in selected if r["section_kind"] == kind)
+            for kind in sorted({r["section_kind"] for r in selected})
+        },
+        "n_with_warnings": sum(1 for r in records if r["warnings"]),
     }
 
 
@@ -284,6 +312,18 @@ def freeze_gold_set(
             f"gold.n_questions is {wanted} but {len(kept)} candidates are selected. "
             "Freezing a different number would make the frozen set disagree with the "
             "config that describes it."
+        )
+    # Two questions from one paper share its abstract, its vocabulary and its
+    # distractors, so they are not independent measurements of retrieval. The
+    # sampler enforces this while it draws; enforce it again on what is actually
+    # frozen, because a candidate can be selected by hand.
+    per_paper = collections.Counter(record["pmcid"] for record in kept)
+    doubled = sorted(pmcid for pmcid, count in per_paper.items() if count > 1)
+    if doubled:
+        raise ValueError(
+            f"{len(doubled)} papers contribute more than one selected question "
+            f"({', '.join(doubled[:5])}). Two questions from one paper are not two "
+            "independent measurements of retrieval."
         )
 
     queries = selected_queries(candidates)

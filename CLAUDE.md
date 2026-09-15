@@ -101,6 +101,29 @@ working to the pinned prompt `gold.draft_prompt_id: v1` against seeded passage s
 is verified question-by-question by the author. That belongs in the methodology section of
 the write-up, not in a footnote.
 
+**The answer must be a finding, not the provenance of a method.** A result, a measured
+relationship, a claim, or a design choice that changes how a result is read — not an
+instrument or its settings, not a reagent or its supplier, not a catalogue number, not a
+software version, not animal housing, not a bare count of samples.
+
+This is a measurement requirement, not a matter of taste. A provenance answer ("a Hitachi
+H7600 at 80 kV") is retrieved by near-verbatim string match under every configuration, so
+all 8 runs find it equally and the question discriminates between nothing. Nine of the
+first twenty questions were provenance, and the cause was a filter rule: "reject an answer
+with no corpus-rare token" selects *for* distinctive literal strings, and the most
+distinctive strings in a paper are catalogue numbers, model numbers and version strings.
+The goal was right and the proxy was backwards. The check now tests recoverability
+directly — is this answer already in the rest of the corpus, or already in the question? —
+and never rewards a rare literal. `methods_provenance` is a fourth rejection category
+beside it.
+
+Passages are sampled from Results and Discussion first, for the same reason: a uniform draw
+over a paper's paragraphs is mostly a draw over its Methods section. Methods passages stay
+eligible in the last tier, because a positivity threshold or a set of covariates is worth
+asking about; distinguishing that from equipment identity is the judgement the checks
+cannot make, so a Methods passage with no result language raises a *warning* for the
+verifier rather than an auto-rejection.
+
 Two further rules follow, and both are enforced rather than documented:
 
 - **`selected` and `verified` are separate fields.** Selection is editorial — this
@@ -139,16 +162,33 @@ Read it this way. The observed rates match the in-paragraph nulls for both arms,
 spans are not special — nothing here is a property of which questions were picked. `fixed`
 is indifferent to paragraph structure: putting a span inside a paragraph does not help it
 (9.8% → 9.4%). `recursive` has *smaller* chunks and therefore more boundaries per character
-— hence its **higher** uniform rate — yet splits a paragraph-internal span 40× less often.
-Its boundaries carry information about where answers live, because both follow the
-document's paragraph structure. That is the chunking effect the factor exists to measure,
-not a confound.
+— hence its **higher** uniform rate — yet splits a paragraph-internal span 40× less often,
+because its boundaries and the spans both follow the document's paragraph structure.
 
-> **Scope limit of the gold set, from the same fact.** Every gold span lies inside one
-> paragraph, because passages are sampled as paragraphs. So the gold set measures
-> *within-paragraph* retrieval only, and cannot exhibit the case where an answer straddles a
-> paragraph boundary — which is where `recursive` would pay. Report retrieval results as
-> conditional on that, and do not generalise them to multi-paragraph answers.
+**State that as what it is, and no more.** Every gold span lies inside a single paragraph,
+because passages are sampled as paragraphs, and `recursive` splits on paragraphs. So
+**within-paragraph spans favour `recursive` at the retrieval stage by construction**:
+on this gold set it cannot lose, and the 0% is a fact about the labelling unit meeting the
+chunker's unit, not a demonstration that paragraph-aligned chunking retrieves better in
+general. Whether that retrieval advantage converts into better *answers* is not settled
+here — that is what the generation and judge metrics test, and they are where a claim about
+which chunker is better has to be made.
+
+> **Scope limit of the gold set.** It measures *within-paragraph* retrieval only. It cannot
+> exhibit the case where an answer straddles a paragraph boundary, which is where
+> `recursive` would pay. Report retrieval results as conditional on that; do not generalise
+> them to multi-paragraph answers.
+
+> **Corpus drift — a limitation of the frozen corpus, to be reported as one.** The frozen
+> query matched `"alzheimer" AND biomarker` as free text, which admits papers that merely
+> mention Alzheimer's: a glioma cell line, a rat sciatic nerve, Drosophila, cardiac
+> echocardiography. Measured over title and abstract against the topic terms in
+> `configs/gold.yaml`, **51 of the 100 papers carry fewer than 3 topic terms, and 11 carry
+> none at all.** The corpus is frozen and is *not* re-queried (I4) — an unpinned re-query
+> is not reproducible, and re-freezing would invalidate every artefact downstream of
+> `manifest_sha`. The drift is handled where it can be: gold passages are drawn from
+> on-topic papers first, each candidate records its `topic_score`, and this paragraph goes
+> in the limitations section. A v2 corpus would use PMC field tags rather than free text.
 
 ---
 

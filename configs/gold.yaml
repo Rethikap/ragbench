@@ -12,24 +12,36 @@
 # paragraph is exactly what the recursive chunker splits on, so it covered every
 # span in a single chunk by construction and the chunking effect could not be
 # told apart from the sampling unit.
+#
+# A gold ANSWER must be a finding: a result, a measured relationship, a claim, or
+# a design choice that changes how a result is read. It must NOT be the
+# provenance of a method -- an instrument, a reagent, a catalogue number, a
+# software version, a housing condition. That is not a matter of taste: a
+# provenance answer is retrieved by near-verbatim string match under every
+# configuration, so all 8 runs cluster and the set stops discriminating between
+# arms.
 gold:
   n_questions: 20
 
-  # Passages drafted from, per question wanted. The surplus is what the three
-  # checks and the hand-verification pass consume; quoting a rejection rate
-  # requires having had something to reject.
-  candidate_multiplier: 2
+  # Passages drafted from, per question wanted. The surplus is what the checks
+  # and the hand-verification pass consume; quoting a rejection rate requires
+  # having had something to reject.
+  #
+  # 3 rather than 2 because the first round's twenty selected questions did not
+  # survive review: nine asked for methods provenance and were dropped, so a
+  # second round of twenty candidates was drafted under the criteria below. Both
+  # rounds are kept in the authored file with their decisions.
+  candidate_multiplier: 3
 
   # One question per paper. Two questions from one paper share its abstract, its
   # vocabulary and its distractors, so they are not independent measurements of
   # retrieval -- and with 100 papers there is no reason to accept the correlation.
   max_per_paper: 1
 
-  # A gold span is one prose paragraph. The bounds are in canonical chunk tokens
-  # (chunking.tokenizer_id), so they are comparable with target_tokens: 512.
-  # Below the floor there is not enough content to ask about; above the ceiling
-  # the span is a section, not a passage, and "did retrieval find it" stops
-  # having a crisp answer.
+  # A gold passage is one prose paragraph. The bounds are in canonical chunk
+  # tokens (chunking.tokenizer_id), so they are comparable with target_tokens:
+  # 512. Below the floor there is not enough content to ask about; above the
+  # ceiling the passage is a section, not a paragraph.
   min_passage_tokens: 40
   max_passage_tokens: 220
 
@@ -48,11 +60,89 @@ gold:
     - abbreviation
     - supplementary
 
+  # How a section is classified: by the JATS `sec-type` attribute when the
+  # publisher declared one, else by substring match against the title. Numbered
+  # headings like "2.4. Statistical Analysis" usually carry no sec-type, so the
+  # title fallback is not optional.
+  section_kinds:
+    results:
+      - results
+      - findings
+    discussion:
+      - discussion
+      - conclusion
+    methods:
+      - method
+      - materials
+      - procedure
+      - protocol
+      - statistical analysis
+      - statistical analyses
+      - study design
+      - experimental
+      - patients
+      - participants
+      - subjects
+      - animals
+      - cell culture
+      - genotyping
+      - staining
+      - assay
+      - data acquisition
+      - sample collection
+      - inclusion
+      - preprocessing
+      - quantification
+    introduction:
+      - introduction
+      - background
+
+  # Results and Discussion are drawn first. A uniform draw over a paper's
+  # paragraphs is mostly a draw over its Methods section -- that is where the
+  # paragraphs are -- and a question drafted from Methods asks which microscope
+  # was used. Methods passages stay eligible, in the last tier, because a Methods
+  # passage does earn a question when its answer is a design choice that changes
+  # how a result is read (a positivity threshold, a set of covariates).
+  preferred_section_kinds:
+    - results
+    - discussion
+
+  # Sections where the "design choice, or apparatus?" warning applies.
+  methods_section_kinds:
+    - methods
+
+  # Corpus drift, handled where it can be handled honestly. The frozen query
+  # ("alzheimer" AND "biomarker" as free text) admits papers whose subject is a
+  # glioma cell line, a rat sciatic nerve or Drosophila and which merely mention
+  # Alzheimer's. The corpus is frozen and is NOT re-queried (I4); instead gold
+  # passages are drawn from on-topic papers first, and the drift is reported as a
+  # limitation. Scored over title + abstract only: a paper about something else
+  # will still use the vocabulary in its introduction and discussion.
+  topic_terms:
+    - alzheimer
+    - dementia
+    - amyloid
+    - abeta
+    - tau
+    - biomarker
+    - cerebrospinal
+    - csf
+    - apoe
+    - cognitive impairment
+    - cognitive decline
+    - neurodegener
+    - neurofilament
+    - hippocamp
+    - plaque
+    - neurofibrillary
+  min_topic_terms: 3
+
   # Where the questions come from.
   #
   # `authored` reads authored_filename below: questions written by a human
   # author, working to the pinned prompt, against sampled passages. This is the
-  # real path.
+  # real path, and the file also carries the span anchors and every selection and
+  # verification decision.
   #
   # There is deliberately no generator-drafted option. Qwen2.5-7B-Instruct is the
   # system under test at answer time; asked to write the questions too, it writes
@@ -65,24 +155,136 @@ gold:
   # refuses its output.
   drafter: authored
   authored_filename: gold_drafts.jsonl
-  draft_prompt_id: v1
 
-  # Thresholds for the three mechanical rejection checks. They make rejection
+  # Passages already drafted from are pinned: they are always in the candidate
+  # set, in the order they were first drawn, and the fresh draw fills the rest.
+  # Re-sampling from scratch after a rules change would discard a completed
+  # review, and the review is the expensive part.
+  pin_authored_passages: true
+
+  # v2 adds the content criterion: the answer must be a finding, not the
+  # provenance of a method. v1 did not, and nine of the twenty questions it
+  # produced asked which instrument, reagent or software version was used.
+  draft_prompt_id: v2
+
+  # Thresholds for the four mechanical rejection checks. They make rejection
   # auditable rather than a matter of the annotator's memory; they are a floor,
   # and every survivor is still read by hand.
   validation:
-    # 1. Answerable without the passage. An answer whose tokens are not in the
-    #    passage was not drawn from it; an answer with no token rarer than this
-    #    many of the 100 papers says nothing that distinguishes this paper from
-    #    the rest of the corpus, which is what "general knowledge" means here.
+    # 1. Answerable without the span. Three ways that happens, tested directly
+    #    rather than via the presence of unusual literal strings -- the old
+    #    rare-token proxy selected for catalogue numbers, which is how nine
+    #    methods-provenance questions got into the first round.
+    #
+    #    max_question_leakage          the question already states its own answer
+    #    max_other_papers_with_answer  how many OTHER papers already hold at
+    #    / corpus_coverage             least `corpus_coverage` of the answer's
+    #                                  content terms. The answer is scored as a
+    #                                  conjunction, so an answer made of ordinary
+    #                                  words passes if their combination is not
+    #                                  already in the literature, and an exotic
+    #                                  catalogue number earns no credit.
+    #    min_answer_grounding          the span does not state the answer at all,
+    #                                  so the label is wrong
+    max_question_leakage: 0.8
+    max_other_papers_with_answer: 3
+    corpus_coverage: 0.85
     min_answer_grounding: 0.45
-    max_anchor_df: 25
-    # 3. Answer also in the abstract. Either the answer is restated there, or the
-    #    passage is -- a long shared token n-gram is near-duplicate phrasing,
-    #    which bag-of-words overlap alone cannot distinguish from two paragraphs
-    #    of the same paper simply being about the same thing.
+    # 4. Answer also in the abstract. Either the answer is restated there, or the
+    #    span is -- a long shared token n-gram is near-duplicate phrasing, which
+    #    bag-of-words overlap alone cannot distinguish from two paragraphs of the
+    #    same paper simply being about the same thing.
     max_abstract_overlap: 0.8
     max_shared_ngram: 10
+
+    # 2. Methods provenance. Kept tight on purpose: "database", "samples" and a
+    #    bare "ml" are absent, because each appears in answers that are genuine
+    #    findings.
+    provenance_markers:
+      vendor:
+        - sigma-aldrich
+        - "sigma,"
+        - thermo
+        - invitrogen
+        - olympus
+        - hitachi
+        - abcam
+        - bio-rad
+        - qiagen
+        - roche
+        - millipore
+        - agilent
+        - zeiss
+        - leica
+        - nikon
+        - illumina
+        - promega
+        - bd biosciences
+        - hilltop
+        - charles river
+        - jackson laboratory
+      artefact:
+        - kit
+        - reagent
+        - catalogue
+        - catalog
+        - microscope
+        - centrifuge
+        - spectrometer
+        - cytometer
+        - software
+        - package
+        - plugin
+        - antibody
+        - primer
+        - buffer
+        - grids
+        - cage
+        - cages
+        - housed
+        - housing
+        - photoperiod
+        - incubator
+        - bregma
+        - ad libitum
+        - manufacturer
+      equipment_unit:
+        - " kv"
+        - " mesh"
+        - " rpm"
+        - w/v
+        - v/v
+
+    # Language that marks an answer as stating a result. Its absence in a Methods
+    # passage raises a warning for the verifier -- never an auto-reject, because a
+    # positivity threshold is a design choice worth asking about and carries no
+    # result language either.
+    result_markers:
+      - significant
+      - correlat
+      - associat
+      - increase
+      - decrease
+      - higher
+      - lower
+      - greater
+      - reduced
+      - elevated
+      - improved
+      - impair
+      - predict
+      - difference
+      - differed
+      - compared
+      - revealed
+      - showed
+      - no effect
+      - odds ratio
+      - hazard
+      - " r = "
+      - " p = "
+      - " p <"
+      - "%"
 
   # Set by `ragbench gold freeze`. Paste the printed value here to pin the
   # evaluation set into every config hash, the way manifest_sha pins the corpus.

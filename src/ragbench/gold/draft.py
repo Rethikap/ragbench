@@ -63,7 +63,46 @@ QUESTION: <your question>
 ANSWER: <your answer>
 """
 
-PROMPTS = {"v1": DRAFT_PROMPT_V1}
+DRAFT_PROMPT_V2 = """\
+You are helping build an evaluation set for scientific-literature retrieval.
+
+Below is one passage from the body of an open-access Alzheimer's biomarker paper.
+Write ONE question that the passage answers, and the answer.
+
+THE ANSWER MUST BE A FINDING. A result, a measured relationship, an effect, a
+claim the authors make, or a design choice that changes how a result is read
+(which covariates a model adjusted for, what threshold defined a positive case).
+
+THE ANSWER MUST NOT BE THE PROVENANCE OF A METHOD. Not an instrument or its
+settings, not a reagent or its supplier, not a catalogue number, not a software
+package or version, not animal housing, not a bare count of samples or animals.
+Those are answerable by near-verbatim string match, so every retrieval
+configuration finds them equally and the question measures nothing.
+
+Also:
+- The question must be answerable ONLY from this passage. A reader who knows the
+  field but has not seen it must not be able to answer.
+- The question must not contain its own answer.
+- Do not refer to tables, figures, equations or supplementary material.
+- Do not mention "the passage", "the study" or "the authors" in the question.
+- Answer in one or two sentences.
+- Mark the sentence or two that actually answer the question: these become the
+  gold span, and they must be narrower than the passage.
+
+Passage ({section}, {pmcid}):
+\"\"\"
+{passage}
+\"\"\"
+
+Reply with exactly two lines:
+QUESTION: <your question>
+ANSWER: <your answer>
+"""
+
+#: v1 is kept, not deleted. It is what the first round of candidates was written
+#: to, and those candidates are still in the authored record with their
+#: rejections; a prompt that produced rejected work is part of the evidence.
+PROMPTS = {"v1": DRAFT_PROMPT_V1, "v2": DRAFT_PROMPT_V2}
 _REPLY = re.compile(r"QUESTION:\s*(?P<question>.+?)\s*ANSWER:\s*(?P<answer>.+)", re.S)
 
 

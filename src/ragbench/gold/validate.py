@@ -1,22 +1,34 @@
-"""The three rejection checks, made mechanical wherever they can be.
+"""The four rejection checks, made mechanical wherever they can be.
 
 A hand-verified gold set is only as trustworthy as the reasons it was filtered
 by. "I read it and it seemed fine" is not a reason another person can audit, so
-each of the three grounds for rejection gets a computed signal, a configured
-threshold, and its evidence recorded on the candidate:
+each ground for rejection gets a computed signal, a configured threshold, and its
+numbers recorded on the candidate:
 
-1. **Answerable without the passage.** A question about general knowledge
-   measures what the generator already knows, not what retrieval fetched.
-2. **Answer needs a placeholder.** ``[TABLE: Table 3]`` and ``[EQUATION]`` stand
+1. **Answerable without the span.** A question the generator can answer from what
+   it already knows measures the generator's memory, not retrieval.
+2. **Methods provenance, not a finding.** The answer identifies a reagent, an
+   instrument, a software version or a housing condition. That is a string
+   lookup dressed as scientific QA, and it is answerable by near-verbatim
+   matching, so every configuration scores alike and the set stops
+   discriminating between arms.
+3. **Answer needs a placeholder.** ``[TABLE: Table 3]`` and ``[EQUATION]`` stand
    in for content the parse policy dropped; a question answered by one is
    unanswerable from the corpus as it exists.
-3. **Answer is also in the abstract.** Abstracts are not chunked, but an answer
-   restated there means the body passage is a near-duplicate of text elsewhere
-   in the paper, which is the labelling ambiguity abstracts were excluded to
-   avoid in the first place.
+4. **Answer is also in the abstract.** Abstracts are not chunked, but an answer
+   restated there means the span is a near-duplicate of text elsewhere in the
+   paper, which is the labelling ambiguity abstracts were excluded to avoid.
 
-These auto-reject. Everything that survives still gets read by a person: the
-checks are a floor, not the verification.
+These auto-reject. Everything that survives is still read by a person: the checks
+are a floor, not the verification.
+
+Note what check 1 no longer is. It used to require the answer to contain a token
+rare across the corpus, on the theory that a rare token means a passage-specific
+answer. It does -- and the rarest tokens in a paper are catalogue numbers,
+instrument model numbers and software versions, so the check quietly selected
+*for* Methods provenance and steered nine of the first twenty questions into the
+wrong part of the paper. The goal was right and the proxy was backwards. The test
+is now direct: could this answer be produced without reading this span?
 """
 
 from __future__ import annotations
@@ -45,24 +57,36 @@ ARTEFACT_REFERENCE = re.compile(
     r"supplemental|panel)\b",
     re.IGNORECASE,
 )
+#: "version 0.90", "v1.0.0", "3.7.3" -- a software version, never a measurement.
+#: Deliberately not a bare `\d+\.\d+`, which would match every p-value.
+VERSION = re.compile(r"\bversion\s+[\w.]+|\bv\d+(\.\d+)+\b|\b\d+\.\d+\.\d+\b", re.IGNORECASE)
 
 
 def content_tokens(text: str) -> list[str]:
     """Lowercased word and number tokens, stopwords removed, order preserved."""
-    return [token for token in (m.group(0).lower() for m in WORD.finditer(text))
-            if token not in STOPWORDS]
+    return [
+        token
+        for token in (match.group(0).lower() for match in WORD.finditer(text))
+        if token not in STOPWORDS
+    ]
 
 
-def document_frequency(bodies: Iterable[str]) -> dict[str, int]:
-    """How many papers each content token appears in.
+def corpus_tokens(papers: Iterable[tuple[str, str]]) -> dict[str, set[str]]:
+    """``{pmcid: set of content tokens}`` for the whole corpus.
 
-    The corpus is the reference for "general knowledge" rather than an external
-    frequency list: a token every Alzheimer's paper uses ("amyloid", "cognitive")
-    identifies nothing within this corpus, whatever its frequency in English.
+    The corpus stands in for "what could be known without this span". It is the
+    right reference precisely because it is the same literature: a fact every
+    Alzheimer's paper states is not a fact this passage taught anyone.
     """
+    return {pmcid: set(content_tokens(body)) for pmcid, body in papers}
+
+
+def document_frequency(token_sets: dict[str, set[str]]) -> dict[str, int]:
+    """How many papers each content token appears in. Used only by the stand-in
+    drafter, which needs *some* ordering to pick a token to mask."""
     frequency: dict[str, int] = {}
-    for body in bodies:
-        for token in set(content_tokens(body)):
+    for tokens in token_sets.values():
+        for token in tokens:
             frequency[token] = frequency.get(token, 0) + 1
     return frequency
 
@@ -94,68 +118,141 @@ def longest_shared_ngram(first: Sequence[str], second: Sequence[str]) -> int:
     return best
 
 
+def elsewhere_in_corpus(
+    answer_tokens: Sequence[str],
+    source_pmcid: str,
+    token_sets: dict[str, set[str]],
+    coverage: float,
+) -> int:
+    """How many *other* papers already contain this answer's content.
+
+    The answer is scored as a conjunction, not as a bag of rarities: a paper
+    counts only if it holds at least ``coverage`` of the answer's content terms.
+    That is what makes this a test of the answer rather than of its vocabulary --
+    an answer made entirely of ordinary words passes if their *combination* is
+    not already sitting in the rest of the literature, and an answer containing
+    one exotic catalogue number gets no credit for it.
+    """
+    if not answer_tokens:
+        return 0
+    needed = max(1, int(round(coverage * len(answer_tokens))))
+    return sum(
+        1
+        for pmcid, tokens in token_sets.items()
+        if pmcid != source_pmcid
+        and sum(1 for token in answer_tokens if token in tokens) >= needed
+    )
+
+
+def provenance_markers(text: str, markers: dict[str, Sequence[str]]) -> list[str]:
+    """Marks of an answer that identifies apparatus rather than a result.
+
+    Vendors, artefact nouns ("kit", "microscope", "package"), equipment units and
+    version strings. Deliberately tight: "database", "samples" and bare "ml" are
+    not here, because they occur in answers that are findings.
+    """
+    lowered = f" {text.lower()} "
+    found = [
+        f"{kind}:{needle}"
+        for kind, needles in markers.items()
+        for needle in needles
+        if needle.lower() in lowered
+    ]
+    if VERSION.search(text):
+        found.append("version-string")
+    return sorted(set(found))
+
+
+def result_language(text: str, markers: Sequence[str]) -> list[str]:
+    """Marks of an answer that states a result: comparison, relationship, effect."""
+    lowered = text.lower()
+    return sorted({marker for marker in markers if marker.lower() in lowered})
+
+
 def check(
     question: str,
     answer: str,
-    passage: str,
+    span: str,
     abstract: str,
-    frequency: dict[str, int],
+    source_pmcid: str,
+    token_sets: dict[str, set[str]],
+    section_kind: str,
     params: dict[str, Any],
 ) -> dict[str, Any]:
-    """Run all three checks. Returns the flags, the evidence, and the verdict."""
+    """Run every check. Returns the flags, the numbers behind them, and a verdict."""
     answer_tokens = content_tokens(answer)
-    passage_tokens = content_tokens(passage)
+    span_tokens = content_tokens(span)
     abstract_tokens = content_tokens(abstract)
-    passage_set = set(passage_tokens)
+    question_tokens = set(content_tokens(question))
+    span_set = set(span_tokens)
 
-    grounding = _share(answer_tokens, passage_set)
-    anchors = sorted(
-        {
-            token
-            for token in answer_tokens
-            if token in passage_set and frequency.get(token, 0) <= int(params["max_anchor_df"])
-        }
+    grounding = _share(answer_tokens, span_set)
+    leakage = _share(answer_tokens, question_tokens)
+    elsewhere = elsewhere_in_corpus(
+        answer_tokens, source_pmcid, token_sets, float(params["corpus_coverage"])
     )
     abstract_overlap = _share(answer_tokens, set(abstract_tokens))
-    shared_ngram = longest_shared_ngram(passage_tokens, abstract_tokens)
+    shared_ngram = longest_shared_ngram(span_tokens, abstract_tokens)
+    markers = provenance_markers(answer, dict(params.get("provenance_markers", {})))
+    results = result_language(answer, list(params.get("result_markers", [])))
 
-    # 1. Without a rare token shared by answer and passage, nothing in the answer
-    #    distinguishes this paper from the other 99 -- the question is about the
-    #    field, not about the passage. Low grounding says the same thing more
-    #    bluntly: the answer was not drawn from the passage at all.
-    general_knowledge = not anchors or grounding < float(params["min_answer_grounding"])
+    # 1. Three ways an answer needs no span: the question already states it; the
+    #    rest of the corpus already states it; or the span never stated it, in
+    #    which case the label is wrong and the answer came from somewhere else.
+    answerable_without_span = (
+        leakage >= float(params["max_question_leakage"])
+        or elsewhere > int(params["max_other_papers_with_answer"])
+        or grounding < float(params["min_answer_grounding"])
+    )
 
-    # 2. The passage is placeholder-free by construction, so this catches the
+    # 2. The answer identifies apparatus. A reagent catalogue number is retrieved
+    #    by near-verbatim match in every configuration, so it discriminates
+    #    between nothing.
+    methods_provenance = bool(markers)
+
+    # 3. The span is placeholder-free by construction, so this catches the
     #    drafted text pointing at an artefact that is not in the corpus.
     needs_placeholder = bool(
-        PLACEHOLDER.search(passage)
+        PLACEHOLDER.search(span)
         or ARTEFACT_REFERENCE.search(question)
         or ARTEFACT_REFERENCE.search(answer)
     )
 
-    # 3. Either the answer itself is restated in the abstract, or the passage is.
+    # 4. Either the answer itself is restated in the abstract, or the span is.
     in_abstract = abstract_overlap >= float(params["max_abstract_overlap"]) or shared_ngram >= int(
         params["max_shared_ngram"]
     )
 
     flags = {
-        "general_knowledge": general_knowledge,
+        "answerable_without_span": answerable_without_span,
+        "methods_provenance": methods_provenance,
         "needs_placeholder": needs_placeholder,
         "in_abstract": in_abstract,
     }
+    # Not a flag, and deliberately not auto-rejecting. A Methods passage earns a
+    # question when its answer is a design choice that changes how a result reads
+    # -- a positivity threshold, a set of covariates -- and not when it names an
+    # instrument. Telling those apart is the judgement these checks cannot make,
+    # so it is surfaced for the person doing the pass instead of guessed at.
+    warnings: list[str] = []
+    if section_kind in set(params.get("methods_section_kinds", [])) and not results:
+        warnings.append(
+            "methods section and no result language: is this a design choice that "
+            "affects interpretation, or apparatus?"
+        )
+
     return {
         "flags": flags,
-        # Named "signals" rather than "evidence": a candidate record already has
-        # an `evidence` field, and it is the gold span's text. Two meanings of
-        # the same word in one record is how a span quietly becomes a diagnostic
-        # dict -- which it did, once.
         "signals": {
             "answer_grounding": round(grounding, 4),
-            "rare_anchors": anchors[:8],
-            "n_rare_anchors": len(anchors),
+            "question_leakage": round(leakage, 4),
+            "other_papers_with_answer": elsewhere,
             "abstract_overlap": round(abstract_overlap, 4),
-            "passage_abstract_shared_ngram": shared_ngram,
+            "span_abstract_shared_ngram": shared_ngram,
+            "provenance_markers": markers,
+            "result_language": results,
         },
+        "warnings": warnings,
         "auto_rejected": any(flags.values()),
         "reasons": sorted(name for name, fired in flags.items() if fired),
     }
