@@ -117,6 +117,24 @@ directly — is this answer already in the rest of the corpus, or already in the
 and never rewards a rare literal. `methods_provenance` is a fourth rejection category
 beside it.
 
+Two corollaries, each learned by a bad question surviving review:
+
+- **Counts of findings are findings; counts of inputs are provenance.** "A core group of 48
+  proteins consistently enriched in plaques" is a discovered quantity. "648 individuals",
+  "49 samples after filtering", "112 nerves from 56 rats" describe what went in, and are
+  retrieved by the same near-verbatim match as a catalogue number. The surface form is
+  identical — a number beside a noun — so the rule is carried by the noun, in a configured
+  list from which "cells", "lesions" and "proteins" are deliberately absent.
+- **The answer must be a positive claim the paper asserts, not a described non-effect.** A
+  null result is a legitimate finding in science and an unusable gold answer here: a model
+  answering "NfL was not significantly affected" is scientifically right and will not match
+  a reference answer phrased the other way round, so the question ends up scoring the
+  judge's tolerance for hedging rather than retrieval quality. The check is deliberately
+  narrow — a *significance retraction* in a span where no sentence asserts an unretracted
+  result — because plain negation is usually a paper asserting something: a null contrasted
+  with a significant result, an absence that is half the finding, the control arm of an
+  effect.
+
 Passages are sampled from Results and Discussion first, for the same reason: a uniform draw
 over a paper's paragraphs is mostly a draw over its Methods section. Methods passages stay
 eligible in the last tier, because a positivity threshold or a set of covariates is worth
@@ -320,6 +338,30 @@ length. These numbers get reported — they are evidence the corpus is what it c
   stochastic step reads a seed from config; nothing calls an unseeded RNG.
 - **All ids derive from `hashing.py`** (see I3). Config hashes are order-independent, so
   reordering a YAML mapping must not change a run id.
+- **A parser change must precede any freeze, and it will move more than it looks like it
+  moves.** Stripping brackets left empty by citation removal — 3,863 of them, in 80 of the
+  100 papers, about 0.3–0.8% of each affected body — shifted every character offset after
+  the first change in a paper and changed *both* chunk sets:
+
+  | arm | chunks | papers that moved | shape |
+  |---|---|---|---|
+  | `fixed` | 1,586 → 1,568 (−18) | 18 | every one exactly −1 |
+  | `recursive` | 2,086 → 2,061 (−25) | 22 | 19 at −1, 3 at −2 |
+
+  The asymmetry is worth stating because the intuition runs the wrong way. The *finer,
+  structure-aware* arm moved more, not less. `fixed`'s boundaries depend only on a paper's
+  total token count, so removing characters can delete a trailing window and nothing else —
+  arithmetic, uniform, never more than one chunk per paper. `recursive`'s boundaries depend
+  on whether each *paragraph* fits the target, so removing characters can carry a paragraph
+  back across the 512-token threshold and stop it being split at all: four did exactly
+  that, and sentence-level (`". "`) chunks fell from 238 to 230. A text edit that is
+  arithmetic for one arm is structural for the other.
+
+  Nothing downstream of a parse may be frozen before the parse is settled. Related:
+  `Passage.passage_id` is content-addressed (`pmcid:<digest of the passage text>`) rather
+  than offset-addressed, so a parser change re-keys only the passages whose own text it
+  alters instead of orphaning the whole hand-verified gold set.
+
 - **Caches are invalidated by version stamps** in
   [`src/ragbench/constants.py`](src/ragbench/constants.py). Bump `PARSER_VERSION` when
   ingest changes the text it produces; bump `CHUNKER_VERSION` when a chunker changes how it

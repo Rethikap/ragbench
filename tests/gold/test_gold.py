@@ -39,6 +39,7 @@ from ragbench.gold.validate import (
     elsewhere_in_corpus,
     input_counts,
     longest_shared_ngram,
+    non_effect,
     provenance_markers,
 )
 from ragbench.ingest.jats import parse_article
@@ -87,6 +88,7 @@ VALIDATION: dict[str, Any] = {
     },
     "result_markers": ["significant", "correlat", "lower", "higher", "associat"],
     "input_count_units": ["samples", "individuals", "cohort", "nerves", "rats", "participants"],
+    "significance_retractions": ["did not reach statistical significance"],
 }
 
 SECTION_PATTERNS = {
@@ -901,3 +903,71 @@ def test_an_intervening_strain_name_does_not_hide_the_count() -> None:
         "56 Sprague-Dawley rats",
         "nerves from 56",
     ]
+
+
+# ------------------------------------------- a span that withdraws its claim
+
+
+RETRACTIONS = [
+    "did not reach statistical significance",
+    "not statistically significant",
+    "without reaching statistical",
+]
+RESULTS = ["significant", "correlat", "associat", "reduced", "improved", "attenuated", "higher"]
+
+
+def test_a_span_that_retracts_its_only_claim_is_rejected() -> None:
+    """q067. A model answering "NfL was not significantly affected" is right and
+    will not match a reference answer phrased the other way round, so the
+    question scores the judge's tolerance for hedging, not retrieval."""
+    span = (
+        "We observed a slight reduction in Nfl levels in the cortex from mice with GM-IVH "
+        "at early timepoints, and VP3.15 improved this situation, although the differences "
+        "did not reach statistical significance."
+    )
+    assert non_effect(span, RETRACTIONS, RESULTS) == ["did not reach statistical significance"]
+
+
+def test_a_retraction_of_a_secondary_finding_is_not_a_non_effect() -> None:
+    """q063 has the same trailing shape and is usable: its first sentence asserts
+    a significant result, and only the second is qualified. The sentence-level
+    split is what tells them apart."""
+    span = (
+        "We found significantly reduced N1 differences in the parietal cortex in the AD "
+        "mouse model. Additionally, although not statistically significant, the "
+        "standard-deviant differences at all components tended to be attenuated."
+    )
+    assert non_effect(span, RETRACTIONS, RESULTS) == []
+
+
+def test_plain_negation_is_not_a_retraction() -> None:
+    """Narrow on purpose. Each of these is a paper asserting something: a null
+    contrasted with a significant result (q010), an absence that is half the
+    finding (q062), and the control arm of an effect (q047). A list that caught
+    them would reject half the set."""
+    contrast = (
+        "A significant correlation was found with age in CpG2 (r = -0.242; p-value < 0.05), "
+        "and no correlation was shown in CpG1."
+    )
+    half_the_finding = (
+        "the proteasome pathway is co-expressed with both the AD and PD pathways, yet it "
+        "has no significant gene overlap."
+    )
+    control_arm = (
+        "their expression rates were significantly enhanced in KOTau neurons whereas they "
+        "were not affected by HS in the case of WT neurons."
+    )
+    for span in (contrast, half_the_finding, control_arm):
+        assert non_effect(span, RETRACTIONS, RESULTS) == []
+
+
+def test_a_non_effect_span_rejects_through_its_own_flag() -> None:
+    result = verdict(
+        "What effect did the treatment have on NfL levels?",
+        "NfL was slightly reduced and the treatment improved this.",
+        "NfL was slightly reduced and the treatment improved this, although the differences "
+        "did not reach statistical significance.",
+        significance_retractions=RETRACTIONS,
+    )
+    assert result["flags"]["non_effect_answer"] is True
+    assert result["signals"]["significance_retractions"]

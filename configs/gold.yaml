@@ -44,7 +44,9 @@ gold:
   # not the pool, and a second candidate from a paper whose first was rejected
   # costs nothing. Once the topic gate has excluded half the corpus, it is often
   # the only on-topic material left.
-  candidate_passages_per_paper: 2
+  # 2 -> 3. The topic gate excludes half the corpus, so depth within the on-topic
+  # papers is where the remaining material is; breadth ran out first.
+  candidate_passages_per_paper: 3
 
   # A gold passage is one prose paragraph. The bounds are in canonical chunk
   # tokens (chunking.tokenizer_id), so they are comparable with target_tokens:
@@ -330,6 +332,23 @@ gold:
       - datasets
       - replicate
       - replicates
+
+    # 5. The span withdraws its own claim. Deliberately narrow: these are phrases
+    #    about the significance of the finding just stated, not plain negation.
+    #    "no correlation was shown in CpG1", "yet it has no significant gene
+    #    overlap" and "not affected by HS in WT neurons" are all assertions a
+    #    paper is making, and a list that caught them would reject half the set.
+    significance_retractions:
+      - did not reach statistical significance
+      - did not reach significance
+      - not statistically significant
+      - without reaching statistical
+      - failed to reach significance
+      - failed to reach statistical
+      - non-significant
+      - nonsignificant
+      - was not significant
+      - were not significant
 
     # Language that marks an answer as stating a result. Its absence in a Methods
     # passage raises a warning for the verifier -- never an auto-reject, because a

@@ -1,4 +1,4 @@
-"""The four rejection checks, made mechanical wherever they can be.
+"""The five rejection checks, made mechanical wherever they can be.
 
 A hand-verified gold set is only as trustworthy as the reasons it was filtered
 by. "I read it and it seemed fine" is not a reason another person can audit, so
@@ -26,6 +26,21 @@ numbers recorded on the candidate:
 4. **Answer is also in the abstract.** Abstracts are not chunked, but an answer
    restated there means the span is a near-duplicate of text elsewhere in the
    paper, which is the labelling ambiguity abstracts were excluded to avoid.
+5. **The span withdraws its own claim.** The answer has to be a positive claim
+   the paper asserts, not a described non-effect. A null result is a legitimate
+   finding in science and an unusable gold answer here: a model that answers
+   "NfL was not significantly affected" is scientifically right and will not
+   match a reference answer phrased the other way round, so the question ends up
+   scoring the judge's tolerance for hedging rather than retrieval quality.
+
+   Narrow on purpose. It fires only on a **significance retraction** -- "did not
+   reach statistical significance", "without reaching statistical difference" --
+   and only when no sentence of the span asserts an unretracted result. Plain
+   negation is not enough and must not be: "no correlation was shown in CpG1"
+   contrasts with a significant correlation in the same sentence, "yet it has no
+   significant gene overlap" is half of the finding itself, and "they were not
+   affected by HS in the case of WT neurons" is the control arm of a result.
+   Each of those is a paper asserting something.
 
 These auto-reject. Everything that survives is still read by a person: the checks
 are a floor, not the verification.
@@ -206,6 +221,33 @@ def input_counts(text: str, units: Sequence[str]) -> list[str]:
     return sorted(found)
 
 
+def non_effect(span: str, retractions: Sequence[str], results: Sequence[str]) -> list[str]:
+    """Significance retractions in a span that asserts nothing else.
+
+    Sentence by sentence: a sentence carrying a retraction is withdrawn, and any
+    other sentence carrying result language is an assertion that survives it. If
+    one survives, the paper is still claiming something and the span is usable.
+    If none does, every effect the span describes has been taken back.
+
+    That sentence-level split is what separates the two shapes that look alike
+    in the answer text. "We found significantly reduced N1 differences in the
+    parietal cortex. Additionally, although not statistically significant, ..."
+    asserts a finding and then qualifies a secondary one. "We observed a slight
+    reduction ... although the differences did not reach statistical
+    significance" is a single sentence that ends by withdrawing itself.
+    """
+    sentences = [part for part in re.split(r"(?<=[.!?])\s+", span) if part.strip()]
+    withdrawn: list[str] = []
+    for sentence in sentences:
+        lowered = sentence.lower()
+        hits = [phrase for phrase in retractions if phrase.lower() in lowered]
+        if hits:
+            withdrawn.extend(hits)
+        elif result_language(sentence, results):
+            return []
+    return sorted(set(withdrawn))
+
+
 def result_language(text: str, markers: Sequence[str]) -> list[str]:
     """Marks of an answer that states a result: comparison, relationship, effect."""
     lowered = text.lower()
@@ -238,7 +280,11 @@ def check(
     shared_ngram = longest_shared_ngram(span_tokens, abstract_tokens)
     markers = provenance_markers(answer, dict(params.get("provenance_markers", {})))
     counts = input_counts(answer, list(params.get("input_count_units", [])))
-    results = result_language(answer, list(params.get("result_markers", [])))
+    result_markers = list(params.get("result_markers", []))
+    results = result_language(answer, result_markers)
+    withdrawn = non_effect(
+        span, list(params.get("significance_retractions", [])), result_markers
+    )
 
     # 1. Three ways an answer needs no span: the question already states it; the
     #    rest of the corpus already states it; or the span never stated it, in
@@ -268,11 +314,16 @@ def check(
         params["max_shared_ngram"]
     )
 
+    # 5. Every effect the span describes is taken back before the span ends, so
+    #    there is no positive claim for a reference answer to be.
+    non_effect_answer = bool(withdrawn)
+
     flags = {
         "answerable_without_span": answerable_without_span,
         "methods_provenance": methods_provenance,
         "needs_placeholder": needs_placeholder,
         "in_abstract": in_abstract,
+        "non_effect_answer": non_effect_answer,
     }
     # Not a flag, and deliberately not auto-rejecting. A Methods passage earns a
     # question when its answer is a design choice that changes how a result reads
@@ -297,6 +348,7 @@ def check(
             "provenance_markers": markers,
             "input_counts": counts,
             "result_language": results,
+            "significance_retractions": withdrawn,
         },
         "warnings": warnings,
         "auto_rejected": any(flags.values()),
