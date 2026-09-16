@@ -1,4 +1,4 @@
-"""The `report` subcommand. Two topics: `chunks` and `gold`."""
+"""The `report` subcommand. Three topics: `chunks`, `gold` and `retrieval`."""
 
 from __future__ import annotations
 
@@ -11,10 +11,11 @@ from ..config import DEFAULT_DATA_ROOT, gold_candidates_dir
 from ..gold.freeze import GoldSetError
 from ..gold.pipeline import load_candidates
 from ..report import gold as gold_report
+from ..report import retrieval as retrieval_report
 from ..report.chunks import build_report
 
 EXIT_DATA = 5
-TOPICS = ("chunks", "gold")
+TOPICS = ("chunks", "gold", "retrieval")
 
 
 def add_options(parser: argparse.ArgumentParser) -> None:
@@ -38,7 +39,12 @@ def add_options(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
-        if args.topic == "gold":
+        if args.topic == "retrieval":
+            report = retrieval_report.build_report(
+                resolved, Path(args.config).parent, args.data_root, directory
+            )
+            rendered = render_retrieval(report)
+        elif args.topic == "gold":
             working = gold_candidates_dir(
                 str(resolved["corpus"].get("manifest_sha", "")), args.data_root
             )
@@ -334,4 +340,59 @@ def render(report: dict[str, Any], resolved: dict[str, Any]) -> str:
             f"    {second}: {comparison['chunk_count'][1]:>7}")
         add("=" * 92)
 
+    return "\n".join(lines)
+
+
+def render_retrieval(report: dict[str, Any]) -> str:
+    """The six metrics per configuration, plus what the budget actually bought."""
+    lines: list[str] = []
+    add = lines.append
+    add("=" * 108)
+    add("RETRIEVAL REPORT")
+    add(f"  gold_set_sha : {report['gold_set_sha']}   manifest_sha : {report['manifest_sha']}")
+    add(
+        f"  budget       : {report['token_budget']} generator tokens"
+        f"  ({report['fill_policy']})   depth {report['depth']}   rank k {report['rank_k']}"
+    )
+    add("=" * 108)
+
+    add("")
+    add("--- WHAT THE BUDGET BOUGHT  (I1: chunk count is an output, not an input)")
+    add(
+        f"  {'configuration':<32}{'chunks':>8}{'tokens':>9}{'slack':>8}"
+        f"{'realised':>10}   stopped"
+    )
+    for config in report["configs"]:
+        stopped = ", ".join(f"{k}:{v}" for k, v in config["stopped_reason"].items())
+        add(
+            f"  {config['config']:<32}{config['chunks_per_context']['mean']:>8.2f}"
+            f"{config['tokens_used']['mean']:>9.0f}{config['budget_slack']['mean']:>8.0f}"
+            f"{config['realised_budget_share'] * 100:>9.1f}%   {stopped}"
+        )
+
+    add("")
+    add("--- METRICS  (span coverage primary; recall and nDCG secondary, I5)")
+    add(
+        f"  {'configuration':<32}{'coverage':>9}{'density':>9}{'distract':>9}"
+        f"{'gold rank':>10}{'tok before':>11}{'recall@10':>10}{'nDCG@10':>9}"
+    )
+    for config in report["configs"]:
+        rank = config["mean_gold_rank"]
+        before = config["mean_tokens_before_gold"]
+        add(
+            f"  {config['config']:<32}{config['span_coverage']:>9.3f}"
+            f"{config['evidence_density'] * 100:>8.2f}%{config['distractor_count']:>9.2f}"
+            f"{(f'{rank:.2f}' if rank is not None else '--'):>10}"
+            f"{(f'{before:.0f}' if before is not None else '--'):>11}"
+            f"{config['recall_at_10']:>10.3f}{config['ndcg_at_10']:>9.3f}"
+        )
+    add("")
+    add(
+        "  gold chunk present in the context: "
+        + "  ".join(
+            f"{c['config'].split('-rerank_')[0]}/{c['rerank']}:{c['gold_found']}/{c['n_queries']}"
+            for c in report["configs"]
+        )
+    )
+    add("=" * 108)
     return "\n".join(lines)

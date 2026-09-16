@@ -50,7 +50,10 @@ def _peak_rss_mb() -> float:
 
 
 def truncation_census(
-    chunks: Sequence[Chunk], count_tokens: Callable[[str], int], max_seq_tokens: int
+    chunks: Sequence[Chunk],
+    count_tokens: Callable[[str], int],
+    max_seq_tokens: int,
+    canonical_tokenizer: bool = False,
 ) -> dict[str, Any]:
     """Chunks whose tail the encoder will drop, counted before anything is written.
 
@@ -68,6 +71,13 @@ def truncation_census(
         "max_seq_tokens": max_seq_tokens,
         "special_tokens": SPECIAL_TOKENS,
         "usable_content_tokens": limit,
+        # Which of the two causes this arm can suffer from. An arm using the
+        # canonical chunk tokenizer can only overflow by miscounting the special
+        # tokens, which is arithmetic and fixable. Any other arm can overflow
+        # because its tokenizer makes more of the same text than the canonical
+        # one did -- a consequence of I2, not a defect. See CLAUDE.md.
+        "canonical_tokenizer": canonical_tokenizer,
+        "cause": "special_token_budget" if canonical_tokenizer else "cross_tokenizer_expansion",
         "n_truncated": len(over),
         "share_truncated": round(len(over) / len(lengths), 4) if lengths else 0.0,
         "max_content_tokens": max(lengths) if lengths else 0,
@@ -112,7 +122,10 @@ def build_one_index(
     target = index_dir(identifier, data_root)
     meta_path = target / META_FILENAME
 
-    census = truncation_census(chunks, token_counter(params), int(params["max_seq_tokens"]))
+    canonical = str(params["model_id"]) == str(chunk_params["tokenizer_id"])
+    census = truncation_census(
+        chunks, token_counter(params), int(params["max_seq_tokens"]), canonical
+    )
     if census_only:
         return {
             "index_id": identifier,

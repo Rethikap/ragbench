@@ -313,27 +313,32 @@ AWQ, and a pinned OpenRouter judge (`meta-llama/llama-3.3-70b-instruct`, rubric 
 Adding a level to `factors.yaml` changes the experiment size and nothing else needs
 editing anywhere in the codebase. Keep it that way — never hard-code the number 8.
 
-> **Known defect, measured and not yet fixed: chunks lose their tail at embedding time.**
-> `embedding.max_seq_tokens: 512` is the model's position limit and *includes* `[CLS]` and
-> `[SEP]`, so a chunk has room for 510 content tokens. `chunking.target_tokens: 512` is
-> expressed in content tokens and does not know that. Measured with each arm's own
-> tokenizer:
+> **The residual truncation is a consequence of I2, not a defect — and it is priced.**
+> `embedding.max_seq_tokens: 512` is the encoder's position limit and *includes* `[CLS]` and
+> `[SEP]`, so a chunk has room for 510 content tokens; `chunking.target_tokens` is 510 to
+> match. That closes the arithmetic half of the problem: at 512 the two disagreed by exactly
+> the two special tokens and **93.3% of the fixed arm's chunks lost their tail while only
+> 1.9% of the recursive arm's did** — an arm-asymmetric defect produced by an off-by-two.
+> At 510, truncation under the canonical tokenizer is **zero in both arms**.
 >
-> | chunk set | arm | mean tokens | max | truncated |
-> |---|---|---|---|---|
-> | `fixed` | bge | 496.8 | 512 | **1463 / 1568 (93.3%)**, by 2 tokens |
-> | `fixed` | specter2 | 451.2 | **519** | 7 / 1568 (0.4%), by up to 9 |
-> | `recursive` | bge | 378.0 | 512 | 40 / 2061 (1.9%), by 2 |
-> | `recursive` | specter2 | 343.1 | 512 | 1 / 2061 (0.1%), by 2 |
+> What remains is structural and cannot be closed without giving up something better.
+> Boundaries are drawn **once, with one canonical tokenizer** — that is what makes the 8 runs
+> share two chunk sets instead of four, and it is the whole of I2. The price is that the
+> *other* arm's tokenizer is free to make more tokens of the same text:
 >
-> Two independent causes. The first is arithmetic and cheap to fix: `target_tokens` should
-> be 510. It costs a re-chunk and a re-index and nothing else — gold spans are body offsets
-> (I5), so they survive untouched, which is the design paying for itself. The second follows
-> from I2 itself: boundaries are drawn with *one* canonical tokenizer, so the other arm's
-> tokenizer is free to make more tokens of the same text, and specter2 makes up to 519 where
-> bge makes 512. Bounding that means lowering the target further, which is a judgement about
-> how much context to give up. `ragbench index --census-only` reports both without loading
-> any weights.
+> | chunk set | arm | mean tokens | max | truncated | cause |
+> |---|---|---|---|---|---|
+> | `fixed` | bge (canonical) | 495.0 | 510 | **0** | — |
+> | `fixed` | specter2 | 449.4 | **516** | 4 / 1574 (0.2%) | cross-tokenizer expansion |
+> | `recursive` | bge (canonical) | 377.1 | 510 | **0** | — |
+> | `recursive` | specter2 | 342.3 | **512** | 1 / 2066 (0.1%) | cross-tokenizer expansion |
+>
+> **specter2 makes up to 516 tokens where the canonical tokenizer makes 510** — about 1.2%
+> more on the worst chunk. Bounding that would mean dropping `target_tokens` to roughly 500,
+> which spends 10 tokens of context on all ~3,640 chunks to rescue 5. That trade is not
+> worth taking, and the methodology section should state it with these numbers rather than
+> claim the pipeline truncates nothing. Every index logs its own census in `index.json`, so
+> the figure is carried by each run and not by this paragraph.
 
 Pipeline stages, in order:
 

@@ -6,7 +6,13 @@ seed: 20260813
 
 chunking:
   # strategy is supplied by the factor level
-  target_tokens: 512
+  # 510, not 512, and the two are the same number wearing different clothes.
+  # embedding.max_seq_tokens is the encoder's position limit and INCLUDES [CLS]
+  # and [SEP]; this target is expressed in content tokens. At 512 the two
+  # disagreed by exactly the two special tokens, and 93.3% of the fixed arm's
+  # chunks lost their tail at embedding time while only 1.9% of the recursive
+  # arm's did -- an arm-asymmetric defect produced by an off-by-two.
+  target_tokens: 510
   overlap_tokens: 0
   # Canonical chunk tokenizer, used for BOTH embedding arms so that chunking is
   # embedder-independent. This is what makes the design a clean factorial: two
@@ -56,6 +62,8 @@ embedding:
 rerank:
   # enabled comes from the factor level
   model_id: BAAI/bge-reranker-base
+  model_revision: 2cfc18c9415c912f9d8155881c133215df768a70
+  max_seq_tokens: 512
   batch_size: 16
 
 retrieval:

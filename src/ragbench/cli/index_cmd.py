@@ -136,11 +136,29 @@ def _census_table(reports: list[dict[str, Any]]) -> str:
 
 
 def _truncation_warning(reports: list[dict[str, Any]]) -> str:
-    truncated = sum(report["truncation"]["n_truncated"] for report in reports)
-    if not truncated:
-        return ""
-    return (
-        f"\n  WARNING: {truncated} chunk embeddings lose their tail. max_seq_tokens counts\n"
-        "  [CLS] and [SEP], so a chunk has room for max_seq_tokens - 2 content tokens --\n"
-        "  and chunking.target_tokens is expressed in content tokens and does not know it."
+    """Two causes, reported separately, because only one of them is a defect."""
+    arithmetic = sum(
+        report["truncation"]["n_truncated"]
+        for report in reports
+        if report["truncation"].get("canonical_tokenizer")
     )
+    expansion = sum(
+        report["truncation"]["n_truncated"]
+        for report in reports
+        if not report["truncation"].get("canonical_tokenizer")
+    )
+    lines: list[str] = []
+    if arithmetic:
+        lines.append(
+            f"\n  DEFECT: {arithmetic} chunks truncated on the arm that uses the canonical\n"
+            "  chunk tokenizer. max_seq_tokens counts [CLS] and [SEP], so a chunk has room\n"
+            "  for max_seq_tokens - 2 content tokens. Set chunking.target_tokens to match."
+        )
+    if expansion:
+        lines.append(
+            f"\n  EXPECTED: {expansion} chunks truncated on an arm whose tokenizer is not the\n"
+            "  canonical one. Boundaries are drawn once, with one tokenizer, which is what\n"
+            "  keeps chunking and embedding orthogonal (I2); the price is that another arm's\n"
+            "  tokenizer may make more tokens of the same text. A consequence, not a defect."
+        )
+    return "\n".join(lines)

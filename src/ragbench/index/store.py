@@ -35,6 +35,15 @@ class VectorStore(Protocol):
     def count(self) -> int:
         """Vectors stored."""
 
+    def search(self, vector: np.ndarray, depth: int) -> list[tuple[str, float]]:
+        """The ``depth`` nearest chunk ids and their similarity, best first.
+
+        ``depth`` is a candidate-pool size for reranking, NOT the number of
+        chunks that reach the generator -- that is decided by the token budget
+        (I1). Similarity, not distance: higher is better, so a caller cannot get
+        the sort order wrong by reading the sign.
+        """
+
 
 class ChromaStore:
     """A persistent Chroma collection. chromadb is imported here, not at module
@@ -81,6 +90,17 @@ class ChromaStore:
     def count(self) -> int:
         return int(self._collection.count())
 
+    def search(self, vector: np.ndarray, depth: int) -> list[tuple[str, float]]:
+        found = self._collection.query(
+            query_embeddings=[vector.tolist()],
+            n_results=min(depth, max(self.count(), 1)),
+            include=["distances"],
+        )
+        ids = found.get("ids", [[]])[0]
+        distances = found.get("distances", [[]])[0]
+        # The collection is cosine space, so Chroma returns 1 - cosine.
+        return [(identifier, 1.0 - float(d)) for identifier, d in zip(ids, distances, strict=True)]
+
 
 class MemoryStore:
     """In-process stand-in with the same contract, for tests that are about the
@@ -109,3 +129,12 @@ class MemoryStore:
 
     def count(self) -> int:
         return len(self.vectors)
+
+    def search(self, vector: np.ndarray, depth: int) -> list[tuple[str, float]]:
+        if not self.vectors:
+            return []
+        ids = list(self.vectors)
+        matrix = np.vstack([self.vectors[identifier] for identifier in ids])
+        scores = matrix @ vector
+        order = np.argsort(-scores)[:depth]
+        return [(ids[int(position)], float(scores[int(position)])) for position in order]
