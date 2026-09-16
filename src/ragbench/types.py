@@ -187,6 +187,11 @@ class Query(JsonRecord):
     question: str
     reference_answer: str
     gold: GoldSpan
+    #: What the judge must not penalise on this item: a source sentence the paper
+    #: got wrong, a span that is one clause of a sentence a model will see whole.
+    #: Frozen WITH the item rather than kept beside it, so the rubric cannot drift
+    #: away from the label it applies to.
+    judge_note: str = ""
     #: Set only by the author, having read the question, the answer and the span.
     #: `ragbench gold freeze` refuses to run while any selected record is False.
     verified: bool = False

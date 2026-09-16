@@ -388,4 +388,4 @@ gold:
   # Unfrozen on purpose: `gold freeze` will not run until every selected question
   # carries "verified": true in the authored file, set by the author after
   # reading the question, the answer and the evidence span.
-  gold_set_sha: unfrozen
+  gold_set_sha: e93b5d7ee992

@@ -172,6 +172,7 @@ def build_candidates(
                 # answer for reproducing an error the paper made.
                 "warning_resolution": str(decisions.get("warning_resolution", "")),
                 "source_note": str(decisions.get("source_note", "")),
+                "judge_note": str(decisions.get("judge_note", "")),
                 # Never inferred, never defaulted true. The author sets it in the
                 # authored file after reading question, answer and span.
                 "verified": bool(decisions.get("verified", False)),
@@ -280,6 +281,7 @@ def selected_queries(candidates: list[dict[str, Any]]) -> list[Query]:
             query_id=record["query_id"],
             question=record["question"],
             reference_answer=record["answer"],
+            judge_note=str(record.get("judge_note", "")),
             gold=GoldSpan(
                 pmcid=record["pmcid"],
                 char_start=int(record["char_start"]),
