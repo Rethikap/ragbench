@@ -21,9 +21,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# specter2 needs the adapters library; it is not importable alongside every
-# transformers version, so it stays optional until the embedding stage is built.
-specter = ["adapters>=1.0"]
+# specter2 needs the adapters library, which pins transformers to 4.57.x. That
+# constraint reaches the whole environment, so it is written here rather than
+# discovered on the GPU host: installing this extra downgrades transformers, and
+# the bge arm and the reranker run happily on 4.57 too. See docs/kaggle.md.
+specter = ["adapters~=1.3", "transformers~=4.57.6"]
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [project.scripts]

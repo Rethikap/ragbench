@@ -101,12 +101,46 @@ class HuggingFaceEmbedder(_TorchEncoder):
             )
 
 
+def load_pinned_adapter(model: Any, adapter_id: str, revision: str) -> str:
+    """Load an adapter at an exact commit and make it active. Returns its name.
+
+    The parameter is ``version``, not ``revision``. `adapters` forwards it to
+    ``snapshot_download(revision=...)``, and anything else lands in ``**kwargs``
+    and is discarded -- so passing ``revision=`` loads the adapter from ``main``
+    and reports success. That is the precise failure this project has an
+    invariant against: an unpinned artefact moving under a fixed id, with
+    nothing in the logs to show for it.
+
+    Extracted from the embedder so the call shape can be tested without a GPU,
+    a download, or the optional dependency installed.
+    """
+    if not revision:
+        raise ValueError(
+            f"{adapter_id}: embedding.adapter_revision is required. The adapter is half of "
+            "this arm's identity, and an unpinned one moves the vectors under a fixed "
+            "model id."
+        )
+    name = model.load_adapter(
+        adapter_id,
+        version=revision,
+        source="hf",
+        set_active=True,
+    )
+    if not getattr(model, "active_adapters", None):
+        raise ValueError(
+            f"{adapter_id} loaded but is not active. specter2 without its proximity "
+            "adapter is a different model, and an inactive adapter is the one failure that "
+            "would leave every log line still saying 'specter2'."
+        )
+    return str(name)
+
+
 class AdapterEmbedder(HuggingFaceEmbedder):
     """Base encoder plus an activated adapter. specter2's arm.
 
-    ``adapters`` is an optional dependency (see pyproject) because it is not
-    importable alongside every transformers version; the arm therefore only runs
-    where it is installed, which is the GPU host.
+    ``adapters`` is an optional dependency and it pins transformers to 4.57.x,
+    so the arm runs where that environment exists -- the GPU host. See
+    docs/kaggle.md.
     """
 
     def __init__(self, params: Mapping[str, Any]) -> None:
@@ -115,22 +149,6 @@ class AdapterEmbedder(HuggingFaceEmbedder):
 
         adapter_id = str(params["adapter_id"])
         revision = str(params.get("adapter_revision") or "")
-        if not revision:
-            raise ValueError(
-                f"{adapter_id}: embedding.adapter_revision is required. The adapter is half "
-                "of this arm's identity, and an unpinned one moves the vectors under a "
-                "fixed model id."
-            )
         adapters.init(self._model)
-        loaded = self._model.load_adapter(
-            adapter_id, revision=revision, source="hf", set_active=True
-        )
-        active = getattr(self._model, "active_adapters", None)
-        if not active:
-            raise ValueError(
-                f"{adapter_id} loaded but is not active. specter2 without its proximity "
-                "adapter is a different model, and an inactive adapter is the one failure "
-                "that would leave every log line still saying 'specter2'."
-            )
+        self._adapter = load_pinned_adapter(self._model, adapter_id, revision)
         self.name = f"{self.name}+{adapter_id}@{revision[:12]}"
-        self._adapter = loaded

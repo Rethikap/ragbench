@@ -174,3 +174,52 @@ def test_the_sequence_limit_counts_the_special_tokens() -> None:
 def test_a_token_counter_needs_no_encoder_weights() -> None:
     count = token_counter(BGE)
     assert count("three words here") == 3
+
+
+# ----------------------------------------------------- the adapter call shape
+
+
+class _RecordingModel:
+    """Stands in for an adapters-enabled model, recording how it was called."""
+
+    def __init__(self, activate: bool = True) -> None:
+        self.calls: list[dict] = []
+        self.active_adapters = None
+        self._activate = activate
+
+    def load_adapter(self, adapter_id, **kwargs):
+        self.calls.append({"adapter_id": adapter_id, **kwargs})
+        if kwargs.get("set_active") and self._activate:
+            self.active_adapters = "proximity"
+        return "proximity"
+
+
+def test_the_adapter_is_pinned_with_version_not_revision() -> None:
+    """`adapters` forwards `version` to snapshot_download(revision=...); anything
+    else lands in **kwargs and is discarded, so passing `revision=` loads the
+    adapter from main and reports success. That is exactly the unpinned-artefact
+    failure this project has an invariant against, and it leaves no trace."""
+    from ragbench.embedding.huggingface import load_pinned_adapter
+
+    model = _RecordingModel()
+    load_pinned_adapter(model, "allenai/specter2", "2081559630a8")
+    call = model.calls[0]
+    assert call["version"] == "2081559630a8"
+    assert "revision" not in call
+    assert call["set_active"] is True
+
+
+def test_an_unpinned_adapter_is_refused() -> None:
+    from ragbench.embedding.huggingface import load_pinned_adapter
+
+    with pytest.raises(ValueError, match="adapter_revision is required"):
+        load_pinned_adapter(_RecordingModel(), "allenai/specter2", "")
+
+
+def test_an_adapter_that_loads_but_does_not_activate_is_an_error() -> None:
+    """specter2 without its proximity adapter is a different model, and silence
+    here would leave every log line still saying 'specter2'."""
+    from ragbench.embedding.huggingface import load_pinned_adapter
+
+    with pytest.raises(ValueError, match="is not active"):
+        load_pinned_adapter(_RecordingModel(activate=False), "allenai/specter2", "abc123")

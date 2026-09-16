@@ -466,7 +466,14 @@ length. These numbers get reported — they are evidence the corpus is what it c
 ## Execution environment
 
 Authored **locally on CPU** (Windows, Python 3.11); the GPU stages — embedding, reranking,
-generation — run on **Kaggle or Colab**.
+generation — run on **Kaggle or Colab**. The operational runbook for that is
+[`docs/kaggle.md`](docs/kaggle.md): what travels, what comes back, and how to tell a
+resumed run from a restarted one.
+
+One environment constraint reaches the whole project from there: `adapters~=1.3`, which
+the specter2 arm needs, requires `transformers~=4.57.6`. Installing `.[specter]`
+downgrades transformers, and that is correct — the bge arm and the reranker run on 4.57
+too. It is recorded in `pyproject.toml` rather than discovered on the GPU host.
 
 Therefore: **every GPU-dependent component sits behind an interface**, with a tiny CPU
 stand-in implementation. The full pipeline must be smoke-testable end to end on a laptop
