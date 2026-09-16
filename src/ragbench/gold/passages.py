@@ -38,6 +38,7 @@ import re
 from collections.abc import Sequence
 from typing import Any, NamedTuple
 
+from ..hashing import sha256_text
 from ..tokenizers import Tokenizer
 from ..types import ParsedPaper
 from .relevance import kind_of_span, topic_score
@@ -141,7 +142,15 @@ def candidates(
             continue
         found.append(
             Passage(
-                passage_id=f"{paper.pmcid}:{start}-{end}",
+                # Content-addressed, not offset-addressed. The authored record is
+                # keyed by this id and is the one artefact that cannot be
+                # regenerated, so it must not be invalidated by an edit
+                # somewhere earlier in the paper: a PARSER_VERSION bump moves
+                # every offset after the first change it makes, which would
+                # orphan a hand-verified gold set wholesale. A digest of the
+                # passage's own text only changes when that passage changes.
+                # All ids come from hashing.py (I3).
+                passage_id=f"{paper.pmcid}:{sha256_text(text)[:12]}",
                 pmcid=paper.pmcid,
                 char_start=start,
                 char_end=end,

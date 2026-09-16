@@ -14,7 +14,14 @@ from lxml import etree
 from ..constants import PARSER_VERSION
 from ..hashing import sha256_bytes
 from ..types import ParsedPaper
-from .jats_body import apply_policy, find_url, normalise, render_body, text_of
+from .jats_body import (
+    apply_policy,
+    count_empty_citations,
+    find_url,
+    normalise,
+    render_body,
+    text_of,
+)
 
 ALI = "http://www.niso.org/schemas/ali/1.0/"
 XLINK = "http://www.w3.org/1999/xlink"
@@ -157,6 +164,10 @@ def parse_article(xml: bytes, policy: Mapping[str, Any]) -> ParsedPaper:
             "tables_placeholdered": body.count("[TABLE:"),
             "equations_placeholdered": body.count("[EQUATION]"),
             "tables_outside_body": stats["tables_replaced"] - body.count("[TABLE:"),
+            # Evidence the citation cleanup held: the parse policy says a body
+            # stream contains no bracket left empty by a removed citation, and a
+            # non-zero count here is that claim failing out loud in the artefact.
+            "empty_citations_remaining": count_empty_citations(body),
             "retained_chars": len(body),
             "abstract_chars": len(abstract),
             "n_sections": len(sections),

@@ -113,7 +113,8 @@ def test_parse_metadata_counts_what_the_policy_did(xml: bytes) -> None:
     assert metadata["equations_placeholdered"] == 1
     assert metadata["sections_dropped"] == 1
     assert metadata["figures_dropped"] == 1
-    assert metadata["xrefs_dropped"] == 1
+    # 1 in the first paragraph, 3 in the citation-residue paragraph.
+    assert metadata["xrefs_dropped"] == 4
     assert metadata["inline_math_kept"] == 1
 
 
@@ -197,3 +198,45 @@ def test_article_without_body_is_a_clean_error() -> None:
     xml += b"</article-meta></front></article>"
     with pytest.raises(JatsError, match="no <body>"):
         parse_article(xml, POLICY)
+
+
+# ------------------------------------------------- brackets left by citations
+
+
+def test_brackets_left_empty_by_a_citation_are_removed(xml: bytes) -> None:
+    """JATS marks a citation two ways and only one takes its punctuation with it.
+
+    ``<xref>[1]</xref>`` disappears cleanly; ``[<xref>1</xref>]`` and
+    ``(<xref/>;<xref/>)`` leave "[]" and "(;)" sitting in the prose. 3,863 of
+    those survived the first parse, in 80 of the 100 corpus papers.
+    """
+    paper = parse_article(xml, POLICY)
+    assert "Tau aggregates appear early and spread widely." in paper.body
+    assert "[]" not in paper.body
+    assert "(;)" not in paper.body
+    assert paper.parse_metadata["empty_citations_remaining"] == 0
+
+
+def test_the_cleanup_leaves_no_space_before_the_punctuation_it_exposes(xml: bytes) -> None:
+    """Removing " []" from "flies []." must close to "flies.", not "flies ."."""
+    paper = parse_article(xml, POLICY)
+    assert " ." not in paper.body
+    assert " ," not in paper.body
+
+
+def test_parentheses_carrying_content_are_not_touched(xml: bytes) -> None:
+    """A cleanup that eats an editorial ellipsis or a stereochemistry prefix is
+    worse than the residue it removes, so periods and dashes are deliberately
+    outside the character class."""
+    paper = parse_article(xml, POLICY)
+    assert "The (-)-enantiomer bound tightly (...) at every dose." in paper.body
+
+
+def test_count_empty_citations_is_the_check_not_the_cleanup() -> None:
+    from ragbench.ingest.jats_body import count_empty_citations, normalise
+
+    assert count_empty_citations("flies [] and rats (;;)") == 2
+    assert count_empty_citations("the (-) form and (...) elsewhere") == 0
+    assert normalise("human APP in flies [].") == "human APP in flies."
+    assert normalise("works (;;;) and more [,,]") == "works and more"
+

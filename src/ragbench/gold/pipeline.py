@@ -165,6 +165,13 @@ def build_candidates(
                 "selected": bool(decisions.get("selected", False)),
                 "rejection_reason": str(decisions.get("rejection_reason", "")),
                 "note": str(decisions.get("note", "")),
+                # Why a warning was overruled, and anything wrong with the source
+                # sentence itself. Both are the author's judgement about a record
+                # and both have to survive into the artefact to be auditable --
+                # the second so the judge stage does not penalise a generated
+                # answer for reproducing an error the paper made.
+                "warning_resolution": str(decisions.get("warning_resolution", "")),
+                "source_note": str(decisions.get("source_note", "")),
                 # Never inferred, never defaulted true. The author sets it in the
                 # authored file after reading question, answer and span.
                 "verified": bool(decisions.get("verified", False)),

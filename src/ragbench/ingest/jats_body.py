@@ -33,16 +33,40 @@ _WHITESPACE = re.compile(r"\s+")
 _SPACE_BEFORE_PUNCTUATION = re.compile(r"\s+([,.;:!?)\]])")
 _URL = re.compile(r"https?://[^\s)>\]]+")
 
+#: Brackets left holding nothing but separators once the citations inside them
+#: are gone. JATS marks a citation two ways, and only one of them takes its
+#: punctuation with it: ``<xref>[1]</xref>`` disappears cleanly, while
+#: ``[<xref>1</xref>]`` and ``(<xref/>;<xref/>;<xref/>)`` leave ``[]`` and
+#: ``(;;;)`` sitting in the prose. 3,863 of them survived the first parse, in 80
+#: of the 100 papers.
+#:
+#: Periods and dashes are deliberately NOT in the character class. ``(...)`` is
+#: an editorial ellipsis and ``(-)`` is a stereochemistry prefix -- both are
+#: content, and a cleanup that eats them is worse than the residue it removes.
+_EMPTY_CITATION = re.compile(r"\s*[\[(][\s,;]*[\])]")
+
 
 def normalise(text: str) -> str:
-    """Collapse whitespace, and close the gap a dropped citation leaves behind.
+    """Collapse whitespace, and close both gaps a dropped citation leaves behind.
 
     Removing ``<xref>[1]</xref>`` from "... with age [1], as shown" would
     otherwise leave "... with age , as shown" -- a space before the comma in
     every sentence that cited anything.
+
+    Removing the ``<xref>`` from ``[<xref>1</xref>]`` leaves the brackets, which
+    is the same defect wearing different punctuation: "human APP in flies []."
+    The empty brackets go, then whitespace is collapsed again because removing
+    them can leave a double space, then the space-before-punctuation rule runs
+    last so "flies ." closes to "flies.".
     """
+    text = _EMPTY_CITATION.sub("", text)
     collapsed = _WHITESPACE.sub(" ", text)
     return _SPACE_BEFORE_PUNCTUATION.sub(r"\1", collapsed).strip()
+
+
+def count_empty_citations(text: str) -> int:
+    """Residues still present. Reported per paper; the parse policy says zero."""
+    return len(_EMPTY_CITATION.findall(text))
 
 
 def text_of(element: etree._Element | None) -> str:

@@ -8,10 +8,18 @@ numbers recorded on the candidate:
 1. **Answerable without the span.** A question the generator can answer from what
    it already knows measures the generator's memory, not retrieval.
 2. **Methods provenance, not a finding.** The answer identifies a reagent, an
-   instrument, a software version or a housing condition. That is a string
-   lookup dressed as scientific QA, and it is answerable by near-verbatim
-   matching, so every configuration scores alike and the set stops
-   discriminating between arms.
+   instrument, a software version, a housing condition -- or a count of what
+   went into the study. That is a string lookup dressed as scientific QA, and it
+   is answerable by near-verbatim matching, so every configuration scores alike
+   and the set stops discriminating between arms.
+
+   The count case needs its own rule, because the surface form does not separate
+   it: **counts of findings are findings; counts of inputs are provenance.**
+   "A core group of 48 proteins consistently enriched in plaques" is a
+   discovered quantity and is the paper's result. "648 individuals", "49 samples
+   after filtering" and "112 nerves from 56 rats" describe what went in, and are
+   retrieved by exactly the same near-verbatim match as a catalogue number. Both
+   are numbers next to nouns; only one was found by doing the science.
 3. **Answer needs a placeholder.** ``[TABLE: Table 3]`` and ``[EQUATION]`` stand
    in for content the parse policy dropped; a question answered by one is
    unanswerable from the corpus as it exists.
@@ -60,6 +68,10 @@ ARTEFACT_REFERENCE = re.compile(
 #: "version 0.90", "v1.0.0", "3.7.3" -- a software version, never a measurement.
 #: Deliberately not a bare `\d+\.\d+`, which would match every p-value.
 VERSION = re.compile(r"\bversion\s+[\w.]+|\bv\d+(\.\d+)+\b|\b\d+\.\d+\.\d+\b", re.IGNORECASE)
+#: A cardinal number, including "95.2" and "1,730".
+NUMBER = r"\d[\d,]*(?:\.\d+)?"
+#: Prepositions that put a count after the thing counted: "a cohort of 648".
+OF = r"(?:of|from|in|comprising|totalling|totaling)"
 
 
 def content_tokens(text: str) -> list[str]:
@@ -163,6 +175,37 @@ def provenance_markers(text: str, markers: dict[str, Sequence[str]]) -> list[str
     return sorted(set(found))
 
 
+def input_counts(text: str, units: Sequence[str]) -> list[str]:
+    """Counts of study inputs found in the answer. See rule 2 in the module doc.
+
+    Matched two ways, both requiring the number and the unit to be close enough
+    to be in the same phrase: "112 nerves" and "56 Sprague-Dawley rats" (a number
+    then at most two intervening words, which covers a strain or an adjective),
+    and "a cohort of 648" (the unit, a preposition, then the number).
+
+    Proximity is doing real work. "no differences in microglial numbers between
+    transgenic and control rats; by 18-20 months" contains both a number and the
+    unit "rats" and is a finding; they are twelve words apart and in different
+    clauses, and neither pattern spans that.
+
+    The unit list is configured and deliberately excludes "cells", "lesions" and
+    "proteins", which are as often counted as *results* as they are as inputs.
+    """
+    if not units:
+        return []
+    alternation = "|".join(
+        re.escape(unit) for unit in sorted(units, key=len, reverse=True)
+    )
+    before = re.compile(
+        rf"\b{NUMBER}\b(?:\s+[A-Za-z][\w'-]*){{0,2}}\s+\b(?:{alternation})\b",
+        re.IGNORECASE,
+    )
+    after = re.compile(rf"\b(?:{alternation})\b\s+{OF}\s+\b{NUMBER}\b", re.IGNORECASE)
+    found = {match.group(0).strip() for match in before.finditer(text)}
+    found |= {match.group(0).strip() for match in after.finditer(text)}
+    return sorted(found)
+
+
 def result_language(text: str, markers: Sequence[str]) -> list[str]:
     """Marks of an answer that states a result: comparison, relationship, effect."""
     lowered = text.lower()
@@ -194,6 +237,7 @@ def check(
     abstract_overlap = _share(answer_tokens, set(abstract_tokens))
     shared_ngram = longest_shared_ngram(span_tokens, abstract_tokens)
     markers = provenance_markers(answer, dict(params.get("provenance_markers", {})))
+    counts = input_counts(answer, list(params.get("input_count_units", [])))
     results = result_language(answer, list(params.get("result_markers", [])))
 
     # 1. Three ways an answer needs no span: the question already states it; the
@@ -205,10 +249,11 @@ def check(
         or grounding < float(params["min_answer_grounding"])
     )
 
-    # 2. The answer identifies apparatus. A reagent catalogue number is retrieved
-    #    by near-verbatim match in every configuration, so it discriminates
-    #    between nothing.
-    methods_provenance = bool(markers)
+    # 2. The answer identifies apparatus, or counts what went into the study.
+    #    Either is retrieved by near-verbatim match in every configuration, so it
+    #    discriminates between nothing. A count of what came *out* -- 48 proteins
+    #    found enriched -- is a result and is left alone.
+    methods_provenance = bool(markers) or bool(counts)
 
     # 3. The span is placeholder-free by construction, so this catches the
     #    drafted text pointing at an artefact that is not in the corpus.
@@ -250,6 +295,7 @@ def check(
             "abstract_overlap": round(abstract_overlap, 4),
             "span_abstract_shared_ngram": shared_ngram,
             "provenance_markers": markers,
+            "input_counts": counts,
             "result_language": results,
         },
         "warnings": warnings,

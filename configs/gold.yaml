@@ -275,6 +275,62 @@ gold:
         - w/v
         - v/v
 
+    # Counts of findings are findings; counts of inputs are provenance. The
+    # surface form does not separate them -- "48 proteins enriched in plaques" and
+    # "49 samples after filtering" are both a number beside a noun -- so the rule
+    # is carried by the noun. These are the units a study takes IN.
+    #
+    # "cells", "lesions" and "proteins" are deliberately absent: each is as often
+    # a counted result as a counted input, and a list that catches q044's
+    # "48 proteins" would be rejecting the paper's actual finding.
+    input_count_units:
+      - sample
+      - samples
+      - participant
+      - participants
+      - subject
+      - subjects
+      - individual
+      - individuals
+      - patient
+      - patients
+      - case
+      - cases
+      - control
+      - controls
+      - donor
+      - donors
+      - volunteer
+      - volunteers
+      - animal
+      - animals
+      - mouse
+      - mice
+      - rat
+      - rats
+      - nerve
+      - nerves
+      - section
+      - sections
+      - slide
+      - slides
+      - scan
+      - scans
+      - specimen
+      - specimens
+      - cohort
+      - cohorts
+      - record
+      - records
+      - article
+      - articles
+      - paper
+      - papers
+      - dataset
+      - datasets
+      - replicate
+      - replicates
+
     # Language that marks an answer as stating a result. Its absence in a Methods
     # passage raises a warning for the verifier -- never an auto-reject, because a
     # positivity threshold is a design choice worth asking about and carries no

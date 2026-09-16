@@ -37,6 +37,7 @@ from ragbench.gold.validate import (
     corpus_tokens,
     document_frequency,
     elsewhere_in_corpus,
+    input_counts,
     longest_shared_ngram,
     provenance_markers,
 )
@@ -85,6 +86,7 @@ VALIDATION: dict[str, Any] = {
         "equipment_unit": [" kv", "w/v"],
     },
     "result_markers": ["significant", "correlat", "lower", "higher", "associat"],
+    "input_count_units": ["samples", "individuals", "cohort", "nerves", "rats", "participants"],
 }
 
 SECTION_PATTERNS = {
@@ -834,3 +836,68 @@ def test_the_whole_gold_path_runs_offline(tmp_path: Path, monkeypatch: Any) -> N
         assert record["selected"] is False
         assert stored.body[record["char_start"] : record["char_end"]] == record["evidence"]
         assert stored.body[record["context_start"] : record["context_end"]] == record["context"]
+
+
+# ---------------------------------------------- counts: inputs vs findings
+
+
+INPUT_UNITS = ["samples", "individuals", "cohort", "nerves", "rats", "participants"]
+
+
+def test_a_count_of_findings_is_a_finding() -> None:
+    """The rule, on the case that makes it non-obvious. q044's answer counts what
+    the study discovered, and is the paper's result."""
+    answer = (
+        "A core group of 48 proteins was consistently enriched in plaques compared with "
+        "neighbouring non-plaque tissue in both conditions."
+    )
+    assert input_counts(answer, INPUT_UNITS) == []
+
+
+def test_a_count_of_inputs_is_provenance() -> None:
+    """q013: 171 miRNAs measured in 648 people describes what went in."""
+    answer = (
+        "171 plasma-circulating miRNAs, in a cohort of 648 individuals from the general "
+        "population."
+    )
+    assert "648 individuals" in input_counts(answer, INPUT_UNITS)
+
+
+def test_a_half_and_half_answer_is_provenance_on_the_input_half() -> None:
+    """q021 counts both an input and a result; the input half is enough to reject,
+    the same way q036's half-provenance was."""
+    answer = (
+        "49 samples, from which WGCNA identified 10 modules of highly coexpressed genes "
+        "ranging from 32 to 708 nodes in size."
+    )
+    assert input_counts(answer, INPUT_UNITS) == ["49 samples"]
+
+
+def test_an_input_count_rejects_through_methods_provenance() -> None:
+    result = verdict(
+        "How many people were studied?",
+        "A cohort of 648 individuals from the general population.",
+        "We studied a cohort of 648 individuals from the general population.",
+    )
+    assert result["flags"]["methods_provenance"] is True
+    assert result["signals"]["input_counts"]
+
+
+def test_a_number_and_a_unit_in_different_clauses_are_not_a_count() -> None:
+    """q061 contains both a number and "rats" and is a finding; they are twelve
+    words apart and in different clauses, which is what the proximity rule is for."""
+    answer = (
+        "At 10 months there were no differences in microglial numbers between transgenic "
+        "and control rats; by 18-20 months the microglia showed extensive proliferation "
+        "and an activated phenotype."
+    )
+    assert input_counts(answer, INPUT_UNITS) == []
+
+
+def test_an_intervening_strain_name_does_not_hide_the_count() -> None:
+    """q024: "56 Sprague-Dawley rats" is still a count of animals."""
+    assert input_counts("112 nerves from 56 Sprague-Dawley rats", INPUT_UNITS) == [
+        "112 nerves",
+        "56 Sprague-Dawley rats",
+        "nerves from 56",
+    ]

@@ -18,8 +18,15 @@ from __future__ import annotations
 from ..types import ParsedPaper
 
 
-class EvidenceError(Exception):
-    """An anchor is missing, ambiguous, or the two are the wrong way round."""
+class EvidenceError(ValueError):
+    """An anchor is missing, ambiguous, or the two are the wrong way round.
+
+    A ValueError so the candidate builder collects it as a build failure rather
+    than dying on the first one. Loud either way -- the candidate is dropped, the
+    error is printed, and the selected count falls short of gold.n_questions so
+    `gold freeze` refuses -- but collected means every stale anchor is visible in
+    one pass instead of one re-run per anchor.
+    """
 
 
 def resolve(
