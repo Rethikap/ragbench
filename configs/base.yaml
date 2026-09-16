@@ -39,8 +39,17 @@ chunking:
   chunk_abstract: false
 
 embedding:
-  # name / model_id / adapter_id / query_instruction come from the factor level
+  # name / model_id / model_revision / adapter_id / adapter_revision /
+  # query_instruction come from the factor level.
   normalize: true
+  # Both arms are BERT-based and take the [CLS] token as the sequence
+  # representation. Fixed across all 8 runs: pooling is not a factor, and a
+  # difference in pooling between the arms would be an uncontrolled variable
+  # wearing the embedding factor's name.
+  pooling: cls
+  # The model's own position-embedding limit, INCLUDING [CLS] and [SEP]. A chunk
+  # of more than max_seq_tokens - 2 content tokens loses its tail at embedding
+  # time; the index stage counts those and refuses to be quiet about it.
   max_seq_tokens: 512
   batch_size: 32
 

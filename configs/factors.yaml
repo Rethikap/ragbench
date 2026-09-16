@@ -14,14 +14,26 @@ factors:
     bge:
       name: bge_base
       model_id: BAAI/bge-base-en-v1.5
+      # Pinned like the tokenizers: a Hub id is a mutable pointer and every
+      # vector in the index is a function of the checkpoint behind it.
+      model_revision: a5beb1e3e68b9ab74eb54cfd186867f64f240e1a
       adapter_id: null
+      adapter_revision: null
       # bge is trained with an asymmetric query prefix; specter2 is not. Applied
       # at query time only, never to documents.
       query_instruction: "Represent this sentence for searching relevant passages: "
     specter2:
       name: specter2_proximity
       model_id: allenai/specter2_base
+      model_revision: 3447645e1def9117997203454fa4495937bfbd83
+      # THE PROXIMITY ADAPTER. `allenai/specter2` is the proximity adapter --
+      # tagged adapter-transformers on the Hub, and the one SPECTER2's retrieval
+      # results were measured with. The base encoder alone is not SPECTER2 for
+      # retrieval, and `allenai/specter2_adhoc_query` is a different adapter for
+      # a different task. Loading the base without the adapter would silently
+      # measure something the paper never reported.
       adapter_id: allenai/specter2
+      adapter_revision: 2081559630a80fc5851d8f798a05ba81e9468089
       query_instruction: ""
 
   rerank:

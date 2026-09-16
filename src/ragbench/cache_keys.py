@@ -90,23 +90,37 @@ def chunk_set_key(manifest_sha: str, chunking: Mapping[str, Any]) -> str:
     )
 
 
-def index_key(chunk_set_id: str, model_id: str, adapter_id: str | None = None) -> str:
-    """Id for one vector index.
+def index_key(
+    chunk_set_id: str,
+    model_id: str,
+    model_revision: str,
+    adapter_id: str | None = None,
+    adapter_revision: str | None = None,
+) -> str:
+    """Id for one vector index. There are exactly four across the 8 runs.
+
+    ``chunk_set_id`` enters as an opaque id, which is what keeps the two levels
+    independent: the embedder cannot reach back into how chunks were cut, so
+    swapping it produces a new index over the *same* chunk set (I2).
 
     ``adapter_id`` is part of the embedding model's identity, not an extra: the
-    specter2 arm is ``allenai/specter2_base`` *plus* its adapter, and swapping
-    the adapter changes every vector.
+    specter2 arm is ``allenai/specter2_base`` *plus* its proximity adapter, and
+    swapping the adapter changes every vector. Both revisions are keyed for the
+    reason the tokenizer's is -- a Hub id is a mutable pointer, and a checkpoint
+    that moves under a fixed id would silently re-embed the corpus.
 
-    ``embedding.normalize`` and ``embedding.max_seq_tokens`` also affect vectors
-    but are fixed in base.yaml for all 8 runs, so they cannot vary and are not
-    keyed. If either ever becomes a factor level, it must be added here.
+    ``embedding.normalize``, ``pooling`` and ``max_seq_tokens`` also affect
+    vectors but are fixed in base.yaml for all 8 runs, so they cannot vary and
+    are not keyed. If any ever becomes a factor level, it must be added here.
     """
     return stable_hash(
         {
             "kind": "index",
             "chunk_set_id": chunk_set_id,
             "model_id": model_id,
+            "model_revision": model_revision,
             "adapter_id": adapter_id,
+            "adapter_revision": adapter_revision,
         }
     )
 

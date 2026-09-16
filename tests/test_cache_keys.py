@@ -118,20 +118,39 @@ def test_index_key_separates_the_embedding_arms(resolved: dict[str, Any]) -> Non
     chunk_set = chunk_set_key(SHA, _arm(resolved, "fixed"))
     arms = resolved["factors"]["embedding"]
     ids = {
-        index_key(chunk_set, level["model_id"], level["adapter_id"]) for level in arms.values()
+        index_key(
+            chunk_set,
+            level["model_id"],
+            level.get("model_revision", ""),
+            level.get("adapter_id"),
+            level.get("adapter_revision"),
+        )
+        for level in arms.values()
     }
     assert len(ids) == len(arms)
 
 
 def test_index_key_tracks_the_adapter() -> None:
+    """specter2 is the base encoder PLUS its proximity adapter. Loading the base
+    alone is a different model, and the id has to say so."""
     chunk_set = "aaaaaaaaaaaa"
-    assert index_key(chunk_set, "allenai/specter2_base", "allenai/specter2") != index_key(
-        chunk_set, "allenai/specter2_base", None
+    with_adapter = index_key(
+        chunk_set, "allenai/specter2_base", "rev", "allenai/specter2", "arev"
     )
+    without = index_key(chunk_set, "allenai/specter2_base", "rev", None, None)
+    assert with_adapter != without
+
+
+def test_index_key_tracks_both_revisions() -> None:
+    """A checkpoint or an adapter that moves under a fixed Hub id would otherwise
+    re-embed the corpus into an index still wearing the old name."""
+    base = index_key("aaaaaaaaaaaa", "m", "rev", "a", "arev")
+    assert index_key("aaaaaaaaaaaa", "m", "other", "a", "arev") != base
+    assert index_key("aaaaaaaaaaaa", "m", "rev", "a", "other") != base
 
 
 def test_index_key_tracks_the_chunk_set() -> None:
-    assert index_key("aaaaaaaaaaaa", "m") != index_key("bbbbbbbbbbbb", "m")
+    assert index_key("aaaaaaaaaaaa", "m", "rev") != index_key("bbbbbbbbbbbb", "m", "rev")
 
 
 def test_run_key_is_order_independent(resolved: dict[str, Any]) -> None:

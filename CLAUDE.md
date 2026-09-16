@@ -53,6 +53,17 @@ chunking and embedding non-orthogonal, and destroy the factorial design.
 
 Two tokenizers exist in this project and they are never interchangeable:
 
+Every model artefact is pinned by revision, and there are five. The three that make
+vectors:
+
+| Artefact | Config keys | Pinned revision | Role |
+|---|---|---|---|
+| `BAAI/bge-base-en-v1.5` | `embedding.model_id` / `.model_revision`, level `bge` | `a5beb1e3e68b9ab74eb54cfd186867f64f240e1a` | Embedding arm A. The same repo as the chunk tokenizer, and a different use of it. |
+| `allenai/specter2_base` | `embedding.model_id` / `.model_revision`, level `specter2` | `3447645e1def9117997203454fa4495937bfbd83` | Arm B's encoder. **Not the arm on its own.** |
+| `allenai/specter2` | `embedding.adapter_id` / `.adapter_revision` | `2081559630a80fc5851d8f798a05ba81e9468089` | Arm B's **proximity adapter** — what SPECTER2's retrieval results were measured with. `allenai/specter2_adhoc_query` is a different adapter for a different task. |
+
+And the two tokenizers, never interchangeable with each other or with the above:
+
 | Tokenizer | Config keys | Pinned revision | Role |
 |---|---|---|---|
 | `BAAI/bge-base-en-v1.5` | `chunking.tokenizer_id` / `.tokenizer_revision` | `a5beb1e3e68b9ab74eb54cfd186867f64f240e1a` | Draws chunk boundaries. Fixed across all 8 runs. |
@@ -70,6 +81,28 @@ Corpus selection queries NCBI **once**, then writes a manifest whose digest is p
 `configs/corpus.yaml` as `manifest_sha`. PMC grows continuously, so an unpinned query is
 not reproducible. After freezing, every stage reads the manifest and **never queries NCBI
 again**.
+
+### I4b — Four indexes, and the embedder may not reach the chunker
+
+The 8 runs share **two chunk sets** (I2) and **four indexes**: two chunk sets × two
+embedding arms. `index_key` takes `chunk_set_id` as an opaque string, which is what keeps
+the two levels independent — the embedder cannot see how chunks were cut, so swapping it
+produces a new index over the *same* chunk set. `embedding.arm_params` reads
+`base.embedding` and `factors.embedding` only, mirroring what `chunking.arm_params` does.
+The two factors meet for the first time in the index id, and they meet there as two strings.
+
+> A chunk-set id that changes when the embedder changes is the same bug as I2, one level up.
+
+**The specter2 arm is the base encoder plus its activated proximity adapter.**
+`allenai/specter2_base` alone is a different model and would measure something the SPECTER2
+paper never reported, while every log line still said "specter2". `AdapterEmbedder` refuses
+to construct if activation did not take, because a silently inactive adapter is precisely
+the failure that leaves no trace in the results.
+
+Documents and queries go through **separate methods**. `bge` prefixes a query with an
+instruction and never a document; `specter2` is symmetric and takes no prefix. A single
+`encode` method would make prefixing a document possible by accident, which corrupts every
+vector in an index while the run still looks healthy.
 
 ### I5 — Gold labels are character spans, never chunk ids
 
@@ -279,6 +312,28 @@ AWQ, and a pinned OpenRouter judge (`meta-llama/llama-3.3-70b-instruct`, rubric 
 
 Adding a level to `factors.yaml` changes the experiment size and nothing else needs
 editing anywhere in the codebase. Keep it that way — never hard-code the number 8.
+
+> **Known defect, measured and not yet fixed: chunks lose their tail at embedding time.**
+> `embedding.max_seq_tokens: 512` is the model's position limit and *includes* `[CLS]` and
+> `[SEP]`, so a chunk has room for 510 content tokens. `chunking.target_tokens: 512` is
+> expressed in content tokens and does not know that. Measured with each arm's own
+> tokenizer:
+>
+> | chunk set | arm | mean tokens | max | truncated |
+> |---|---|---|---|---|
+> | `fixed` | bge | 496.8 | 512 | **1463 / 1568 (93.3%)**, by 2 tokens |
+> | `fixed` | specter2 | 451.2 | **519** | 7 / 1568 (0.4%), by up to 9 |
+> | `recursive` | bge | 378.0 | 512 | 40 / 2061 (1.9%), by 2 |
+> | `recursive` | specter2 | 343.1 | 512 | 1 / 2061 (0.1%), by 2 |
+>
+> Two independent causes. The first is arithmetic and cheap to fix: `target_tokens` should
+> be 510. It costs a re-chunk and a re-index and nothing else — gold spans are body offsets
+> (I5), so they survive untouched, which is the design paying for itself. The second follows
+> from I2 itself: boundaries are drawn with *one* canonical tokenizer, so the other arm's
+> tokenizer is free to make more tokens of the same text, and specter2 makes up to 519 where
+> bge makes 512. Bounding that means lowering the target further, which is a judgement about
+> how much context to give up. `ragbench index --census-only` reports both without loading
+> any weights.
 
 Pipeline stages, in order:
 

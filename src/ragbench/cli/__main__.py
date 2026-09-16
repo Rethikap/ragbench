@@ -25,7 +25,7 @@ from ..config import (
     resolve_config,
     run_dir,
 )
-from . import chunk_cmd, gold_cmd, ingest_cmd, report_cmd
+from . import chunk_cmd, gold_cmd, index_cmd, ingest_cmd, report_cmd
 
 STAGES: tuple[str, ...] = (
     "ingest",
@@ -68,12 +68,14 @@ HANDLERS: dict[str, Handler | None] = dict.fromkeys(STAGES)
 HANDLERS["ingest"] = ingest_cmd.run
 HANDLERS["chunk"] = chunk_cmd.run
 HANDLERS["report"] = report_cmd.run
+HANDLERS["index"] = index_cmd.run
 HANDLERS["gold"] = gold_cmd.run
 
 #: Extra options registered per stage, beyond the common ones.
 STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "ingest": ingest_cmd.add_options,
     "chunk": chunk_cmd.add_options,
+    "index": index_cmd.add_options,
     "report": report_cmd.add_options,
     "gold": gold_cmd.add_options,
 }

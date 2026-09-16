@@ -132,6 +132,12 @@ def chunk_set_dir(chunk_set_id: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
     return Path(root) / "chunks" / chunk_set_id
 
 
+def index_dir(index_id: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
+    """One vector index. There are exactly four across the 8 runs -- two chunk
+    sets times two embedding arms -- and the id says which."""
+    return Path(root) / "indexes" / index_id
+
+
 def gold_candidates_dir(manifest_sha: str, root: Path = DEFAULT_DATA_ROOT) -> Path:
     """Working directory for drafted candidates, before any are verified.
 
