@@ -179,18 +179,32 @@ def test_a_token_counter_needs_no_encoder_weights() -> None:
 # ----------------------------------------------------- the adapter call shape
 
 
-class _RecordingModel:
-    """Stands in for an adapters-enabled model, recording how it was called."""
+class _AdaptersConfig:
+    def __init__(self) -> None:
+        self.adapters: dict[str, object] = {}
+        self.active_setup = None
 
-    def __init__(self, activate: bool = True) -> None:
+
+class _RecordingModel:
+    """Stands in for an adapters-enabled model, recording how it was called.
+
+    Models the one behaviour of `load_adapter` that matters here: `set_active`
+    is honoured only when the adapter name is NEW. Loading a name the model
+    already has logs "Overwriting existing adapter" and never activates.
+    """
+
+    def __init__(self, already_loaded: bool = False) -> None:
         self.calls: list[dict] = []
-        self.active_adapters = None
-        self._activate = activate
+        self.adapters_config = _AdaptersConfig()
+        if already_loaded:
+            self.adapters_config.adapters["proximity"] = object()
 
     def load_adapter(self, adapter_id, **kwargs):
         self.calls.append({"adapter_id": adapter_id, **kwargs})
-        if kwargs.get("set_active") and self._activate:
-            self.active_adapters = "proximity"
+        if "proximity" not in self.adapters_config.adapters:
+            self.adapters_config.adapters["proximity"] = object()
+            if kwargs.get("set_active"):
+                self.adapters_config.active_setup = "proximity"
         return "proximity"
 
 
@@ -216,10 +230,169 @@ def test_an_unpinned_adapter_is_refused() -> None:
         load_pinned_adapter(_RecordingModel(), "allenai/specter2", "")
 
 
-def test_an_adapter_that_loads_but_does_not_activate_is_an_error() -> None:
-    """specter2 without its proximity adapter is a different model, and silence
-    here would leave every log line still saying 'specter2'."""
+def test_set_active_being_ignored_is_caught_at_load() -> None:
+    """`set_active=True` applies only to an adapter the model does not already
+    have; re-loading a name logs "Overwriting existing adapter" and silently
+    leaves nothing activated. Read from adapters_config, never from the
+    `active_adapters` attribute, which collides with a transformers method."""
     from ragbench.embedding.huggingface import load_pinned_adapter
 
-    with pytest.raises(ValueError, match="is not active"):
-        load_pinned_adapter(_RecordingModel(activate=False), "allenai/specter2", "abc123")
+    with pytest.raises(ValueError, match="set_active did not take"):
+        load_pinned_adapter(_RecordingModel(already_loaded=True), "allenai/specter2", "abc123")
+
+
+def test_a_freshly_loaded_adapter_activates() -> None:
+    from ragbench.embedding.huggingface import load_pinned_adapter
+
+    model = _RecordingModel()
+    assert load_pinned_adapter(model, "allenai/specter2", "abc123") == "proximity"
+    assert model.adapters_config.active_setup == "proximity"
+
+
+# ------------------------------------------------------------ device placement
+
+
+class _Tensor:
+    def __init__(self, device: str) -> None:
+        self.device = device
+
+
+class _FakeModel:
+    """A model whose `.to()` moves only what it knows about.
+
+    `late` stands for tensors added after a move -- an adapter's weights, which
+    are created on CPU when the adapter is loaded and stay there.
+    """
+
+    def __init__(self, devices=("cpu",), late=()) -> None:
+        self._params = [_Tensor(d) for d in devices]
+        self._buffers: list[_Tensor] = []
+        self._late = [_Tensor(d) for d in late]
+        self.moves: list[str] = []
+        self.moves_late = True
+
+    def parameters(self):
+        return list(self._params) + list(self._late)
+
+    def buffers(self):
+        return list(self._buffers)
+
+    def to(self, device):
+        self.moves.append(device)
+        for tensor in self._params:
+            tensor.device = device
+        if self.moves_late:
+            for tensor in self._late:
+                tensor.device = device
+        return self
+
+
+def test_every_tensor_including_the_adapter_reports_one_device() -> None:
+    """The invariant the specter2 crash violated: base model on cuda:0, adapter
+    weights left on cpu, and the failure surfacing inside a matmul."""
+    from ragbench.embedding.huggingface import model_devices, place_on_device
+
+    model = _FakeModel(devices=("cpu", "cpu"), late=("cpu",))
+    assert place_on_device(model, "cuda:0") == "cuda:0"
+    assert model_devices(model) == {"cuda:0"}
+
+
+def test_a_tensor_left_behind_by_the_move_is_caught_here() -> None:
+    """Rather than several frames later, in the forward pass."""
+    from ragbench.embedding.huggingface import place_on_device
+
+    model = _FakeModel(devices=("cpu",), late=("cpu",))
+    model.moves_late = False  # the adapter does not follow the move
+    with pytest.raises(ValueError, match="split across devices"):
+        place_on_device(model, "cuda:0")
+
+
+def test_buffers_are_checked_as_well_as_parameters() -> None:
+    from ragbench.embedding.huggingface import place_on_device
+
+    model = _FakeModel(devices=("cpu",))
+    model._buffers = [_Tensor("cuda:0")]
+    model.moves_late = False
+    model._late = []
+    model._buffers[0].device = "cpu"
+    assert place_on_device(model, "cpu") == "cpu"
+
+
+# -------------------------------------------------- the adapter actually runs
+
+
+class _FakeAdapterModel:
+    """Records activation and produces a different embedding when active."""
+
+    def __init__(self, adapter_changes_output: bool = True) -> None:
+        self.active = "proximity"
+        self.history: list = []
+        self._changes = adapter_changes_output
+
+    def set_active_adapters(self, setup):
+        if setup is not None and setup != "proximity":
+            raise ValueError(f"No adapter with name '{setup}' found.")
+        self.active = setup
+        self.history.append(setup)
+
+    def embed(self):
+        if self.active and self._changes:
+            return np.array([[1.0, 0.0]])
+        return np.array([[0.0, 1.0]])
+
+
+def test_the_adapter_is_proved_to_be_in_the_forward_pass() -> None:
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel(adapter_changes_output=True)
+    verify_adapter_participates(model, model.embed, "proximity")
+    assert model.history == [None, "proximity"]
+
+
+def test_a_loaded_but_inert_adapter_is_refused() -> None:
+    """The failure that reached a GPU run: the adapter present, the forward pass
+    unchanged by it, and every log line still saying 'specter2'."""
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel(adapter_changes_output=False)
+    with pytest.raises(ValueError, match="not in the forward pass"):
+        verify_adapter_participates(model, model.embed, "proximity")
+
+
+def test_the_probe_restores_the_adapter_afterwards() -> None:
+    """A probe that left the adapter off would silently ruin every embedding
+    after it -- worse than the bug it exists to catch."""
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel()
+    verify_adapter_participates(model, model.embed, "proximity")
+    assert model.active == "proximity"
+
+
+def test_the_adapter_is_restored_even_if_the_probe_raises() -> None:
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel()
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("probe blew up")
+        return np.array([[1.0, 0.0]])
+
+    with pytest.raises(RuntimeError, match="probe blew up"):
+        verify_adapter_participates(model, flaky, "proximity")
+    assert model.active == "proximity"
+
+
+def test_truthiness_of_active_adapters_is_not_a_check() -> None:
+    """Why the old guard could never fire. `active_adapters` is a method on
+    transformers' PeftAdapterMixin, which every PreTrainedModel inherits, so the
+    attribute is a bound method -- truthy with or without an adapter."""
+    from transformers import PreTrainedModel
+
+    attribute = PreTrainedModel.active_adapters
+    assert not isinstance(attribute, property)
+    assert callable(attribute)
+    assert bool(attribute) is True

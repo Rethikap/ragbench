@@ -95,9 +95,21 @@ The two factors meet for the first time in the index id, and they meet there as 
 
 **The specter2 arm is the base encoder plus its activated proximity adapter.**
 `allenai/specter2_base` alone is a different model and would measure something the SPECTER2
-paper never reported, while every log line still said "specter2". `AdapterEmbedder` refuses
-to construct if activation did not take, because a silently inactive adapter is precisely
-the failure that leaves no trace in the results.
+paper never reported, while every log line still said "specter2". `AdapterEmbedder` proves
+the adapter is in the forward pass **behaviourally**: at construction it encodes a probe
+twice, once with the adapter deactivated, and refuses if the two embeddings match.
+
+That is not belt-and-braces, it is the only check that works. The obvious one —
+`if not model.active_adapters` — cannot fail: `active_adapters` is also the name of a
+*method* on transformers' `PeftAdapterMixin`, which every `PreTrainedModel` inherits, so
+the attribute is a bound method and truthy with or without an adapter. It passed on a real
+GPU run while the library's own forward path warned "there are adapters available but none
+are activated". A second trap sits behind it: `load_adapter(set_active=True)` is honoured
+only for an adapter the model does not already have, and silently activates nothing when
+the name already exists.
+
+> Asking a model what it is configured to do is not the same as watching what it does. Where
+> the two can disagree, check the behaviour.
 
 Documents and queries go through **separate methods**. `bge` prefixes a query with an
 instruction and never a document; `specter2` is symmetric and takes no prefix. A single
@@ -460,6 +472,9 @@ length. These numbers get reported — they are evidence the corpus is what it c
     `index_key` must key on it — when those stages are built.
   - A model fetch still never happens on the CPU smoke path: the stand-ins (`whitespace`
     and friends) are selected by id and download nothing.
+  - **A pinned artefact must be pinned by the parameter the library actually reads.**
+    `adapters.load_adapter` takes `version=`, not `revision=`; anything else lands in
+    `**kwargs` and is discarded, so `revision=` loads from `main` and reports success.
 
 ---
 

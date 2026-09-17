@@ -7,9 +7,20 @@ prefix on queries only.
 adapter**. That distinction is the whole arm: ``allenai/specter2_base`` on its
 own is not SPECTER2 for retrieval, and loading it alone would measure something
 the SPECTER2 paper never reported while every log line still said "specter2".
-The adapter is activated explicitly and the constructor refuses if activation
-did not take, because a silently inactive adapter is exactly the failure that
-would be invisible in the results.
+
+Two things make that claim hold, and both are checked by *behaviour* rather than
+by reading a flag:
+
+* :func:`place_on_device` moves the model and then verifies every tensor agrees
+  on one device. An adapter is loaded *after* the base model has been moved, so
+  its weights are created on CPU and stay there; without the re-check the first
+  symptom is a device mismatch deep inside a matmul, and only if you are lucky.
+* :func:`verify_adapter_participates` runs the encoder twice at construction,
+  once with the adapter deactivated, and requires the two embeddings to differ.
+  Asking the model whether an adapter is active does not work: ``active_adapters``
+  is also the name of a *method* on ``transformers``' PEFT mixin, so the
+  attribute is a bound method and truthy whether or not anything is active. A
+  forward pass cannot be fooled that way.
 """
 
 from __future__ import annotations
@@ -20,6 +31,71 @@ from typing import Any
 import numpy as np
 
 from .base import SPECIAL_TOKENS, normalise_rows
+
+#: Text the adapter probe encodes. Content is irrelevant -- what matters is that
+#: the same string goes through twice.
+PROBE_TEXT = "Plasma biomarkers of neurodegeneration in cerebrospinal fluid."
+
+
+def model_devices(model: Any) -> set[str]:
+    """Every distinct device the model's tensors sit on. One, or something is wrong."""
+    return {str(tensor.device) for tensor in model.parameters()} | {
+        str(tensor.device) for tensor in model.buffers()
+    }
+
+
+def place_on_device(model: Any, device: str) -> str:
+    """Move the whole model and verify it actually all went.
+
+    ``.to(device)`` only moves what exists when it is called. An adapter is
+    loaded after the base model has been placed, so its weights are created on
+    CPU and stay there -- and the run then dies inside a matmul with "mat1 is on
+    cuda:0, different from other tensors on cpu", several frames from the cause.
+    Re-placing after anything is added is the fix; checking afterwards is what
+    makes the next such addition fail here instead of there.
+    """
+    model.to(device)
+    found = model_devices(model)
+    if len(found) > 1:
+        raise ValueError(
+            f"model tensors are split across devices {sorted(found)} after moving to "
+            f"{device!r}. Something was added after the move -- an adapter, most likely -- "
+            "and needs placing too."
+        )
+    return found.pop() if found else str(device)
+
+
+def verify_adapter_participates(model: Any, probe: Any, adapter_name: str) -> None:
+    """Prove the adapter is in the forward pass, by running it with and without.
+
+    Introspection does not work here. ``getattr(model, "active_adapters", None)``
+    looks like it asks whether an adapter is active, but ``active_adapters`` is
+    also a *method* on transformers' ``PeftAdapterMixin``, which every
+    ``PreTrainedModel`` inherits -- so the attribute is a bound method, and a
+    bound method is always truthy. That check could not fail on any model, with
+    or without an adapter, which is how an inactive adapter reached a GPU run.
+    The library's own forward path resolves the property instead and disagreed,
+    warning "There are adapters available but none are activated".
+
+    So: encode once as configured, once with the adapter switched off, and
+    require the results to differ. The adapter is restored either way -- a probe
+    that left it off would silently ruin every embedding that followed.
+    """
+    active = probe()
+    model.set_active_adapters(None)
+    try:
+        inactive = probe()
+    finally:
+        # Reactivating also re-checks the name is loaded: set_active_adapters
+        # raises for an adapter it cannot find.
+        model.set_active_adapters(adapter_name)
+
+    if np.allclose(active, inactive):
+        raise ValueError(
+            f"adapter {adapter_name!r} is loaded but does not change the model's output, so "
+            "it is not in the forward pass. specter2 without its proximity adapter is a "
+            "different model, and every log line would still say 'specter2'."
+        )
 
 
 class _TorchEncoder:
@@ -90,7 +166,8 @@ class HuggingFaceEmbedder(_TorchEncoder):
             )
         self.name = f"{model_id}@{revision[:12]}"
         self._tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
-        self._model = AutoModel.from_pretrained(model_id, revision=revision).to(self._device)
+        self._model = AutoModel.from_pretrained(model_id, revision=revision)
+        place_on_device(self._model, self._device)
         self._model.eval()
         self.dimension = int(self._model.config.hidden_size)
         limit = int(getattr(self._model.config, "max_position_embeddings", self.max_seq_tokens))
@@ -120,19 +197,24 @@ def load_pinned_adapter(model: Any, adapter_id: str, revision: str) -> str:
             "this arm's identity, and an unpinned one moves the vectors under a fixed "
             "model id."
         )
-    name = model.load_adapter(
-        adapter_id,
-        version=revision,
-        source="hf",
-        set_active=True,
-    )
-    if not getattr(model, "active_adapters", None):
-        raise ValueError(
-            f"{adapter_id} loaded but is not active. specter2 without its proximity "
-            "adapter is a different model, and an inactive adapter is the one failure that "
-            "would leave every log line still saying 'specter2'."
+    name = str(
+        model.load_adapter(
+            adapter_id,
+            version=revision,
+            source="hf",
+            set_active=True,
         )
-    return str(name)
+    )
+    # `set_active=True` is honoured only when the adapter is NEW: loading a name
+    # that already exists logs "Overwriting existing adapter" and never
+    # activates. Read the config directly rather than the `active_adapters`
+    # attribute, which collides with a transformers method and is always truthy.
+    if getattr(model.adapters_config, "active_setup", None) is None:
+        raise ValueError(
+            f"{adapter_id} loaded but set_active did not take. Activation is only applied "
+            "when the adapter name is new to the model."
+        )
+    return name
 
 
 class AdapterEmbedder(HuggingFaceEmbedder):
@@ -151,4 +233,11 @@ class AdapterEmbedder(HuggingFaceEmbedder):
         revision = str(params.get("adapter_revision") or "")
         adapters.init(self._model)
         self._adapter = load_pinned_adapter(self._model, adapter_id, revision)
+        # The adapter's weights were created after the base model was placed, so
+        # they are on CPU until this runs.
+        place_on_device(self._model, self._device)
+        self._model.eval()
+        verify_adapter_participates(
+            self._model, lambda: self._encode([PROBE_TEXT]), self._adapter
+        )
         self.name = f"{self.name}+{adapter_id}@{revision[:12]}"

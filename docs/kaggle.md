@@ -151,9 +151,21 @@ is fetched by `adapters` at index time, not by `transformers`. It is a few MB.
 
 > **Why the adapter matters.** `allenai/specter2_base` alone is *not* SPECTER2 for
 > retrieval — the proximity adapter is what the paper's retrieval results were
-> measured with. `AdapterEmbedder` refuses to construct if activation did not
-> take, so a silently-missing adapter fails loudly instead of quietly measuring
-> the wrong model.
+> measured with. `AdapterEmbedder` proves the adapter is in the forward pass by
+> encoding a probe twice, once with it deactivated, and refusing if the two
+> embeddings match. If you see
+>
+> ```
+> ValueError: adapter 'proximity' is loaded but does not change the model's
+> output, so it is not in the forward pass.
+> ```
+>
+> the arm is misconfigured — do **not** work around it. The alternative is four
+> plausible-looking indexes, one of which is base SPECTER2 with no adapter.
+>
+> An earlier version checked `model.active_adapters` instead and passed while
+> nothing was active, because that attribute is a bound method on every
+> `PreTrainedModel` and therefore always truthy.
 
 ### 3b. If the Hub is unreachable from the notebook
 
@@ -258,6 +270,12 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 are that the GPU is not attached (check `torch.cuda.is_available()` — the
 embedder falls back to CPU silently and is then roughly 20× slower) or the
 adapter download is stalled.
+
+If construction raises `model tensors are split across devices [...]`, something
+was added to the model after it was placed and did not follow. That check exists
+because the first version of the specter2 arm loaded its adapter *after* moving
+the base model to the GPU, leaving the adapter's weights on CPU; the symptom was
+a `RuntimeError` about `mat1` several frames deep in a matmul.
 
 The four indexes are ~1,574 and ~2,066 chunks each; `fixed` chunks are longer, so
 its two indexes take a little longer per vector than `recursive`'s despite having
@@ -364,9 +382,9 @@ from a broken one:
   not that the arms are equal. A hashing projection scoring the same as a trained
   sentence encoder is a sign the real embedder never loaded.
 - **`specter2` indexes identical to `bge` indexes** — same vectors, same metrics —
-  would mean the adapter did not activate, or both arms resolved to the same
-  checkpoint. The index ids differ by construction; check `index.json` names the
-  adapter.
+  would mean both arms resolved to the same checkpoint. An *inactive* adapter can
+  no longer produce this quietly: construction refuses. Check `index.json` names
+  the adapter and its revision.
 - **Every query stopping on `candidates_exhausted`** rather than `overflow` would
   mean the depth-30 pool, not the token budget, is binding — which breaks the
   premise of I1's constant-budget comparison.
