@@ -71,6 +71,13 @@ Name it `ragbench-chunks`. It mounts read-only at
 !pip install -q -e ".[specter]"
 ```
 
+Kaggle's GPU sessions run **Python 3.12**, which `requires-python` allows
+(`>=3.11,<3.13`). The upper bound is `adapters`, which publishes no 3.13
+classifier; on 3.13 the specter2 arm would not install. Cache ids are identical
+on 3.11 and 3.12 — blake2b over canonical JSON, never Python's salted builtin
+`hash()` — so the four index ids in §4 are the same numbers on either
+interpreter, and the preflight census compares against them safely.
+
 `[specter]` is not optional here — it is what makes the specter2 arm exist, and
 it **pins `transformers` to 4.57.x**, because `adapters~=1.3` requires it.
 Kaggle's image ships a different transformers; let pip downgrade it. The bge arm

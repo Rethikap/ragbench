@@ -17,6 +17,7 @@ from ragbench.cache_keys import (
     run_key,
 )
 from ragbench.config import resolve_config
+from ragbench.hashing import stable_hash
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BASE_CONFIG = REPO_ROOT / "configs" / "base.yaml"
@@ -162,3 +163,52 @@ def test_run_key_tracks_every_factor(resolved: dict[str, Any]) -> None:
     before = run_key(resolved)
     resolved["factors"]["rerank"]["on"]["enabled"] = False
     assert run_key(resolved) != before
+
+
+# ------------------------------------------------ digests across Python versions
+
+
+#: Structures chosen for what could plausibly move between interpreters, with the
+#: digest each one produces. Verified identical on CPython 3.11.9 and 3.12.10.
+#:
+#: Every cache id in this project is a blake2b over canonical JSON, never over
+#: Python's builtin hash(), which is salted per process. Nothing here can drift
+#: with PYTHONHASHSEED. What these pin down is the rest of the chain: key
+#: ordering (sort_keys), float repr, bool/None spelling, non-ASCII escaping
+#: (ensure_ascii) and separator choice. A Python release that changed any of them
+#: would invalidate every chunk set, index and frozen digest on disk, so it fails
+#: the build here rather than being discovered as a silent rebuild.
+GOLDEN_DIGESTS = {
+    "key ordering is normalised": ({"b": 1, "a": 2, "c": {"z": 1, "y": 2}}, "bd5a7bebdc4c"),
+    "scalar spelling": (
+        {"i": 42, "f": 0.1, "big": 1e22, "neg": -0.0, "t": True, "n": None},
+        "4a6317e6ffdb",
+    ),
+    "sequences and empties": ([1, "two", 3.5, None, True, [], {}], "2c14f5ea5c5c"),
+    "non-ascii escaping": (
+        {"greek": "beta β", "dash": "a–b", "quote": "x’y"},
+        "0f02ac839ea5",
+    ),
+    "nesting": ({"k": [{"a": [1, {"b": 2}]}]}, "9adbe02ddaf1"),
+    "empty mapping": ({}, "c09da522dac2"),
+}
+
+
+@pytest.mark.parametrize("label", sorted(GOLDEN_DIGESTS))
+def test_digests_do_not_move_between_python_versions(label: str) -> None:
+    obj, expected = GOLDEN_DIGESTS[label]
+    assert stable_hash(obj) == expected
+
+
+def test_a_tuple_and_a_list_hash_alike() -> None:
+    """YAML gives lists and the dataclasses hold tuples; the same values must be
+    the same artefact either way, or a round-trip through JSONL would invent a
+    new cache id."""
+    assert stable_hash((1, 2, 3)) == stable_hash([1, 2, 3])
+    assert stable_hash({"k": ("a", "b")}) == stable_hash({"k": ["a", "b"]})
+
+
+def test_ordering_of_the_input_mapping_is_irrelevant() -> None:
+    forwards = {"alpha": 1, "beta": 2, "gamma": 3}
+    backwards = dict(reversed(list(forwards.items())))
+    assert stable_hash(forwards) == stable_hash(backwards)
