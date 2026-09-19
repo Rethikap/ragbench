@@ -153,11 +153,28 @@ is fetched by `adapters` at index time, not by `transformers`. It is a few MB.
 > retrieval — the proximity adapter is what the paper's retrieval results were
 > measured with. `AdapterEmbedder` proves the adapter is in the forward pass by
 > encoding a probe twice, once with it deactivated, and refusing if the two
-> embeddings match. If you see
+> embeddings match.
+>
+> **Each of the two specter2 indexes should print exactly one line like this as
+> the embedder is built** — read it, do not just look for the absence of errors:
+>
+> ```
+> adapter probe: PASS ('proximity' changes the forward pass; active vs.
+> inactive embedding L2 distance = <a number>)
+> ```
+>
+> `embedding.normalize` is on, so both vectors are unit length and the distance
+> runs 0–2. No expected value is quoted here because none has been measured yet
+> — record what the first run prints and compare later runs against it. What to
+> react to is the *order of magnitude*: a distance that is merely nonzero
+> (1e-6, say) passes the check but is worth stopping for, because the adapter
+> would then be contributing nothing the results could attribute to it. If
+> instead you see
 >
 > ```
 > ValueError: adapter 'proximity' is loaded but does not change the model's
-> output, so it is not in the forward pass.
+> output (L2 distance 0 between the active and deactivated embeddings), so it
+> is not in the forward pass.
 > ```
 >
 > the arm is misconfigured — do **not** work around it. The alternative is four
@@ -165,7 +182,10 @@ is fetched by `adapters` at index time, not by `transformers`. It is a few MB.
 >
 > An earlier version checked `model.active_adapters` instead and passed while
 > nothing was active, because that attribute is a bound method on every
-> `PreTrainedModel` and therefore always truthy.
+> `PreTrainedModel` and therefore always truthy. The `adapters` library's own
+> "there are adapters available but none are activated" warning is silenced for
+> the probe's deactivated pass only — that pass is the check working. Seeing it
+> anywhere else still means something is wrong.
 
 ### 3b. If the Hub is unreachable from the notebook
 

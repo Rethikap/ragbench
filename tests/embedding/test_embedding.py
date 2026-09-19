@@ -7,6 +7,7 @@ the query-prefix asymmetry and the chunking/embedding separation live.
 
 from __future__ import annotations
 
+import logging
 import sys
 
 import numpy as np
@@ -396,3 +397,72 @@ def test_truthiness_of_active_adapters_is_not_a_check() -> None:
     assert not isinstance(attribute, property)
     assert callable(attribute)
     assert bool(attribute) is True
+
+
+# ------------------------------------------- the probe says so, in the log
+
+
+def test_a_passing_probe_says_so_with_the_distance(caplog) -> None:
+    """A probe whose only evidence is the absence of a crash is indistinguishable
+    from a probe that never ran. The number matters too: a distance just above
+    allclose's tolerance would pass the check while saying the adapter barely
+    participates."""
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel(adapter_changes_output=True)
+    with caplog.at_level(logging.WARNING, logger="ragbench.embedding.huggingface"):
+        verify_adapter_participates(model, model.embed, "proximity")
+
+    passes = [r for r in caplog.records if "adapter probe: PASS" in r.getMessage()]
+    assert len(passes) == 1
+    # The doubles differ by exactly sqrt(2): (1, 0) against (0, 1).
+    assert "1.41421" in passes[0].getMessage()
+
+
+def test_a_failing_probe_reports_how_close_the_two_passes_were() -> None:
+    """Distinguishes "the adapter is not loaded at all" from "it is loaded and
+    contributes almost nothing" -- different bugs, same exception without it."""
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    model = _FakeAdapterModel(adapter_changes_output=False)
+    with pytest.raises(ValueError, match=r"L2 distance 0 between"):
+        verify_adapter_participates(model, model.embed, "proximity")
+
+
+def test_the_libraries_own_inactive_warning_is_suppressed_for_the_probe_only() -> None:
+    """The deactivated pass makes `adapters` warn that nothing is activated. Here
+    that is the check working, not a symptom -- but it is word-for-word the
+    symptom of a real activation bug, so it is silenced for this one call and
+    nowhere else."""
+    from ragbench.embedding.huggingface import verify_adapter_participates
+
+    adapters_logger = logging.getLogger("adapters.model_mixin")
+    adapters_logger.setLevel(logging.INFO)
+    model = _FakeAdapterModel()
+    levels: list[int] = []
+
+    def probe():
+        levels.append(adapters_logger.level)
+        return np.array([[1.0, 0.0]]) if model.active else np.array([[0.0, 1.0]])
+
+    try:
+        verify_adapter_participates(model, probe, "proximity")
+        assert levels == [logging.INFO, logging.ERROR]
+        assert adapters_logger.level == logging.INFO
+    finally:
+        adapters_logger.setLevel(logging.NOTSET)
+
+
+def test_the_suppression_is_lifted_even_when_the_probe_raises() -> None:
+    from ragbench.embedding.huggingface import _quiet_adapters_inactive_warning
+
+    adapters_logger = logging.getLogger("adapters.model_mixin")
+    adapters_logger.setLevel(logging.INFO)
+    try:
+        with pytest.raises(RuntimeError):
+            with _quiet_adapters_inactive_warning():
+                assert adapters_logger.level == logging.ERROR
+                raise RuntimeError("probe blew up")
+        assert adapters_logger.level == logging.INFO
+    finally:
+        adapters_logger.setLevel(logging.NOTSET)

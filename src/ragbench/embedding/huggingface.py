@@ -25,16 +25,42 @@ by reading a flag:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
 
 from .base import SPECIAL_TOKENS, normalise_rows
 
+logger = logging.getLogger(__name__)
+
 #: Text the adapter probe encodes. Content is irrelevant -- what matters is that
 #: the same string goes through twice.
 PROBE_TEXT = "Plasma biomarkers of neurodegeneration in cerebrospinal fluid."
+
+
+@contextmanager
+def _quiet_adapters_inactive_warning():
+    """Silence ``adapters.model_mixin``'s "none activated" warning for one call.
+
+    That message is emitted by the third-party library whenever a forward pass
+    runs with no adapter active. :func:`verify_adapter_participates` deliberately
+    causes exactly one such pass -- the whole point of the probe -- so the
+    library's warning is not a symptom here, it is the expected side effect of
+    a passing check. Left alone it reads identically to the failure it exists to
+    catch, so real deactivation bugs elsewhere would be indistinguishable from
+    this one intentional pass in the log. Suppressed only for the duration of the
+    inactive probe call; the probe logs its own explicit result afterward.
+    """
+    adapters_logger = logging.getLogger("adapters.model_mixin")
+    previous_level = adapters_logger.level
+    adapters_logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        adapters_logger.setLevel(previous_level)
 
 
 def model_devices(model: Any) -> set[str]:
@@ -80,22 +106,43 @@ def verify_adapter_participates(model: Any, probe: Any, adapter_name: str) -> No
     So: encode once as configured, once with the adapter switched off, and
     require the results to differ. The adapter is restored either way -- a probe
     that left it off would silently ruin every embedding that followed.
+
+    The deactivated pass legitimately triggers ``adapters.model_mixin``'s "none
+    activated" warning -- that pass is the point of the check. Left alone, that
+    message is identical to the symptom of a real activation bug elsewhere, so
+    it is suppressed for just this one call (see
+    :func:`_quiet_adapters_inactive_warning`) and replaced with an explicit
+    result line below, so a passing probe is visible in the log rather than
+    inferred from the absence of a crash.
     """
     active = probe()
     model.set_active_adapters(None)
     try:
-        inactive = probe()
+        with _quiet_adapters_inactive_warning():
+            inactive = probe()
     finally:
         # Reactivating also re-checks the name is loaded: set_active_adapters
         # raises for an adapter it cannot find.
         model.set_active_adapters(adapter_name)
 
+    distance = float(np.linalg.norm(np.asarray(active) - np.asarray(inactive)))
     if np.allclose(active, inactive):
         raise ValueError(
-            f"adapter {adapter_name!r} is loaded but does not change the model's output, so "
+            f"adapter {adapter_name!r} is loaded but does not change the model's output "
+            f"(L2 distance {distance:.6g} between the active and deactivated embeddings), so "
             "it is not in the forward pass. specter2 without its proximity adapter is a "
             "different model, and every log line would still say 'specter2'."
         )
+    # WARNING, not INFO, and deliberately: nothing in this project configures
+    # logging, so on Kaggle only WARNING and above reach the notebook at all. This
+    # line also occupies the slot the library's suppressed warning vacated -- one
+    # message per probe either way, saying what actually happened.
+    logger.warning(
+        "adapter probe: PASS (%r changes the forward pass; active vs. inactive "
+        "embedding L2 distance = %.6g)",
+        adapter_name,
+        distance,
+    )
 
 
 class _TorchEncoder:
