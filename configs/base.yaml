@@ -74,13 +74,73 @@ retrieval:
   fill_policy: stop_at_overflow   # never truncate a chunk; stop at the first that will not fit
 
 generation:
-  model_id: Qwen/Qwen2.5-7B-Instruct
+  # The AWQ repo, NOT the bf16 one. Qwen publishes the quantised checkpoint as a
+  # separate repo, and `quantization: awq` is a statement about which weights are
+  # loaded, not an instruction to quantise on the fly.
+  model_id: Qwen/Qwen2.5-7B-Instruct-AWQ
+  model_revision: b25037543e9394b818fdfca67ab2a00ecc7dd641
   quantization: awq               # fits a free-tier T4; null for full precision
+  # float16, not auto: a free-tier T4 is Turing and has no bfloat16, so `auto`
+  # resolves differently there than on an Ampere host. Numerics that follow the
+  # GPU are an uncontrolled variable, and this is the one value both can run.
+  dtype: float16
+  # retrieval.budget_tokenizer_id still points at Qwen/Qwen2.5-7B-Instruct, and
+  # that is correct rather than an oversight: the two repos ship byte-identical
+  # tokenizer.json, tokenizer_config.json, vocab.json and merges.txt (checked by
+  # git blob oid), so the budget is measured with the tokenizer this model
+  # actually uses. Quantisation changes weights, not vocabulary.
+
+  # ---- decoding. Greedy, and every field is stated rather than defaulted.
+  #
+  # Both Qwen repos ship a generation_config.json carrying do_sample: true,
+  # temperature 0.7, top_p 0.8, top_k 20, repetition_penalty 1.05, and vLLM
+  # reads that file. A request that sets only `temperature: 0` would inherit
+  # top_k and repetition_penalty from the checkpoint -- decoding would not be
+  # greedy, nothing would say so, and the run would still be labelled
+  # temperature 0. So the neutral value of every sampling field is pinned here
+  # and passed explicitly on every request.
   temperature: 0.0
   top_p: 1.0
+  top_k: -1                       # -1 = disabled. The checkpoint's default is 20.
+  repetition_penalty: 1.0         # 1.0 = none. The checkpoint's default is 1.05.
   max_new_tokens: 512
   seed: 20260813
+  # Context budget (2000) + prompt scaffolding + max_new_tokens, rounded up. It
+  # bounds the KV cache, which is what makes a 7B model fit a 16 GB T4 -- and it
+  # can truncate, so it is config (part of the run id) rather than a CLI knob.
+  max_model_len: 4096
+
+  # ---- the prompt. Its TEXT lives here, not in code, so that changing a word
+  # changes the resolved config and therefore the run id: answers produced under
+  # two different prompts can never land in one run directory.
   prompt_template_id: v1
+  # Said once, in the system turn. No chain of thought, no citations, no
+  # formatting instructions -- each of those changes what the judge is scoring
+  # from "is this answer right" to "did it comply with the format".
+  system_prompt: |-
+    You are answering questions about biomedical research papers.
+
+    Answer using only the passages provided. Do not use prior knowledge, and do
+    not infer beyond what the passages state. If the passages do not contain the
+    answer, reply with exactly this sentence and nothing else:
+
+    The provided context does not contain the answer.
+
+    Answer in one to three sentences.
+  prompt_template: |-
+    Passages:
+
+    {context}
+
+    Question: {question}
+  # Fixed refusal wording, quoted verbatim in the system prompt above. Having one
+  # exact string makes abstentions countable instead of a judgement call over
+  # paraphrases -- a configuration that abstains often is a retrieval finding,
+  # and it must not be confused with one that answers badly.
+  refusal_text: The provided context does not contain the answer.
+  # Between passages. A blank line, because anything more (numbering, rules,
+  # source labels) is a citation scaffold the generator would learn to imitate.
+  context_separator: "\n\n"
 
 judge:
   provider: openrouter

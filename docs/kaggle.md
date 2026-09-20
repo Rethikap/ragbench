@@ -3,10 +3,17 @@
 Written for: whoever is operating the Kaggle session. Assumes a fresh notebook
 with a GPU, no local state, and a session that may die mid-run.
 
-The GPU stages are `index` (embed ~3,640 chunks into four vector indexes) and
-`retrieve` (eight configurations × 20 queries). Everything before them —
-selection, ingest, chunking, the gold set — is already frozen and comes with the
-repository. Nothing on Kaggle touches NCBI.
+The GPU stages are `index` (embed ~3,640 chunks into four vector indexes),
+`retrieve` (eight configurations × 20 queries) and `generate` (160 answers from
+Qwen2.5-7B-Instruct at AWQ). Everything before them — selection, ingest,
+chunking, the gold set — is already frozen and comes with the repository.
+Nothing on Kaggle touches NCBI.
+
+**They are two sessions, not one.** §§1–8 cover indexing and retrieval; §9
+covers generation, in a fresh notebook. The split is not organisational: the
+specter2 arm needs `adapters`, which pins `transformers` to 4.57.x, and vLLM
+carries its own transformers range. One environment cannot satisfy both, and the
+failure if you try is silent.
 
 ---
 
@@ -14,6 +21,8 @@ repository. Nothing on Kaggle touches NCBI.
 
 `index` and `retrieve` read **the chunk sets and the gold set, and nothing else**.
 They never open a parsed paper or a raw JATS file, so those 50 MB stay at home.
+`generate` reads the same chunk sets plus what `retrieve` wrote — it does not
+re-retrieve, and needs no index and no embedder.
 
 | Goes to Kaggle | Size | Where from |
 |---|---|---|
@@ -82,6 +91,14 @@ interpreter, and the preflight census compares against them safely.
 it **pins `transformers` to 4.57.x**, because `adapters~=1.3` requires it.
 Kaggle's image ships a different transformers; let pip downgrade it. The bge arm
 and the reranker run happily on 4.57 too.
+
+> **`[specter]` and `[generate]` must not share a session.** The generate stage
+> needs vLLM, which carries its own `transformers` range; `adapters~=1.3` pins
+> transformers to 4.57.x. Installing both leaves whichever ran last in place and
+> silently breaks the other. They never need to coexist: **indexing and
+> retrieval are one session, generation is another**, and the only thing that
+> travels between them is `runs/f66638fb9655/retrieve/` — under 100 KB. Start a
+> fresh notebook for §9 rather than adding vLLM to this one.
 
 Restart the kernel after the install so the downgraded transformers is the one
 that gets imported. Then:
@@ -273,7 +290,9 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 ```
 
 `retrieve` covers all eight configurations. `report retrieval` writes
-`runs/44e112902a29/retrieval_report.json` and prints the two tables.
+`runs/f66638fb9655/retrieval_report.json` and prints the two tables.
+
+Generation is **not** part of this session — see §9.
 
 ### Expected wall-clock
 
@@ -308,10 +327,10 @@ fewer of them.
 **Essential — under 1 MB, and all the laptop needs to read the results:**
 
 ```
-runs/44e112902a29/retrieve/*.jsonl        per-query RetrievalResult records
-runs/44e112902a29/retrieve/summary.json   per-configuration summary
-runs/44e112902a29/retrieval_report.json   the six metrics, aggregated
-runs/44e112902a29/resolved_config.json    what the run was configured with
+runs/f66638fb9655/retrieve/*.jsonl        per-query RetrievalResult records
+runs/f66638fb9655/retrieve/summary.json   per-configuration summary
+runs/f66638fb9655/retrieval_report.json   the six metrics, aggregated
+runs/f66638fb9655/resolved_config.json    what the run was configured with
 data/indexes/*/index.json                 per-index stats and truncation census
 ```
 
@@ -319,6 +338,9 @@ data/indexes/*/index.json                 per-index stats and truncation census
 themselves. Bring them back only if a later Kaggle session should skip
 re-embedding (see §7). They are of no use on a laptop that cannot run the query
 encoder.
+
+`runs/f66638fb9655/retrieve/` is also the **only** thing the generation session
+in §9 needs from this one. Keep it somewhere you can upload again.
 
 Zip the essentials so one download covers it:
 
@@ -334,7 +356,7 @@ run). The file appears under the notebook's Output tab; download it there, or:
 kaggle kernels output <user>/<notebook-slug> -p ./from-kaggle
 ```
 
-Unzip into the repository root on the laptop. `runs/44e112902a29/` is the same
+Unzip into the repository root on the laptop. `runs/f66638fb9655/` is the same
 path the local config resolves to — the digest is computed from `configs/`, which
 is in git — so the reports read without any rewiring.
 
@@ -388,8 +410,37 @@ appended to JSONL keyed by query id and completed queries are skipped. The run
 summary reports `queries_written` and `queries_reused` per configuration —
 `written 0, reused 20` across all eight means there was nothing left to do.
 
+**During `generate`.** Same command again. Resumption is per question: answers
+are appended to JSONL keyed by query id, and a completed question is skipped.
+The summary reports `new` and `reused` per configuration.
+
+Two things are different from `retrieve`, and both matter.
+
+*It refuses to resume into a changed prompt.* Every answer records the sha256 of
+the prompt it was produced from. On resume each existing record's prompt is
+re-rendered and compared, and a mismatch stops the stage:
+
+```
+ragbench: fixed-bge-rerank_off: q018 was answered from a different prompt
+(4f1a... on disk, 9c22... now).
+```
+
+That means the template, the separator or the retrieved chunks changed under a
+directory that already holds answers. Do not work around it — delete the file
+and regenerate that cell. Half a run under each of two prompts cannot be
+separated afterwards.
+
+*A resumed batch is not bit-identical to an uninterrupted one.* vLLM decodes a
+batch concurrently, and which requests share a batch changes the reduction order
+inside the kernels; at temperature 0 this is rare and small, but it is not
+guaranteed to be nothing. Resuming changes the batch composition by definition,
+because the finished questions are no longer in it. If an individual answer has
+to be reproducible token for token, run with `--batch-size 1`, which costs
+roughly 4-6x the wall clock. For the factorial comparison it does not matter:
+the effect is far below the difference between configurations.
+
 `retrieve` is cheap enough (minutes) that restarting it costs little. `index` is
-the one worth protecting.
+the one worth protecting, and `generate` is the one that fails loudly.
 
 ---
 
@@ -410,3 +461,169 @@ from a broken one:
   premise of I1's constant-budget comparison.
 - **Realised budget far below ~85%** would mean chunks are much larger than
   expected, or the budget tokenizer is not the generator's.
+
+And for generation specifically:
+
+- **Answers all ~512 tokens, with `trunc` at or near 20/20**, means the ceiling
+  is binding rather than the model finishing. Those answers are cut off
+  mid-sentence, and a judge will mark them down for an incompleteness the
+  generator never chose. The prompt asks for one to three sentences, so a
+  handful of truncations is worth reading and a column of them is a defect.
+- **A `refuse` count near 20/20 in one configuration** is a retrieval finding,
+  not a generation defect — that arm put nothing useful in the window. Near
+  20/20 in *every* configuration means the context is not reaching the model:
+  check `prompt` tokens in the length table, which should be roughly the 2000
+  budget plus scaffolding, not 100.
+- **`prompt` tokens near the 4096 `max_model_len`** would mean something is
+  assembling far more context than the budget allows. The budget is spent in
+  `retrieve`; `generate` only renders what it chose.
+- **Identical answers across all eight configurations** for most questions would
+  mean the context is not varying — or is being ignored. Some agreement is
+  expected and is itself a result (the arms often retrieve the same gold chunk);
+  total agreement is not.
+- **Stand-in answers.** The report prints a two-line `*** CPU STAND-IN` banner
+  when `generation.model_id` is `stand-in`. If you see it on Kaggle, vLLM never
+  loaded and the numbers are extracted sentences, not generated text.
+
+---
+
+## 9. Generation — a separate session
+
+Generation needs vLLM and **must not** share an environment with `[specter]`
+(see §2). Start a fresh notebook.
+
+### 9a. Install
+
+```python
+%cd /kaggle/working
+!git clone https://github.com/<you>/ragbench.git
+%cd /kaggle/working/ragbench
+!pip install -q -e ".[generate]"
+```
+
+Restart the kernel, then confirm the GPU is visible to vLLM:
+
+```python
+!python -c "import torch, vllm; print(vllm.__version__, torch.cuda.get_device_name(0))"
+```
+
+### 9b. Bring the retrieval results in
+
+> **The run id moved, and your retrieval results are under the old one.** The
+> run id is the digest of the *whole* resolved config, and adding the generation
+> block — the prompt text above all — changed it:
+>
+> | | run id |
+> |---|---|
+> | when `retrieve` ran | `runs/44e112902a29/` |
+> | now | `runs/f66638fb9655/` |
+>
+> That is the design working, not a bug: a run with a different prompt is a
+> different run. The retrieval outputs themselves are unaffected, and that was
+> checked rather than assumed — diffing the two resolved configs shows every
+> changed key under `base.generation`, and nothing in `chunk`, `index` or
+> `retrieve` reads that section. So the results carry across unchanged. Copy,
+> do not re-run: re-running `retrieve` would need the indexes and the GPU again.
+
+`generate` reads what `retrieve` chose; it does **not** re-retrieve, and it needs
+no index and no embedder. Mount the earlier notebook's output
+(**Add data -> Notebook Output**) and copy that directory to the **new** id:
+
+```python
+!mkdir -p /kaggle/working/ragbench/runs/f66638fb9655
+!cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/runs/44e112902a29/retrieve \
+       /kaggle/working/ragbench/runs/f66638fb9655/
+!ls /kaggle/working/ragbench/runs/f66638fb9655/retrieve
+```
+
+Confirm the destination id first, because it moves again the next time anything
+in `configs/` changes:
+
+```python
+!python -c "from pathlib import Path; from ragbench.config import resolve_config, run_dir; \
+print(run_dir(resolve_config(Path('configs/base.yaml'))))"
+```
+
+Expect eight `.jsonl` files and `summary.json`. It also needs the **chunk sets**,
+because the prompt is assembled from chunk text:
+
+```python
+!cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/data/chunks \
+       /kaggle/working/ragbench/data/
+```
+
+Or rebuild them, which is CPU-only and takes a couple of minutes:
+
+```python
+!python -m ragbench.cli chunk --config configs/base.yaml
+```
+
+### 9c. The model
+
+```python
+from huggingface_hub import snapshot_download
+snapshot_download("Qwen/Qwen2.5-7B-Instruct-AWQ",
+                  revision="b25037543e9394b818fdfca67ab2a00ecc7dd641")
+```
+
+**~5.6 GB**, six to twelve minutes on Kaggle's connection. This is the AWQ repo,
+not the bf16 one — `Qwen/Qwen2.5-7B-Instruct` is ~15 GB and will not fit a T4
+alongside a KV cache.
+
+> The budget tokenizer stays pinned to `Qwen/Qwen2.5-7B-Instruct`, and that is
+> correct rather than an oversight: the two repos ship byte-identical
+> `tokenizer.json`, `tokenizer_config.json`, `vocab.json` and `merges.txt`, so
+> the 2000-token budget was measured with the tokenizer this model uses.
+> Quantisation changes weights, not vocabulary.
+
+### 9d. Run
+
+```python
+!python -m ragbench.cli generate --config configs/base.yaml
+!python -m ragbench.cli report generation --config configs/base.yaml
+```
+
+On a single T4, add `--gpu-memory-utilization 0.85` if the KV cache will not
+allocate, and `--enforce-eager` if it still will not (slower decoding,
+noticeably less memory).
+
+`generate` covers all eight configurations and loads the model **once** for all
+of them. 8 x 20 = 160 answers.
+
+### Expected wall-clock
+
+| Step | Expected | Investigate past |
+|---|---|---|
+| install + restart | 3-6 min | 15 min |
+| AWQ download (9c) | 6-12 min | 25 min |
+| vLLM engine startup | 2-5 min | 12 min |
+| `generate`, all 160 | 4-10 min total | 35 min |
+| `report generation` | < 30 s | 3 min |
+
+The engine start is a fixed cost paid once, and on a T4 it is a large fraction of
+the total — most of the 4-10 minutes above is CUDA graph capture and weight
+loading, not decoding. `--enforce-eager` trades a slower decode for a much
+shorter startup, which on a run this small is often the faster choice overall.
+
+With `--batch-size 1` the decode is roughly 4-6x longer (25-50 min); use it only
+if you need each answer reproducible independently of what else was pending.
+
+### 9e. What to bring back
+
+```
+runs/f66638fb9655/generate/*.jsonl        the 160 answers, with length and timing
+runs/f66638fb9655/generate/summary.json   per-configuration summary
+runs/f66638fb9655/generation_report.json  answer length, truncation, abstention
+```
+
+Under 1 MB. Read them on the laptop with:
+
+```bash
+python -m ragbench.cli report generation --config configs/base.yaml
+python -m ragbench.cli report generation --config configs/base.yaml --query q018
+```
+
+The second form prints every configuration's answer to one question, one after
+another with the reference answer above them. Read a few before judging — that
+is what the view is for, and it is the last point at which a prompt problem is
+cheap to fix.

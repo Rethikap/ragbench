@@ -32,6 +32,15 @@ dependencies = [
 # 4.57 too. The 3.12 ceiling is why requires-python stops below 3.13.
 # See docs/kaggle.md.
 specter = ["adapters~=1.3", "transformers~=4.57.6"]
+# The generate stage. vLLM serves the AWQ checkpoint and batches the 160
+# decodes, which is the difference between minutes and an hour.
+#
+# It MUST NOT share an environment with the `specter` extra. vLLM carries its own
+# transformers range and `adapters~=1.3` pins transformers to 4.57.x; installing
+# both resolves to whichever ran last and silently breaks one of them. Indexing
+# and generation are separate sessions -- see docs/kaggle.md -- so they never
+# need to coexist, and this is recorded here rather than discovered on the host.
+generate = ["vllm>=0.6"]
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [project.scripts]

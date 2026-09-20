@@ -1,4 +1,4 @@
-"""The `report` subcommand. Three topics: `chunks`, `gold` and `retrieval`."""
+"""The `report` subcommand. Four topics: `chunks`, `gold`, `retrieval`, `generation`."""
 
 from __future__ import annotations
 
@@ -10,12 +10,14 @@ from typing import Any
 from ..config import DEFAULT_DATA_ROOT, gold_candidates_dir
 from ..gold.freeze import GoldSetError
 from ..gold.pipeline import load_candidates
+from ..report import generation as generation_report
+from ..report import generation_render
 from ..report import gold as gold_report
 from ..report import retrieval as retrieval_report
 from ..report.chunks import build_report
 
 EXIT_DATA = 5
-TOPICS = ("chunks", "gold", "retrieval")
+TOPICS = ("chunks", "gold", "retrieval", "generation")
 
 
 def add_options(parser: argparse.ArgumentParser) -> None:
@@ -35,11 +37,25 @@ def add_options(parser: argparse.ArgumentParser) -> None:
         help="random fills used to estimate how many chunks a budget holds "
         "(default: %(default)s); `chunks` topic only",
     )
+    parser.add_argument(
+        "--query",
+        action="append",
+        default=None,
+        metavar="ID",
+        help="show every configuration's answer to this question, side by side; "
+        "repeatable. `generation` topic only, and without it every question is "
+        "shown -- reading a few before judging is the point of the view",
+    )
 
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
-        if args.topic == "retrieval":
+        if args.topic == "generation":
+            report = generation_report.build_report(
+                resolved, Path(args.config).parent, directory, query_ids=args.query
+            )
+            rendered = generation_render.render(report, only=bool(args.query))
+        elif args.topic == "retrieval":
             report = retrieval_report.build_report(
                 resolved, Path(args.config).parent, args.data_root, directory
             )

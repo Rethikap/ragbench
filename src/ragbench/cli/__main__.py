@@ -25,7 +25,15 @@ from ..config import (
     resolve_config,
     run_dir,
 )
-from . import chunk_cmd, gold_cmd, index_cmd, ingest_cmd, report_cmd, retrieve_cmd
+from . import (
+    chunk_cmd,
+    generate_cmd,
+    gold_cmd,
+    index_cmd,
+    ingest_cmd,
+    report_cmd,
+    retrieve_cmd,
+)
 
 STAGES: tuple[str, ...] = (
     "ingest",
@@ -70,6 +78,7 @@ HANDLERS["chunk"] = chunk_cmd.run
 HANDLERS["report"] = report_cmd.run
 HANDLERS["index"] = index_cmd.run
 HANDLERS["retrieve"] = retrieve_cmd.run
+HANDLERS["generate"] = generate_cmd.run
 HANDLERS["gold"] = gold_cmd.run
 
 #: Extra options registered per stage, beyond the common ones.
@@ -78,6 +87,7 @@ STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "chunk": chunk_cmd.add_options,
     "index": index_cmd.add_options,
     "retrieve": retrieve_cmd.add_options,
+    "generate": generate_cmd.add_options,
     "report": report_cmd.add_options,
     "gold": gold_cmd.add_options,
 }
@@ -168,7 +178,30 @@ def _not_implemented(stage: str, directory: Path) -> str:
     )
 
 
+def _survive_a_legacy_console() -> None:
+    """Never let a character the console cannot encode end a report.
+
+    Reports quote the corpus, and the corpus is biomedical: Abeta is written
+    with a beta, concentrations carry mu and >=, dashes are en dashes. A Windows
+    console at cp1252 raises UnicodeEncodeError on any of them, so
+    `report generation` died on the first answer that quoted a paper properly --
+    after the work was done, with nothing printed.
+
+    Replacing the character is the right loss to take. The stream's own encoding
+    is kept rather than forced to UTF-8, because emitting UTF-8 bytes at a cp1252
+    console turns every accented character into mojibake, which is harder to read
+    than a question mark and easy to mistake for a generation defect. Each report
+    also writes a JSON artefact in UTF-8, and that copy is exact.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):  # pragma: no cover - not a text stream
+            pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _survive_a_legacy_console()
     parser = build_parser()
     args = parser.parse_args(argv)
 

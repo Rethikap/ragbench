@@ -244,13 +244,47 @@ class RetrievalResult(JsonRecord):
 
 @dataclass(frozen=True, slots=True)
 class GeneratedAnswer(JsonRecord):
+    """One answer, and enough about how it was produced to control for it later.
+
+    ``prompt_sha256`` digests what the model actually saw -- the rendered system
+    and user text, not the template it came from. It is what makes resumption
+    safe: a record whose prompt no longer reproduces was generated under a
+    different assembly, and the generate stage refuses to mix the two rather
+    than leaving a run half-answered under each.
+
+    ``finish_reason`` is the decode's own account of why it stopped, ``"stop"``
+    for an end-of-turn token and ``"length"`` for the ``max_new_tokens`` ceiling.
+    A ``"length"`` answer is cut off mid-sentence, which is a different object
+    from a short answer -- the judge will mark it down for incompleteness that
+    the generator never chose. Counting them is the only way to tell an arm that
+    answers briefly from an arm that was truncated.
+
+    ``n_completion_tokens`` is recorded for the same reason and is not a
+    diagnostic: the judge literature reports a length bias, so answer length has
+    to be measured per configuration if it is ever to be controlled for.
+    """
+
     query_id: str
     answer: str
     prompt_sha256: str
     n_prompt_tokens: int
     n_completion_tokens: int
     latency_ms: float
+    finish_reason: str = "stop"
+    #: Chunks the context was assembled from, in the rank order they appeared.
+    #: Retrieval already recorded these; repeating them here makes an answer
+    #: readable on its own, which is what `report generation` needs to show a
+    #: question's answers side by side without re-deriving the context.
+    context_chunk_ids: tuple[str, ...] = ()
+    n_context_chunks: int = 0
     from_cache: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> GeneratedAnswer:
+        data = dict(data)
+        data["context_chunk_ids"] = tuple(data.get("context_chunk_ids", ()))
+        fields = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in fields})
 
 
 @dataclass(frozen=True, slots=True)

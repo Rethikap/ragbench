@@ -53,7 +53,7 @@ chunking and embedding non-orthogonal, and destroy the factorial design.
 
 Two tokenizers exist in this project and they are never interchangeable:
 
-Every model artefact is pinned by revision, and there are five. The three that make
+Every model artefact is pinned by revision, and there are six. The three that make
 vectors:
 
 | Artefact | Config keys | Pinned revision | Role |
@@ -62,12 +62,26 @@ vectors:
 | `allenai/specter2_base` | `embedding.model_id` / `.model_revision`, level `specter2` | `3447645e1def9117997203454fa4495937bfbd83` | Arm B's encoder. **Not the arm on its own.** |
 | `allenai/specter2` | `embedding.adapter_id` / `.adapter_revision` | `2081559630a80fc5851d8f798a05ba81e9468089` | Arm B's **proximity adapter** — what SPECTER2's retrieval results were measured with. `allenai/specter2_adhoc_query` is a different adapter for a different task. |
 
+The one that makes text:
+
+| Artefact | Config keys | Pinned revision | Role |
+|---|---|---|---|
+| `Qwen/Qwen2.5-7B-Instruct-AWQ` | `generation.model_id` / `.model_revision` | `b25037543e9394b818fdfca67ab2a00ecc7dd641` | The generator. The **AWQ** repo, a separate repo from the bf16 one — `quantization: awq` says which weights are loaded, not that they are quantised on the fly. |
+
 And the two tokenizers, never interchangeable with each other or with the above:
 
 | Tokenizer | Config keys | Pinned revision | Role |
 |---|---|---|---|
 | `BAAI/bge-base-en-v1.5` | `chunking.tokenizer_id` / `.tokenizer_revision` | `a5beb1e3e68b9ab74eb54cfd186867f64f240e1a` | Draws chunk boundaries. Fixed across all 8 runs. |
 | `Qwen/Qwen2.5-7B-Instruct` | `retrieval.budget_tokenizer_id` / `.budget_tokenizer_revision` | `a09a35458c702b33eeacc393d103063234e8bc28` | Measures the context budget. Fixed across all 8 runs. |
+
+> The budget tokenizer points at the **bf16** Qwen repo while the generator loads
+> the **AWQ** one, and that is checked rather than assumed: the two repos ship
+> byte-identical `tokenizer.json`, `tokenizer_config.json`, `vocab.json` and
+> `merges.txt` (compared by git blob oid). So the 2000-token budget is measured
+> with the tokenizer the generator actually uses. Quantisation changes weights,
+> not vocabulary. If that ever stops being true, the budget stops measuring the
+> thing it names.
 
 ### I3 — One hashing path
 
@@ -302,6 +316,48 @@ which chunker is better has to be made.
 > on-topic papers first, each candidate records its `topic_score`, and this paragraph goes
 > in the limitations section. A v2 corpus would use PMC field tags rather than free text.
 
+### I7 — The prompt is config, and decoding is stated rather than defaulted
+
+Generation is **not a factor**. One model, one prompt, one decoding setting,
+fixed across all 8 runs; what varies between the cells is the context they were
+handed, and nothing else. So `generation.arm_params` does not exist and must not
+be added — `generation_params` reads `base.generation` whole.
+
+**The prompt's text lives in `base.generation`, never in code.** `run_key` hashes
+the whole resolved config, so editing a word moves the run id and answers
+produced under two different prompts can never land in one directory. A template
+in a module would make two incomparable runs share an id. `prompt_template_id` is
+a label a human writes and can forget to change, so every report prints a digest
+derived from the text beside it, and every answer records the sha256 of the exact
+prompt it came from. `generate` re-renders the prompt for each record already on
+disk and **refuses to resume** if a digest has moved.
+
+**Every sampling field is stated, including the ones whose neutral value looks
+like a default.** Both Qwen repos ship a `generation_config.json` carrying
+`do_sample: true`, `temperature: 0.7`, `top_p: 0.8`, `top_k: 20`,
+`repetition_penalty: 1.05`, and vLLM reads it. A request that sets only
+`temperature=0` inherits `top_k` and `repetition_penalty` from the checkpoint:
+decoding is then not greedy, nothing says so, and every log line still reads
+temperature 0. `sampling_params` raises on a missing field rather than filling
+one in, because a default here would be indistinguishable from the checkpoint's.
+
+> The same lesson as the specter2 adapter, one stage along. A pinned artefact
+> brings its own opinions, and the ones it applies silently are the dangerous
+> ones.
+
+The dividing line for the CLI follows from this: a flag may change how long the
+stage takes or whether it fits the card (`--batch-size`,
+`--gpu-memory-utilization`, `--enforce-eager`). Anything that can change an
+*answer* — the prompt, any sampling field, `max_model_len` — is config, because
+config reaches the run id. **A run redone on a smaller GPU is the same run; a run
+redone with a different prompt is not.**
+
+One caveat, documented rather than fixed: vLLM decodes a batch concurrently, so
+which requests share a batch can change the reduction order inside the kernels.
+Resumption changes batch composition by definition. At temperature 0 the effect
+is rare and far below the difference between configurations, and `--batch-size 1`
+removes it at 4-6x the wall clock.
+
 ---
 
 ## The design
@@ -485,15 +541,29 @@ generation — run on **Kaggle or Colab**. The operational runbook for that is
 [`docs/kaggle.md`](docs/kaggle.md): what travels, what comes back, and how to tell a
 resumed run from a restarted one.
 
-One environment constraint reaches the whole project from there: `adapters~=1.3`, which
-the specter2 arm needs, requires `transformers~=4.57.6`. Installing `.[specter]`
-downgrades transformers, and that is correct — the bge arm and the reranker run on 4.57
-too. It is recorded in `pyproject.toml` rather than discovered on the GPU host.
+Two environment constraints reach the whole project from there, and **they are
+mutually exclusive, which is why the GPU work is two sessions rather than one.**
+
+`adapters~=1.3`, which the specter2 arm needs, requires `transformers~=4.57.6`.
+Installing `.[specter]` downgrades transformers, and that is correct — the bge arm and
+the reranker run on 4.57 too. `.[generate]` brings vLLM, which carries its own
+transformers range. Installing both leaves whichever ran last in place and silently
+breaks the other, so **`index`/`retrieve` run in one session and `generate` in another**.
+They never need to coexist: the only thing that passes between them is
+`runs/<id>/retrieve/`, under 100 KB. Both constraints are recorded in `pyproject.toml`
+rather than discovered on the GPU host.
 
 Therefore: **every GPU-dependent component sits behind an interface**, with a tiny CPU
 stand-in implementation. The full pipeline must be smoke-testable end to end on a laptop
 with no GPU and no large model download. Code that imports torch at module scope, assumes
 `cuda` is available, or can only run with a 7B model loaded is not acceptable.
+
+A stand-in is selected **by model id** (`model_id: stand-in`), never by a flag, so a
+config naming a real model cannot quietly degrade to the stand-in when a download fails —
+it fails instead. And a stand-in's output must never be mistakable for a result:
+`report generation` prints a two-line banner when the generator is the stand-in, because
+the only thing stopping a stand-in table reaching a thesis is the table saying what made
+it.
 
 `import ragbench` is deliberately stdlib-only and must stay that way, so CLI startup and
 the CPU path never drag in a GPU dependency.

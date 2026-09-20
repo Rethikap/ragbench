@@ -210,3 +210,30 @@ def test_gold_separates_building_verifying_and_freezing() -> None:
     gold = _subparser(parser, "gold")
     actions = {action.dest: action for action in gold._actions}
     assert set(actions["action"].choices) == {"build", "sheet", "freeze"}
+
+
+# --------------------------------------------------------------------- generate
+
+
+def test_generate_is_wired_up() -> None:
+    assert HANDLERS["generate"] is not None
+
+
+def test_generate_exposes_host_knobs_but_no_experimental_ones() -> None:
+    """The dividing line: a flag may change how long the stage takes or whether
+    it fits the card. Anything that can change an *answer* -- the prompt, a
+    sampling field, max_model_len -- is config, because config reaches the run
+    id and an answer produced under different settings belongs to a different
+    run. A run redone on a smaller GPU is the same run.
+    """
+    options = {opt for prog, opt in _all_options(build_parser()) if prog.endswith("generate")}
+    assert "--gpu-memory-utilization" in options
+    assert "--batch-size" in options
+    for forbidden in (
+        "--temperature", "--top-p", "--top-k", "--max-new-tokens", "--seed",
+        "--prompt", "--prompt-template", "--system-prompt", "--max-model-len", "--model",
+    ):
+        assert forbidden not in options, (
+            f"{forbidden} can change an answer, so it belongs in base.generation "
+            "where it reaches the run id -- not on the command line."
+        )
