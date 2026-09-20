@@ -32,6 +32,17 @@ class JudgeError(Exception):
     """The judge could not be reached, or refused the request outright."""
 
 
+class JudgeQuotaExhausted(JudgeError):
+    """The day's allowance is spent. Not a failure -- a pause.
+
+    A free tier caps tokens per day, and one judgement carries the retrieved
+    context, so a full run does not fit in one day. That is a schedule, not an
+    error: everything already written stays, the stage stops cleanly rather than
+    burning retries against a wall, and re-running the same command tomorrow
+    continues from where it stopped.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class Verdict:
     """One parsed judgement: three scales, a category, and why.
@@ -64,12 +75,22 @@ class Judge(Protocol):
 
 
 def judge_params(resolved: Mapping[str, Any]) -> dict[str, Any]:
-    """Judge settings: ``base.judge``, whole.
+    """Judge settings: ``base.judge`` with the selected provider merged over it.
 
     Judging is not a factor, for the reason generation is not: one judge, one
     rubric, one temperature across all 8 cells. What varies is the answers.
+
+    Every provider's block stays in the resolved config even though only one is
+    active, and that is deliberate. The run id then records which judge was
+    selected *and* what the alternative was, so "does this result depend on the
+    judge?" is answerable from the artefact rather than from memory.
     """
-    return dict(resolved["base"]["judge"])
+    params = dict(resolved["base"]["judge"])
+    provider = str(params.get("provider", ""))
+    block = (params.get("providers") or {}).get(provider)
+    if isinstance(block, Mapping):
+        params.update(block)
+    return params
 
 
 def scales(params: Mapping[str, Any]) -> tuple[str, ...]:
@@ -117,21 +138,21 @@ def parse_verdict(payload: Mapping[str, Any], params: Mapping[str, Any]) -> Verd
 
 
 def build_judge(params: Mapping[str, Any], **runtime: Any) -> Judge:
-    """Construct the judge named by ``model_id``, or the offline stand-in.
+    """Construct the judge the config selects, or the offline stand-in.
 
-    Selected by id, never by a flag, so a config naming the real judge cannot
-    quietly fall back to a stand-in whose scores mean nothing.
+    Selected from config, never by a flag, so a config naming a real judge
+    cannot quietly fall back to a stand-in whose scores mean nothing -- and so
+    that which judge produced a result is recorded in the run id rather than in
+    whatever was typed that day.
     """
-    if str(params["model_id"]) == "stand-in":
+    provider = str(params.get("provider", ""))
+    if provider == "stand-in" or str(params.get("model_id", "")) == "stand-in":
         from .standin import StandInJudge
 
         return StandInJudge(params)
-    provider = str(params.get("provider", "openrouter"))
-    if provider != "openrouter":
-        raise JudgeError(f"unknown judge provider {provider!r}; only 'openrouter' is built")
-    from .openrouter import OpenRouterJudge
+    from .openai_compatible import ChatCompletionsJudge
 
-    return OpenRouterJudge(params, **runtime)
+    return ChatCompletionsJudge(params, **runtime)
 
 
 class LazyJudge:

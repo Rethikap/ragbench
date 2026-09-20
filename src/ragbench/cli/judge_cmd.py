@@ -44,6 +44,8 @@ def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> 
             on_progress=lambda message: print(f"  {message}", end="\r", flush=True),
         )
     except (ValueError, KeyError, OSError, GoldSetError, JudgeError) as exc:
+        # JudgeQuotaExhausted is handled inside the pipeline and reported as a
+        # pause; anything reaching here is a real failure.
         print(f"ragbench: {exc}")
         return EXIT_DATA
 
@@ -77,8 +79,20 @@ def render(reports: list[dict[str, Any]]) -> str:
     total_calls = sum(report["api_calls"] for report in reports)
     total_unparsed = sum(report["unparsed"] for report in reports)
     total_retries = sum(report["parse_retries"] for report in reports)
+    outstanding = sum(report.get("outstanding", 0) for report in reports)
     add("=" * 100)
     add(f"  {total_calls} API calls; {total_retries} corrective retries after a bad reply.")
+
+    stopped = next((r for r in reports if r.get("quota_exhausted")), None)
+    if stopped is not None:
+        add("")
+        add(f"  STOPPED ON QUOTA -- {outstanding} judgements still outstanding.")
+        add(f"  {stopped['quota_message']}")
+        add("")
+        add("  This is a pause, not a failure. A full run is about 910,000 tokens because")
+        add("  every judgement carries the retrieved context, so it does not fit in one")
+        add("  free day. Re-run the identical command after the allowance resets and it")
+        add("  continues; nothing already scored is judged again.")
     if total_unparsed:
         add(
             f"  {total_unparsed} items are recorded as UNPARSED -- the judge returned something"

@@ -101,7 +101,7 @@ and the reranker run happily on 4.57 too.
 > transformers to 4.57.x. Installing both leaves whichever ran last in place and
 > silently breaks the other. They never need to coexist: **indexing and
 > retrieval are one session, generation is another**, and the only thing that
-> travels between them is `runs/8e8f0a1889d6/retrieve/` — under 100 KB. Start a
+> travels between them is `runs/7c5db2359a75/retrieve/` — under 100 KB. Start a
 > fresh notebook for §9 rather than adding vLLM to this one.
 
 Restart the kernel after the install so the downgraded transformers is the one
@@ -294,7 +294,7 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 ```
 
 `retrieve` covers all eight configurations. `report retrieval` writes
-`runs/8e8f0a1889d6/retrieval_report.json` and prints the two tables.
+`runs/7c5db2359a75/retrieval_report.json` and prints the two tables.
 
 Generation is **not** part of this session — see §9.
 
@@ -331,10 +331,10 @@ fewer of them.
 **Essential — under 1 MB, and all the laptop needs to read the results:**
 
 ```
-runs/8e8f0a1889d6/retrieve/*.jsonl        per-query RetrievalResult records
-runs/8e8f0a1889d6/retrieve/summary.json   per-configuration summary
-runs/8e8f0a1889d6/retrieval_report.json   the six metrics, aggregated
-runs/8e8f0a1889d6/resolved_config.json    what the run was configured with
+runs/7c5db2359a75/retrieve/*.jsonl        per-query RetrievalResult records
+runs/7c5db2359a75/retrieve/summary.json   per-configuration summary
+runs/7c5db2359a75/retrieval_report.json   the six metrics, aggregated
+runs/7c5db2359a75/resolved_config.json    what the run was configured with
 data/indexes/*/index.json                 per-index stats and truncation census
 ```
 
@@ -343,7 +343,7 @@ themselves. Bring them back only if a later Kaggle session should skip
 re-embedding (see §7). They are of no use on a laptop that cannot run the query
 encoder.
 
-`runs/8e8f0a1889d6/retrieve/` is also the **only** thing the generation session
+`runs/7c5db2359a75/retrieve/` is also the **only** thing the generation session
 in §9 needs from this one. Keep it somewhere you can upload again.
 
 Zip the essentials so one download covers it:
@@ -360,7 +360,7 @@ run). The file appears under the notebook's Output tab; download it there, or:
 kaggle kernels output <user>/<notebook-slug> -p ./from-kaggle
 ```
 
-Unzip into the repository root on the laptop. `runs/8e8f0a1889d6/` is the same
+Unzip into the repository root on the laptop. `runs/7c5db2359a75/` is the same
 path the local config resolves to — the digest is computed from `configs/`, which
 is in git — so the reports read without any rewiring.
 
@@ -521,7 +521,7 @@ Restart the kernel, then confirm the GPU is visible to vLLM:
 > |---|---|
 > | when `retrieve` ran | `runs/44e112902a29/` |
 > | when `generate` ran | `runs/f66638fb9655/` |
-> | now | `runs/8e8f0a1889d6/` |
+> | now | `runs/7c5db2359a75/` |
 >
 > It has moved twice, once per stage configured: adding `base.generation` moved
 > it the first time and adding `base.judge` the second. **The pipeline is now
@@ -540,10 +540,10 @@ no index and no embedder. Mount the earlier notebook's output
 (**Add data -> Notebook Output**) and copy that directory to the **new** id:
 
 ```python
-!mkdir -p /kaggle/working/ragbench/runs/8e8f0a1889d6
+!mkdir -p /kaggle/working/ragbench/runs/7c5db2359a75
 !cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/runs/44e112902a29/retrieve \
-       /kaggle/working/ragbench/runs/8e8f0a1889d6/
-!ls /kaggle/working/ragbench/runs/8e8f0a1889d6/retrieve
+       /kaggle/working/ragbench/runs/7c5db2359a75/
+!ls /kaggle/working/ragbench/runs/7c5db2359a75/retrieve
 ```
 
 Confirm the destination id first, because it moves again the next time anything
@@ -621,9 +621,9 @@ if you need each answer reproducible independently of what else was pending.
 ### 9e. What to bring back
 
 ```
-runs/8e8f0a1889d6/generate/*.jsonl        the 160 answers, with length and timing
-runs/8e8f0a1889d6/generate/summary.json   per-configuration summary
-runs/8e8f0a1889d6/generation_report.json  answer length, truncation, abstention
+runs/7c5db2359a75/generate/*.jsonl        the 160 answers, with length and timing
+runs/7c5db2359a75/generate/summary.json   per-configuration summary
+runs/7c5db2359a75/generation_report.json  answer length, truncation, abstention
 ```
 
 Under 1 MB. Read them on the laptop with:
@@ -642,22 +642,83 @@ cheap to fix.
 
 ## 10. Judging — on the laptop, not on Kaggle
 
-The judge is `meta-llama/llama-3.3-70b-instruct` over OpenRouter. No GPU, no
-download, nothing to upload. Bring `runs/8e8f0a1889d6/generate/` home from §9,
-then run it locally.
+The judge uses no GPU and nothing from Kaggle except `runs/7c5db2359a75/generate/`.
+Bring that home from §9, then run it locally.
 
-### 10a. The key
+### 10a. Which judge, and why two
+
+`judge.provider` selects the backend; both stay configured.
+
+| provider | model | free tier |
+|---|---|---|
+| **`groq`** (default) | `llama-3.3-70b-versatile` | free, no card |
+| `openrouter` | `meta-llama/llama-3.3-70b-instruct` | requires a credit balance as of 2026-09 |
+
+The alternative is kept rather than deleted because a reviewer may ask whether
+the result depends on the judge provider, and that is only answerable if the
+other backend is still configured. Switching is one word in `configs/base.yaml`,
+and because the whole resolved config reaches the run id, scores from two judges
+can never land in one directory.
+
+Neither is Qwen. The generator must not grade its own output, and a test fails
+the build if the judge id ever matches the generator's — checked for the
+selected provider *and* for every alternative.
+
+### 10b. The key
 
 ```bash
-export OPENROUTER_API_KEY=sk-or-...        # PowerShell: $env:OPENROUTER_API_KEY = "sk-or-..."
+export GROQ_API_KEY=gsk_...              # PowerShell: $env:GROQ_API_KEY = "gsk_..."
 ```
 
-The variable's name is in `configs/base.yaml` as `judge.api_key_env`; its value
-is read inside the client and is never in the repository, in a config file, or
-on a command line. There is deliberately no `--api-key` flag: a key on a command
-line lands in shell history and in the process table.
+The variable's name is `judge.providers.groq.api_key_env`; its value is read
+inside the client and is never in the repository, in a config file, or on a
+command line. There is deliberately no `--api-key` flag: a key on a command line
+lands in shell history and in the process table.
 
-### 10b. Run
+### 10c. Budget first — this does not finish in one sitting
+
+**A judgement is expensive because it must carry the retrieved context.**
+Faithfulness is a judgement about what the system was *shown*, so the passages
+go in the prompt; that is the design, not an oversight, and it cannot be
+trimmed without changing what faithfulness means.
+
+```
+  retrieved context      ~1,940 tokens
+  rubric + scaffolding     ~815
+  question/reference/answer ~100
+  the judge's own reply      ~60
+  ------------------------------------
+  ~2,900 tokens per call, ~810,000 for a full 280-call run
+```
+
+Two limits bite, and the token one bites first:
+
+- **Tokens per minute.** At 12,000 TPM a ~3,250-token call (the pacer's
+  conservative estimate, which includes the `max_tokens` ceiling) means **three
+  calls a minute** — an order of magnitude below the 30 requests/minute the same
+  tier allows. A client pacing only on requests would collect 429s all day, so
+  this one paces on both.
+- **Tokens per day.** `daily_token_cap` defaults to 100,000, which is about
+  **30 calls**. A full run therefore spans **several days**.
+
+> **Set `daily_token_cap` to whatever your own console reports.** The published
+> figures move and the docs page renders its table in JavaScript, so the value
+> in `configs/base.yaml` is a conservative starting point rather than a verified
+> fact. The client also reads Groq's `x-ratelimit-remaining-tokens` and
+> `x-ratelimit-limit-tokens` response headers, so what the server actually says
+> is what gets reported.
+
+If several days is not acceptable, the options are yours to weigh, and none
+should be taken silently:
+
+- `judge.passes: 1` halves the spend and gives up the self-consistency figure —
+  the number that bounds how far any difference between configurations can be
+  trusted. Not recommended.
+- Judge a subset of configurations first by editing `factors.yaml`, which
+  changes the experiment and the run id.
+- Pay for a tier with a larger allowance.
+
+### 10d. Run
 
 ```bash
 ragbench judge --config configs/base.yaml
@@ -665,23 +726,30 @@ ragbench report judge --config configs/base.yaml
 ```
 
 **Expect around 280 calls, not 320.** Every answer is scored twice — run-to-run
-inconsistency is a standard LLM-judge failure mode and the second pass is what
-measures it — but the 20 abstentions are classified from the answer text without
+inconsistency is a standard LLM-judge failure mode, and the second pass is what
+measures it — but the 20 abstentions are recognised from the answer text without
 an API call, so 40 of the 320 cost nothing.
 
-At the free tier's 20 requests/minute that is roughly **15 minutes**. The client
-paces itself to that limit rather than discovering it through 429s, and honours
-`Retry-After` when one arrives anyway.
+When the daily allowance runs out the stage stops and says so:
+
+```
+  STOPPED ON QUOTA -- 214 judgements still outstanding.
+  the configured daily token cap (100,000) would be exceeded: ...
+```
+
+**That is a pause, not a failure.** Everything already scored is on disk. Re-run
+the identical command after the allowance resets and it continues; nothing is
+judged twice.
 
 | Symptom | What it means |
 |---|---|
-| `OPENROUTER_API_KEY is not set` | Exported in a different shell, or spelled differently from `judge.api_key_env`. |
-| `OpenRouter rejected the API key (401)` | Not retried, deliberately — a bad key is not transient. |
-| the run stops partway | Re-run the same command. Judgements already on disk are never re-judged, so nothing is paid for twice. |
+| `GROQ_API_KEY is not set` | Exported in a different shell, or spelled differently from the provider's `api_key_env`. |
+| `groq rejected the API key (401)` | Not retried, deliberately — a bad key is not transient. |
+| `STOPPED ON QUOTA` | Expected. Re-run tomorrow. |
 | `judged against a different answer` | `generate` has been re-run under this run directory. Delete that configuration's judge JSONL rather than scoring two sets of answers into one. |
 | a nonzero `unparsed` column | The judge returned something that was not the schema twice. Those items are persisted so a re-run does not spend the calls again; delete their lines to retry them. |
 
-### 10c. Calibration
+### 10e. Calibration
 
 `report judge` writes three files into the run directory:
 
@@ -695,15 +763,17 @@ The sheet is blind twice over: the configuration label is absent, and the items
 are shuffled after stratified sampling, because five consecutive items from one
 configuration would reconstruct the label from the ordering alone. Each item
 carries the question, the reference answer, the answer under review, and the
-retrieved passages in full — faithfulness is a judgement about what the system
-was *shown*, so scoring it without them would not be scoring the same thing the
-judge scored.
+retrieved passages in full — scoring faithfulness without them would not be
+scoring the same thing the judge scored.
+
+It is emitted as soon as *any* judgements exist, so the hand-scoring can be done
+during the days the judge is still working through its allowance.
 
 Fill in the CSV, then:
 
 ```bash
 ragbench report judge --config configs/base.yaml \
-    --calibration runs/8e8f0a1889d6/calibration_scores.csv
+    --calibration runs/7c5db2359a75/calibration_scores.csv
 ```
 
 That prints quadratically weighted Cohen's kappa and Spearman per scale, an
@@ -715,11 +785,14 @@ high Spearman is a calibration offset — the judge is consistently harsher or
 softer but ranks the answers as you do — which is a different finding from
 genuine disagreement, and has a different remedy.
 
-### 10d. What to keep
+### 10f. What to keep
 
 ```
-runs/8e8f0a1889d6/judge/*.jsonl          two judgements per answer
-runs/8e8f0a1889d6/judge/summary.json     per-configuration summary
-runs/8e8f0a1889d6/judge_report.json      scores, verdicts, self-consistency
-runs/8e8f0a1889d6/calibration_*          the sheet, your scores, the key
+runs/7c5db2359a75/judge/*.jsonl          two judgements per answer
+runs/7c5db2359a75/judge/summary.json     per-configuration summary
+runs/7c5db2359a75/judge_report.json      scores, verdicts, self-consistency
+runs/7c5db2359a75/calibration_*          the sheet, your scores, the key
 ```
+
+All of it is tracked by git — see `.gitignore`, which ignores the regenerable
+caches and names these back in.

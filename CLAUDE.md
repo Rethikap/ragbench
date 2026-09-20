@@ -363,17 +363,37 @@ removes it at 4-6x the wall clock.
 Two rules, and the second is the one that is easy to get wrong.
 
 **The judge is a different model from the generator.** Qwen2.5-7B-Instruct
-produced the answers; `meta-llama/llama-3.3-70b-instruct` grades them, pinned by
-its full slug. Asking the generator to grade its own output stacks
-self-preference bias — models score their own continuations higher — on top of
-the unreliability the LLM-as-judge literature reports for small judges, and the
-two are not separable afterwards. A test reads `configs/base.yaml` and fails if
-the two ids ever coincide.
+produced the answers; a 70B Llama grades them. Asking the generator to grade its
+own output stacks self-preference bias — models score their own continuations
+higher — on top of the unreliability the LLM-as-judge literature reports for
+small judges, and the two are not separable afterwards. A test reads
+`configs/base.yaml` and fails if the ids ever coincide, checking the selected
+provider **and every alternative**, so switching backends cannot reintroduce it.
+
+**Two backends, selected from config, and the loser is kept.**
+`judge.provider` picks between `groq` (`llama-3.3-70b-versatile`, free without a
+card) and `openrouter` (`meta-llama/llama-3.3-70b-instruct`, which now requires
+a credit balance). Both blocks stay in the resolved config, so the run id
+records which judge produced a result *and* what the alternative was: "does this
+depend on the judge?" is then answerable from the artefact rather than from
+memory. Deleting the unused one would make it unanswerable.
 
 **The API key comes from the environment and is never in the repository.**
-`judge.api_key_env` names the variable; the value is read inside the client. It
-is not a CLI flag either, because a key on a command line lands in shell history
-and in the process table.
+Each provider's `api_key_env` names its variable; the value is read inside the
+client. It is not a CLI flag either, because a key on a command line lands in
+shell history and in the process table.
+
+**Tokens are the binding constraint, and the run does not fit in one day.** A
+judgement must carry the retrieved context — that is what makes faithfulness a
+question about what the system was shown — so a call is ~2,900 tokens and a full
+280-call run is ~810,000. On a free tier that is several days. The client
+therefore paces on tokens per minute as well as requests per minute (at 12,000
+TPM, three calls a minute, against the 30 requests the same tier allows), and
+stops cleanly at a configured daily cap instead of burning retries against it.
+Stopping is a pause: judgements already written stay, and re-running the same
+command continues. Published limits move, so the client also reads the
+`x-ratelimit-*` response headers and reports what the server says is left rather
+than trusting a documented figure.
 
 **Three scales and a categorical verdict, because one scale cannot separate the
 two failure modes.** The real output contains both: q044 produced three

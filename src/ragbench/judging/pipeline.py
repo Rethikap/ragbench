@@ -41,7 +41,14 @@ from ..hashing import sha256_text
 from ..jsonl import append_jsonl, read_jsonl
 from ..retrieval.pipeline import cells, config_name, load_results, results_path
 from ..types import Judgement
-from .base import ABSTAINED, UNPARSED, LazyJudge, Verdict, judge_params
+from .base import (
+    ABSTAINED,
+    UNPARSED,
+    JudgeQuotaExhausted,
+    LazyJudge,
+    Verdict,
+    judge_params,
+)
 from .prompt import build_prompt, rubric_digest
 
 Progress = Callable[[str], None] | None
@@ -142,6 +149,7 @@ def judge_one_config(
         judge = LazyJudge(params)
 
     calls = 0
+    exhausted = ""
     for position, (query_id, index) in enumerate(pending, start=1):
         answer = answers[query_id]
         query = queries[query_id]
@@ -164,6 +172,11 @@ def judge_one_config(
             calls += 1
             try:
                 verdict = judge.score(prompt)
+            except JudgeQuotaExhausted as exc:
+                # A schedule, not a failure. Everything already appended stays;
+                # stop here rather than spending retries against a wall.
+                exhausted = str(exc)
+                break
             except ValueError as exc:
                 # Twice unparseable. Persist it so the API budget is not spent
                 # again on the next run, and count it loudly in the report.
@@ -200,9 +213,12 @@ def judge_one_config(
         "passes": passes,
         "n_judgements": len(records),
         "n_expected": len(answers) * passes,
-        "written": len(pending),
-        "reused": len(records) - len(pending),
+        "written": len(records) - len(existing),
+        "reused": len(existing),
+        "outstanding": len(answers) * passes - len(records),
         "api_calls": calls,
+        "quota_exhausted": bool(exhausted),
+        "quota_message": exhausted,
         "abstained": sum(1 for r in records if r.verdict == ABSTAINED),
         "unparsed": sum(1 for r in records if r.verdict == UNPARSED),
         "parse_retries": sum(r.n_parse_retries for r in records),

@@ -21,6 +21,7 @@ from ragbench.judging.base import (
     ABSTAINED,
     UNPARSED,
     JudgeError,
+    JudgeQuotaExhausted,
     Verdict,
     build_judge,
     judge_params,
@@ -160,26 +161,69 @@ def test_an_unknown_provider_is_refused() -> None:
 # ----------------------------------------------------- the judge is not the generator
 
 
-def test_the_shipped_config_does_not_let_the_generator_judge_itself() -> None:
-    """Self-preference bias stacked on small-judge unreliability, and the two
-    are not separable after the fact."""
+def _shipped() -> dict[str, Any]:
     import yaml
 
-    base = yaml.safe_load(Path("configs/base.yaml").read_text(encoding="utf-8"))
+    return yaml.safe_load(Path("configs/base.yaml").read_text(encoding="utf-8"))
+
+
+def test_the_shipped_config_does_not_let_the_generator_judge_itself() -> None:
+    """Self-preference bias stacked on small-judge unreliability, and the two
+    are not separable after the fact. Checked for the SELECTED provider and for
+    every alternative, so switching backends cannot reintroduce it."""
+    base = _shipped()
     generator = str(base["generation"]["model_id"]).lower()
-    judge = str(base["judge"]["model_id"]).lower()
-    assert judge != generator
-    assert "qwen" not in judge
+
+    active = judge_params({"base": base})
+    assert str(active["model_id"]).lower() != generator
+    assert "qwen" not in str(active["model_id"]).lower()
+
+    for name, block in base["judge"]["providers"].items():
+        model = str(block["model_id"]).lower()
+        assert model != generator, f"{name} would have the generator judge itself"
+        assert "qwen" not in model, f"{name} names a Qwen model"
+
+
+def test_both_backends_stay_configured_so_the_question_stays_answerable() -> None:
+    """A reviewer may ask whether the result depends on the judge provider.
+    Deleting the alternative makes that unanswerable after the fact."""
+    providers = _shipped()["judge"]["providers"]
+    assert {"groq", "openrouter"} <= set(providers)
+    for block in providers.values():
+        assert block["endpoint"].startswith("https://")
+        assert block["api_key_env"].endswith("_API_KEY")
+
+
+def test_the_backend_is_selected_from_config_not_from_a_flag() -> None:
+    base = _shipped()
+    assert base["judge"]["provider"] == "groq"
+    active = judge_params({"base": base})
+    assert active["model_id"] == "llama-3.3-70b-versatile"
+    assert active["endpoint"].startswith("https://api.groq.com/")
+    assert active["api_key_env"] == "GROQ_API_KEY"
+
+    switched = {**base, "judge": {**base["judge"], "provider": "openrouter"}}
+    assert judge_params({"base": switched})["api_key_env"] == "OPENROUTER_API_KEY"
+
+
+def test_selecting_a_provider_changes_the_run_id() -> None:
+    """Two judges are two results, and they must not share a directory."""
+    from ragbench.cache_keys import run_key
+
+    base = _shipped()
+    resolved = {"base": base, "corpus": {}, "factors": {}, "gold": {}, "schema_version": 1}
+    switched = {**resolved, "base": {**base, "judge": {**base["judge"], "provider": "openrouter"}}}
+    assert run_key(resolved) != run_key(switched)
 
 
 def test_no_api_key_is_committed_anywhere_in_config() -> None:
     """The variable's NAME is documentation. Its value never touches the repo."""
-    import yaml
-
-    base = yaml.safe_load(Path("configs/base.yaml").read_text(encoding="utf-8"))
-    assert base["judge"]["api_key_env"] == "OPENROUTER_API_KEY"
+    base = _shipped()
+    names = {block["api_key_env"] for block in base["judge"]["providers"].values()}
+    assert names == {"GROQ_API_KEY", "OPENROUTER_API_KEY"}
     text = Path("configs/base.yaml").read_text(encoding="utf-8")
-    assert "sk-or-" not in text
+    for prefix in ("sk-or-", "gsk_", "sk-"):
+        assert prefix not in text
 
 
 # ------------------------------------------------------------- the http client
@@ -213,12 +257,23 @@ def _reply(text: str) -> _Response:
     return _Response(200, {"choices": [{"message": {"content": text}}]})
 
 
+HOSTED: dict[str, Any] = {
+    **JUDGE,
+    "provider": "groq",
+    "model_id": "llama-3.3-70b-versatile",
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "requests_per_minute": 0,
+    "tokens_per_minute": 0,
+    "daily_token_cap": 0,
+}
+
+
 def _client(monkeypatch, responses: list[_Response], **overrides):
-    from ragbench.judging import openrouter
+    from ragbench.judging import openai_compatible
 
     monkeypatch.setenv("RAGBENCH_TEST_KEY", "test-key")
-    monkeypatch.setattr(openrouter.time, "sleep", lambda _: None)
-    judge = openrouter.OpenRouterJudge({**JUDGE, "model_id": "meta/real", **overrides})
+    monkeypatch.setattr(openai_compatible.time, "sleep", lambda _: None)
+    judge = openai_compatible.ChatCompletionsJudge({**HOSTED, **overrides})
     judge._session = _Session(responses)
     return judge
 
@@ -228,11 +283,34 @@ GOOD = '{"faithfulness": 5, "relevance": 4, "completeness": 3, "verdict": "corre
 
 
 def test_a_missing_api_key_fails_before_any_request(monkeypatch) -> None:
-    from ragbench.judging import openrouter
+    from ragbench.judging import openai_compatible
 
     monkeypatch.delenv("RAGBENCH_TEST_KEY", raising=False)
     with pytest.raises(JudgeError, match="is not set"):
-        openrouter.OpenRouterJudge({**JUDGE, "model_id": "meta/real"})
+        openai_compatible.ChatCompletionsJudge(HOSTED)
+
+
+def test_the_request_goes_to_the_configured_endpoint(monkeypatch) -> None:
+    """The one thing that differs between the two providers at the wire level."""
+    judge = _client(monkeypatch, [_reply(GOOD)])
+    judge.score(prompt())
+    assert judge._session.sent[0]["url"] == HOSTED["endpoint"]
+
+
+def test_provider_specific_headers_are_sent_only_where_configured(monkeypatch) -> None:
+    plain = _client(monkeypatch, [_reply(GOOD)])
+    plain.score(prompt())
+    assert "HTTP-Referer" not in plain._session.sent[0]["headers"]
+
+    attributed = _client(
+        monkeypatch,
+        [_reply(GOOD)],
+        provider="openrouter",
+        endpoint="https://openrouter.ai/api/v1/chat/completions",
+        extra_headers={"HTTP-Referer": "https://github.com/ragbench", "X-Title": "ragbench"},
+    )
+    attributed.score(prompt())
+    assert attributed._session.sent[0]["headers"]["X-Title"] == "ragbench"
 
 
 def test_the_key_travels_in_the_header_and_not_in_the_body(monkeypatch) -> None:
@@ -253,13 +331,13 @@ def test_a_rejected_key_is_not_retried(monkeypatch) -> None:
 
 
 def test_throttling_is_retried_and_retry_after_is_honoured(monkeypatch) -> None:
-    from ragbench.judging import openrouter
+    from ragbench.judging import openai_compatible
 
     slept: list[float] = []
     monkeypatch.setenv("RAGBENCH_TEST_KEY", "k")
-    monkeypatch.setattr(openrouter.time, "sleep", lambda s: slept.append(s))
-    judge = openrouter.OpenRouterJudge({**JUDGE, "model_id": "meta/real"})
-    judge._session = _Session([_Response(429, headers={"Retry-After": "7"}), _reply(GOOD)])
+    monkeypatch.setattr(openai_compatible.time, "sleep", lambda s: slept.append(s))
+    judge = openai_compatible.ChatCompletionsJudge(HOSTED)
+    judge._session = _Session([_Response(429, headers={"retry-after": "7"}), _reply(GOOD)])
     assert judge.score(prompt()).verdict == "correct"
     assert 7.0 in slept
 
@@ -517,3 +595,121 @@ def test_judging_is_not_a_factor() -> None:
 
     assert not hasattr(module, "arm_params")
     assert judge_params({"base": {"judge": dict(JUDGE)}}) == JUDGE
+
+
+# --------------------------------------------------- pacing, and the daily cap
+
+
+def test_the_pacer_waits_on_tokens_not_just_requests() -> None:
+    """The binding constraint on a free tier. One judgement carries the
+    retrieved context, so a call is ~3,250 tokens: at 12,000 tokens/minute that
+    is under four calls a minute, far below the 30 requests/minute the same tier
+    allows. Pacing on requests alone would collect 429s all day."""
+    from ragbench.judging.openai_compatible import Pacer
+
+    pacer = Pacer(requests_per_minute=30, tokens_per_minute=12000)
+    now = 1000.0
+    # 12,000 / 3,250 is 3.7, so exactly three calls fit in a minute -- an order
+    # of magnitude under the 30 requests the same tier would allow.
+    for _ in range(2):
+        pacer._events.append((now, 3250))
+    assert pacer._wait_for(now, 3250) == 0.0
+    pacer._events.append((now, 3250))
+    assert pacer._wait_for(now, 3250) == 60.0
+
+
+def test_request_pacing_still_applies_when_tokens_are_unlimited() -> None:
+    from ragbench.judging.openai_compatible import Pacer
+
+    pacer = Pacer(requests_per_minute=2, tokens_per_minute=0)
+    now = 500.0
+    pacer._events.extend([(now, 10), (now, 10)])
+    assert pacer._wait_for(now, 10) > 0
+
+
+def test_an_unpaced_provider_never_waits() -> None:
+    from ragbench.judging.openai_compatible import Pacer
+
+    pacer = Pacer(requests_per_minute=0, tokens_per_minute=0)
+    pacer._events.extend([(0.0, 99999)] * 50)
+    assert pacer._wait_for(0.0, 99999) == 0.0
+
+
+def test_the_estimate_is_replaced_by_what_the_call_actually_cost() -> None:
+    """A systematically wrong estimate must not compound into a breach."""
+    from ragbench.judging.openai_compatible import Pacer
+
+    pacer = Pacer(30, 12000)
+    pacer.before(1000)
+    pacer.correct(4000)
+    assert pacer._events[-1][1] == 4000
+
+
+def test_the_daily_cap_stops_before_spending_rather_than_after(monkeypatch) -> None:
+    """A full run is ~910,000 tokens and a free day is far less, so the stage
+    has to survive being stopped. It stops before the call, so the cap is never
+    exceeded rather than merely detected."""
+    judge = _client(monkeypatch, [_reply(GOOD)], daily_token_cap=100)
+    with pytest.raises(JudgeQuotaExhausted, match="daily token cap"):
+        judge.score(prompt())
+    assert judge._session.sent == []
+
+
+def test_a_daily_429_is_not_retried_as_though_it_were_throttling(monkeypatch) -> None:
+    """Waiting a minute does not clear a spent day; retrying just burns the
+    remaining attempts against a wall."""
+    judge = _client(
+        monkeypatch,
+        [_Response(429, {"error": {"message": "rate limit reached for tokens per day (TPD)"}})],
+    )
+    with pytest.raises(JudgeQuotaExhausted, match="daily allowance"):
+        judge.score(prompt())
+    assert len(judge._session.sent) == 1
+
+
+def test_the_server_s_own_remaining_allowance_is_recorded(monkeypatch) -> None:
+    """Published limits move; the response headers are the authoritative
+    statement of what is actually in force."""
+    judge = _client(
+        monkeypatch,
+        [_Response(
+            200,
+            {"choices": [{"message": {"content": GOOD}}], "usage": {"total_tokens": 2900}},
+            headers={"x-ratelimit-remaining-tokens": "8400",
+                     "x-ratelimit-limit-tokens": "12000"},
+        )],
+    )
+    judge.score(prompt())
+    assert judge.remaining["x-ratelimit-remaining-tokens"] == "8400"
+    assert judge.tokens_spent == 2900
+
+
+def test_a_quota_stop_keeps_what_was_written_and_says_so(tmp_path: Path) -> None:
+    """Resumption is the whole point: the run spans days, so stopping must be a
+    pause rather than a loss."""
+    class _Exhausting(_CountingJudge):
+        def score(self, prompt: Any) -> Verdict:
+            if len(self.seen) >= 2:
+                raise JudgeQuotaExhausted("the configured daily token cap would be exceeded")
+            return super().score(prompt)
+
+    resolved, configs, data, run = _world(
+        tmp_path, [_answer("q001", "a"), _answer("q002", "b")]
+    )
+    report = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=_Exhausting()
+    )
+    assert report["quota_exhausted"] is True
+    assert report["n_judgements"] == 2
+    assert report["outstanding"] == 2
+    assert "daily token cap" in report["quota_message"]
+
+    # Tomorrow: the same command continues rather than restarting.
+    resumed = _CountingJudge()
+    again = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=resumed
+    )
+    assert again["quota_exhausted"] is False
+    assert again["n_judgements"] == 4
+    assert again["reused"] == 2
+    assert len(resumed.seen) == 2
