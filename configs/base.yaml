@@ -146,8 +146,141 @@ judge:
   provider: openrouter
   # Pin an exact id. Free-tier model slugs rotate, and the judge identity must be
   # recorded with the results.
+  #
+  # NOT Qwen2.5-7B. The generator must never judge its own output: that stacks
+  # self-preference bias on top of the small-judge unreliability the
+  # LLM-as-judge literature warns about, and the two are not separable after
+  # the fact. A different family and a much larger model is the minimum.
   model_id: meta-llama/llama-3.3-70b-instruct
   temperature: 0.0
-  rubric_id: v1
-  max_retries: 5
+  seed: 20260813
+  max_tokens: 400
+  # The key itself is never in the repo or in any config. This names the
+  # variable to read it from, which is documentation rather than a secret.
+  api_key_env: OPENROUTER_API_KEY
+  # OpenRouter's free tier throttles. 20/min is its documented ceiling; the
+  # client paces to it rather than discovering it through 429s, and honours
+  # Retry-After when it gets one anyway.
   requests_per_minute: 20
+  max_retries: 5
+  # Ask the provider to constrain the response to a JSON object. Not every
+  # provider behind a slug accepts the parameter, so the client drops it and
+  # retries once if it is rejected -- the prompt states the schema regardless.
+  require_json_object: true
+
+  # Each answer is scored TWICE, at temperature 0. Run-to-run inconsistency is a
+  # standard failure mode for LLM judges, and a judge that disagrees with itself
+  # bounds how much any difference between configurations can be trusted. At
+  # this scale the second pass costs minutes, so there is no reason to assume
+  # the consistency instead of measuring it.
+  passes: 2
+
+  rubric_id: v1
+  # Three scales AND a categorical verdict, because one scale cannot separate
+  # the two failure modes in the generated output. A confident fabrication and a
+  # correct abstention would land near each other on any single axis; they are
+  # opposite outcomes. The verdict carries the kind of failure, the scales carry
+  # the degree.
+  scales: [faithfulness, relevance, completeness]
+  verdicts: [correct, partially_correct, incorrect, abstained]
+  system_prompt: |-
+    You are grading answers produced by a retrieval-augmented system over
+    biomedical research papers. You are given the question, the reference answer
+    written by a human expert, the answer under review, and the retrieved
+    passages that were the only material the system was shown.
+
+    Grade strictly and literally. Do not reward fluency, length, or confidence.
+
+    Two distinctions do most of the work here.
+
+    FAITHFULNESS is about the RETRIEVED PASSAGES, not the reference answer. Ask
+    whether each claim, as stated, is supported by the passages. A number that
+    appears somewhere in the passages but is attached to the wrong entity,
+    condition, or timepoint is NOT faithful -- the claim it makes is false even
+    though the token is present. Treat a swapped pair of values as a serious
+    fault, not a quibble.
+
+    CORRECTNESS is about the REFERENCE ANSWER. An answer can be perfectly
+    faithful to the passages and still fail to match the reference, because the
+    passages may not contain the answer at all.
+
+    Scoring, 1 to 5 on each scale:
+
+    faithfulness -- is every claim supported by the passages?
+      5  every claim is supported by the passages
+      4  supported, with a minor unsupported embellishment
+      3  mostly supported; one specific detail is not
+      2  a central claim is unsupported, or a value is attached to the wrong
+         entity
+      1  fabricated, or contradicted by the passages
+
+    relevance -- does it answer the question that was asked?
+      5  answers exactly what was asked
+      4  answers it, with some material that was not asked for
+      3  answers part of it, or answers a neighbouring question
+      2  largely addresses something else
+      1  does not address the question
+
+    completeness -- does it cover what the reference answer covers?
+      5  covers every component of the reference
+      4  covers the substance; omits a supporting statistic or qualifier
+      3  covers one component of a two-component answer
+      2  touches the topic but omits the substance
+      1  contains none of the reference's content
+
+    verdict -- one of:
+      correct            matches the reference in substance. Wording,
+                         rounding, and units expressed differently are fine.
+      partially_correct  one component right and another wrong or missing --
+                         for example the right threshold with the wrong
+                         sensitivity.
+      incorrect          contradicts the reference, or states a fabricated
+                         value with confidence.
+      abstained          declines to answer, saying the passages do not
+                         contain it.
+
+    An abstention is not a low score. If the passages genuinely do not contain
+    the answer, declining is the system behaving correctly, and it is recorded
+    separately rather than graded. Use verdict "abstained" and set all three
+    scales to null.
+
+    Reply with a single JSON object and nothing else -- no prose before or
+    after, no markdown fence:
+
+    {"faithfulness": <1-5 or null>, "relevance": <1-5 or null>,
+     "completeness": <1-5 or null>, "verdict": "<one of the four>",
+     "rationale": "<one or two sentences, citing what decided it>"}
+  prompt_template: |-
+    QUESTION:
+    {question}
+
+    REFERENCE ANSWER (written by a human expert):
+    {reference_answer}
+
+    RETRIEVED PASSAGES (all the system was shown):
+    {context}
+
+    ANSWER UNDER REVIEW:
+    {answer}
+    {judge_note}
+    Return the JSON object now.
+  # Rendered only for the two gold records that carry a note, and left empty
+  # otherwise so no item is prompted with a dangling heading. The notes travel
+  # with the gold set rather than beside it, so the rubric cannot drift away
+  # from the label it applies to.
+  judge_note_template: |-
+
+    SPECIAL INSTRUCTION FOR THIS ITEM, from the person who wrote the reference
+    answer. It overrides the general rules above:
+    {judge_note}
+  # A parse failure gets one corrective retry carrying this reminder, then the
+  # item is recorded as unparsed and counted. Silently dropping it would shrink
+  # a configuration's denominator without saying so.
+  retry_instruction: |-
+    Your previous reply was not valid JSON. Reply with the JSON object only:
+    no prose, no markdown fence, no trailing text.
+
+  # The blind calibration sheet: how many answers to hand-score, and the seed
+  # that picks them. Stratified across configurations, config label hidden.
+  calibration_sample: 40
+  calibration_seed: 20260813

@@ -289,8 +289,45 @@ class GeneratedAnswer(JsonRecord):
 
 @dataclass(frozen=True, slots=True)
 class Judgement(JsonRecord):
+    """One judge pass over one answer.
+
+    ``verdict`` sits beside ``scores`` rather than being derived from them,
+    because one scale cannot separate the two failure modes in the output. A
+    confident fabrication and a correct abstention are opposite outcomes that
+    land in the same region of any single axis: the abstention makes no false
+    claim, so it is faithful; the fabrication is fluent and on-topic, so it is
+    relevant. The verdict carries the kind of failure and the scales carry the
+    degree.
+
+    ``scores`` is **empty for an abstention**, not full of fives. An abstention
+    claims nothing and so cannot be unfaithful, and scoring it 5 would reward a
+    configuration for retrieving badly. Means are taken over judged answers
+    only, with the abstention rate reported separately and never folded in.
+
+    ``pass_index`` numbers the repeated scorings of the same answer. Two passes
+    at temperature 0 measure the judge against itself; a judge that disagrees
+    with itself bounds how far any difference between configurations can be
+    trusted, and that bound has to be measured rather than assumed.
+
+    ``answer_sha256`` ties the judgement to the exact answer text it scored, the
+    way ``GeneratedAnswer.prompt_sha256`` ties an answer to its prompt. The
+    rubric lives in config and so moves the run id when edited; what that cannot
+    catch is generation re-run underneath a directory that already holds
+    judgements.
+    """
+
     query_id: str
     scores: dict[str, float]
     rationale: str
     judge_model: str
     rubric_id: str
+    verdict: str = ""
+    pass_index: int = 0
+    answer_sha256: str = ""
+    #: Corrective retries spent before this parsed. >0 means the judge returned
+    #: something that was not the schema at least once.
+    n_parse_retries: int = 0
+    latency_ms: float = 0.0
+    #: True when the abstention was recognised from the answer text and no API
+    #: call was made. Those items cost nothing and contribute to no mean.
+    from_refusal_match: bool = False

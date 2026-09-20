@@ -237,3 +237,27 @@ def test_generate_exposes_host_knobs_but_no_experimental_ones() -> None:
             f"{forbidden} can change an answer, so it belongs in base.generation "
             "where it reaches the run id -- not on the command line."
         )
+
+
+# ------------------------------------------------------------------------ judge
+
+
+def test_judge_is_wired_up_and_every_stage_now_has_a_handler() -> None:
+    assert HANDLERS["judge"] is not None
+    assert not [stage for stage in STAGES if HANDLERS[stage] is None]
+
+
+def test_the_judge_api_key_is_not_a_command_line_option() -> None:
+    """A key on the command line lands in shell history and in the process
+    table. It comes from the environment, named by judge.api_key_env."""
+    options = {opt for prog, opt in _all_options(build_parser()) if prog.endswith("judge")}
+    for forbidden in ("--api-key", "--key", "--openrouter-key", "--token"):
+        assert forbidden not in options
+
+
+def test_the_rubric_is_not_a_command_line_option() -> None:
+    """It lives in base.judge, so editing it moves the run id. A flag would let
+    two rubrics write into one run directory."""
+    options = {opt for prog, opt in _all_options(build_parser()) if prog.endswith("judge")}
+    for forbidden in ("--rubric", "--prompt", "--system-prompt", "--temperature", "--passes"):
+        assert forbidden not in options

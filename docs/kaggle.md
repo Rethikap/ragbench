@@ -15,6 +15,10 @@ specter2 arm needs `adapters`, which pins `transformers` to 4.57.x, and vLLM
 carries its own transformers range. One environment cannot satisfy both, and the
 failure if you try is silent.
 
+**`judge` is not here, and does not need to be.** It calls a hosted API, uses no
+GPU, and runs from the laptop against `runs/<id>/generate/` once that comes
+back — see §10.
+
 ---
 
 ## 0. What travels, and what does not
@@ -97,7 +101,7 @@ and the reranker run happily on 4.57 too.
 > transformers to 4.57.x. Installing both leaves whichever ran last in place and
 > silently breaks the other. They never need to coexist: **indexing and
 > retrieval are one session, generation is another**, and the only thing that
-> travels between them is `runs/f66638fb9655/retrieve/` — under 100 KB. Start a
+> travels between them is `runs/8e8f0a1889d6/retrieve/` — under 100 KB. Start a
 > fresh notebook for §9 rather than adding vLLM to this one.
 
 Restart the kernel after the install so the downgraded transformers is the one
@@ -290,7 +294,7 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 ```
 
 `retrieve` covers all eight configurations. `report retrieval` writes
-`runs/f66638fb9655/retrieval_report.json` and prints the two tables.
+`runs/8e8f0a1889d6/retrieval_report.json` and prints the two tables.
 
 Generation is **not** part of this session — see §9.
 
@@ -327,10 +331,10 @@ fewer of them.
 **Essential — under 1 MB, and all the laptop needs to read the results:**
 
 ```
-runs/f66638fb9655/retrieve/*.jsonl        per-query RetrievalResult records
-runs/f66638fb9655/retrieve/summary.json   per-configuration summary
-runs/f66638fb9655/retrieval_report.json   the six metrics, aggregated
-runs/f66638fb9655/resolved_config.json    what the run was configured with
+runs/8e8f0a1889d6/retrieve/*.jsonl        per-query RetrievalResult records
+runs/8e8f0a1889d6/retrieve/summary.json   per-configuration summary
+runs/8e8f0a1889d6/retrieval_report.json   the six metrics, aggregated
+runs/8e8f0a1889d6/resolved_config.json    what the run was configured with
 data/indexes/*/index.json                 per-index stats and truncation census
 ```
 
@@ -339,7 +343,7 @@ themselves. Bring them back only if a later Kaggle session should skip
 re-embedding (see §7). They are of no use on a laptop that cannot run the query
 encoder.
 
-`runs/f66638fb9655/retrieve/` is also the **only** thing the generation session
+`runs/8e8f0a1889d6/retrieve/` is also the **only** thing the generation session
 in §9 needs from this one. Keep it somewhere you can upload again.
 
 Zip the essentials so one download covers it:
@@ -356,7 +360,7 @@ run). The file appears under the notebook's Output tab; download it there, or:
 kaggle kernels output <user>/<notebook-slug> -p ./from-kaggle
 ```
 
-Unzip into the repository root on the laptop. `runs/f66638fb9655/` is the same
+Unzip into the repository root on the laptop. `runs/8e8f0a1889d6/` is the same
 path the local config resolves to — the digest is computed from `configs/`, which
 is in git — so the reports read without any rewiring.
 
@@ -516,7 +520,13 @@ Restart the kernel, then confirm the GPU is visible to vLLM:
 > | | run id |
 > |---|---|
 > | when `retrieve` ran | `runs/44e112902a29/` |
-> | now | `runs/f66638fb9655/` |
+> | when `generate` ran | `runs/f66638fb9655/` |
+> | now | `runs/8e8f0a1889d6/` |
+>
+> It has moved twice, once per stage configured: adding `base.generation` moved
+> it the first time and adding `base.judge` the second. **The pipeline is now
+> complete, so it should not move again** unless a setting is deliberately
+> changed.
 >
 > That is the design working, not a bug: a run with a different prompt is a
 > different run. The retrieval outputs themselves are unaffected, and that was
@@ -530,10 +540,10 @@ no index and no embedder. Mount the earlier notebook's output
 (**Add data -> Notebook Output**) and copy that directory to the **new** id:
 
 ```python
-!mkdir -p /kaggle/working/ragbench/runs/f66638fb9655
+!mkdir -p /kaggle/working/ragbench/runs/8e8f0a1889d6
 !cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/runs/44e112902a29/retrieve \
-       /kaggle/working/ragbench/runs/f66638fb9655/
-!ls /kaggle/working/ragbench/runs/f66638fb9655/retrieve
+       /kaggle/working/ragbench/runs/8e8f0a1889d6/
+!ls /kaggle/working/ragbench/runs/8e8f0a1889d6/retrieve
 ```
 
 Confirm the destination id first, because it moves again the next time anything
@@ -611,9 +621,9 @@ if you need each answer reproducible independently of what else was pending.
 ### 9e. What to bring back
 
 ```
-runs/f66638fb9655/generate/*.jsonl        the 160 answers, with length and timing
-runs/f66638fb9655/generate/summary.json   per-configuration summary
-runs/f66638fb9655/generation_report.json  answer length, truncation, abstention
+runs/8e8f0a1889d6/generate/*.jsonl        the 160 answers, with length and timing
+runs/8e8f0a1889d6/generate/summary.json   per-configuration summary
+runs/8e8f0a1889d6/generation_report.json  answer length, truncation, abstention
 ```
 
 Under 1 MB. Read them on the laptop with:
@@ -627,3 +637,89 @@ The second form prints every configuration's answer to one question, one after
 another with the reference answer above them. Read a few before judging — that
 is what the view is for, and it is the last point at which a prompt problem is
 cheap to fix.
+
+---
+
+## 10. Judging — on the laptop, not on Kaggle
+
+The judge is `meta-llama/llama-3.3-70b-instruct` over OpenRouter. No GPU, no
+download, nothing to upload. Bring `runs/8e8f0a1889d6/generate/` home from §9,
+then run it locally.
+
+### 10a. The key
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...        # PowerShell: $env:OPENROUTER_API_KEY = "sk-or-..."
+```
+
+The variable's name is in `configs/base.yaml` as `judge.api_key_env`; its value
+is read inside the client and is never in the repository, in a config file, or
+on a command line. There is deliberately no `--api-key` flag: a key on a command
+line lands in shell history and in the process table.
+
+### 10b. Run
+
+```bash
+ragbench judge --config configs/base.yaml
+ragbench report judge --config configs/base.yaml
+```
+
+**Expect around 280 calls, not 320.** Every answer is scored twice — run-to-run
+inconsistency is a standard LLM-judge failure mode and the second pass is what
+measures it — but the 20 abstentions are classified from the answer text without
+an API call, so 40 of the 320 cost nothing.
+
+At the free tier's 20 requests/minute that is roughly **15 minutes**. The client
+paces itself to that limit rather than discovering it through 429s, and honours
+`Retry-After` when one arrives anyway.
+
+| Symptom | What it means |
+|---|---|
+| `OPENROUTER_API_KEY is not set` | Exported in a different shell, or spelled differently from `judge.api_key_env`. |
+| `OpenRouter rejected the API key (401)` | Not retried, deliberately — a bad key is not transient. |
+| the run stops partway | Re-run the same command. Judgements already on disk are never re-judged, so nothing is paid for twice. |
+| `judged against a different answer` | `generate` has been re-run under this run directory. Delete that configuration's judge JSONL rather than scoring two sets of answers into one. |
+| a nonzero `unparsed` column | The judge returned something that was not the schema twice. Those items are persisted so a re-run does not spend the calls again; delete their lines to retry them. |
+
+### 10c. Calibration
+
+`report judge` writes three files into the run directory:
+
+```
+calibration_sheet.md      40 answers to hand-score, configuration hidden
+calibration_scores.csv    the template to fill in
+calibration_key.json      the mapping back -- do not open it while scoring
+```
+
+The sheet is blind twice over: the configuration label is absent, and the items
+are shuffled after stratified sampling, because five consecutive items from one
+configuration would reconstruct the label from the ordering alone. Each item
+carries the question, the reference answer, the answer under review, and the
+retrieved passages in full — faithfulness is a judgement about what the system
+was *shown*, so scoring it without them would not be scoring the same thing the
+judge scored.
+
+Fill in the CSV, then:
+
+```bash
+ragbench report judge --config configs/base.yaml \
+    --calibration runs/8e8f0a1889d6/calibration_scores.csv
+```
+
+That prints quadratically weighted Cohen's kappa and Spearman per scale, an
+unweighted kappa for the verdict, and the mean difference between you and the
+judge. Read kappa before the raw agreement figure: on a five-point scale where
+most answers are good, two raters who never read anything would agree about a
+third of the time, and a reviewer will say so. A large mean difference with a
+high Spearman is a calibration offset — the judge is consistently harsher or
+softer but ranks the answers as you do — which is a different finding from
+genuine disagreement, and has a different remedy.
+
+### 10d. What to keep
+
+```
+runs/8e8f0a1889d6/judge/*.jsonl          two judgements per answer
+runs/8e8f0a1889d6/judge/summary.json     per-configuration summary
+runs/8e8f0a1889d6/judge_report.json      scores, verdicts, self-consistency
+runs/8e8f0a1889d6/calibration_*          the sheet, your scores, the key
+```

@@ -358,6 +358,77 @@ Resumption changes batch composition by definition. At temperature 0 the effect
 is rare and far below the difference between configurations, and `--batch-size 1`
 removes it at 4-6x the wall clock.
 
+### I8 — The generator does not judge itself, and an abstention is not a score
+
+Two rules, and the second is the one that is easy to get wrong.
+
+**The judge is a different model from the generator.** Qwen2.5-7B-Instruct
+produced the answers; `meta-llama/llama-3.3-70b-instruct` grades them, pinned by
+its full slug. Asking the generator to grade its own output stacks
+self-preference bias — models score their own continuations higher — on top of
+the unreliability the LLM-as-judge literature reports for small judges, and the
+two are not separable afterwards. A test reads `configs/base.yaml` and fails if
+the two ids ever coincide.
+
+**The API key comes from the environment and is never in the repository.**
+`judge.api_key_env` names the variable; the value is read inside the client. It
+is not a CLI flag either, because a key on a command line lands in shell history
+and in the process table.
+
+**Three scales and a categorical verdict, because one scale cannot separate the
+two failure modes.** The real output contains both: q044 produced three
+different fabricated protein counts (22, 15, 30) where the paper says 48, and
+q010's `recursive-bge-rerank_on` states the correlation backwards — every value
+present in the passages, attached to the wrong CpG site. Against those, six
+configurations answered q017 with "the provided context does not contain the
+answer", which is the system behaving **well** given retrieval that missed. On
+any single axis a confident fabrication and a correct abstention sit near each
+other: the abstention asserts nothing so it is faithful, the fabrication is
+fluent and on-topic so it is relevant. The verdict carries the kind of failure,
+the scales carry the degree.
+
+So:
+
+- **An abstention carries no scores at all**, and its `scores` dict is empty
+  rather than full of fives. Scoring it 5 for faithfulness would reward a
+  configuration for retrieving badly; scoring it 1 for completeness would
+  punish the generator for the retriever's failure.
+- **Means are over judged answers only**, with the denominator printed beside
+  every mean and the **abstention rate reported as its own number**. Two
+  configurations with different abstention counts have means over different
+  numbers of answers, and a table that hid that would invite comparing them as
+  though they did not.
+- **Faithfulness is about the retrieved passages; correctness is about the
+  reference.** They are different questions, which is why the judge is shown
+  the context. A value that appears in the passages but is attached to the
+  wrong entity is *not* faithful — the rubric says so explicitly, because that
+  is the q010 failure and a naive grounding check passes it.
+- **A judge that returns a word outside the rubric is retried once and then
+  recorded as `unparsed` and counted.** Coercing it to the nearest permitted
+  verdict would put a number in the results that no rubric defines; dropping it
+  would shrink a configuration's denominator without saying so.
+
+**Every answer is scored twice, and the disagreement bounds everything else.**
+Run-to-run inconsistency is a standard failure mode for LLM judges even at
+temperature 0. A difference between configurations smaller than the judge's
+disagreement with itself is not evidence of anything, and that threshold has to
+be measured rather than assumed. At 280 calls it costs minutes.
+
+**Agreement is reported as weighted kappa and Spearman, never as raw percentage
+alone.** On a five-point scale where most answers are good, two raters who never
+read anything would agree about a third of the time; kappa subtracts what the
+marginals predict, and quadratic weights make a 4-against-5 count for far less
+than a 1-against-5. Spearman sits beside it because the two can disagree
+informatively: a judge scoring a full point harsher than the human ranks the
+answers identically — high rho, poor kappa — and that is a calibration offset
+with a different remedy from genuine disagreement. The calibration sample is
+**blind twice over**: the configuration label is absent from the sheet, and the
+items are shuffled after stratified sampling, because five consecutive items
+from one configuration reconstruct the label from the ordering alone.
+
+> The judge is not a GPU stage. It runs from the laptop against an API, so it
+> needs nothing from Kaggle except `runs/<id>/generate/`.
+
 ---
 
 ## The design

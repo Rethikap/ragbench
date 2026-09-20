@@ -1,4 +1,4 @@
-"""The `report` subcommand. Four topics: `chunks`, `gold`, `retrieval`, `generation`."""
+"""The `report` subcommand: `chunks`, `gold`, `retrieval`, `generation`, `judge`."""
 
 from __future__ import annotations
 
@@ -10,14 +10,15 @@ from typing import Any
 from ..config import DEFAULT_DATA_ROOT, gold_candidates_dir
 from ..gold.freeze import GoldSetError
 from ..gold.pipeline import load_candidates
+from ..report import calibration, calibration_agreement, generation_render, judge_render
 from ..report import generation as generation_report
-from ..report import generation_render
 from ..report import gold as gold_report
+from ..report import judge as judge_report
 from ..report import retrieval as retrieval_report
 from ..report.chunks import build_report
 
 EXIT_DATA = 5
-TOPICS = ("chunks", "gold", "retrieval", "generation")
+TOPICS = ("chunks", "gold", "retrieval", "generation", "judge")
 
 
 def add_options(parser: argparse.ArgumentParser) -> None:
@@ -38,6 +39,14 @@ def add_options(parser: argparse.ArgumentParser) -> None:
         "(default: %(default)s); `chunks` topic only",
     )
     parser.add_argument(
+        "--calibration",
+        type=Path,
+        default=None,
+        metavar="CSV",
+        help="filled calibration_scores.csv to compare against the judge; `judge` topic "
+        "only. Without it the topic emits a fresh blind sheet to hand-score",
+    )
+    parser.add_argument(
         "--query",
         action="append",
         default=None,
@@ -50,7 +59,11 @@ def add_options(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
-        if args.topic == "generation":
+        if args.topic == "judge":
+            report = judge_report.build_report(resolved, Path(args.config).parent, directory)
+            rendered = judge_render.render(report)
+            rendered += _calibration(args, resolved, directory, report)
+        elif args.topic == "generation":
             report = generation_report.build_report(
                 resolved, Path(args.config).parent, directory, query_ids=args.query
             )
@@ -411,4 +424,51 @@ def render_retrieval(report: dict[str, Any]) -> str:
         )
     )
     add("=" * 108)
+    return "\n".join(lines)
+
+
+def _calibration(
+    args: argparse.Namespace, resolved: dict[str, Any], directory: Path, report: dict[str, Any]
+) -> str:
+    """Emit a blind sheet, or compare one that has been filled in.
+
+    Emitting is the default because the sheet has to exist before it can be
+    scored, and regenerating it is deterministic -- the same seed picks the same
+    40 items, so a re-run does not invalidate scoring already in progress.
+    """
+    scales = tuple(report["scales"])
+    verdicts = tuple(report["verdicts"])
+    if args.calibration:
+        result = calibration_agreement.compare(
+            resolved, directory, args.calibration, scales, verdicts
+        )
+        return judge_render.render_calibration(result, list(scales))
+
+    params = resolved["base"]["judge"]
+    items = calibration.build_items(
+        resolved,
+        Path(args.config).parent,
+        args.data_root,
+        directory,
+        int(params.get("calibration_sample", 40)),
+        int(params.get("calibration_seed", 0)),
+    )
+    if not items:
+        return ""
+    written = calibration.write_sheet(directory, items, scales, verdicts)
+    lines = [
+        "",
+        "",
+        "--- BLIND CALIBRATION SHEET",
+        f"  {len(items)} answers sampled across all configurations, config label hidden",
+        "  and the order shuffled so it cannot be read back from the grouping.",
+        "",
+        f"  read  {written['sheet']}",
+        f"  fill  {written['scores']}",
+        f"  then  ragbench report judge --config {args.config} "
+        f"--calibration {written['scores']}",
+        "",
+        f"  {written['key']} maps items back to configurations. Scoring does not need",
+        "  it; opening it before scoring defeats the blind.",
+    ]
     return "\n".join(lines)

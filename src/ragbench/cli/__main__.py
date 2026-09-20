@@ -31,6 +31,7 @@ from . import (
     gold_cmd,
     index_cmd,
     ingest_cmd,
+    judge_cmd,
     report_cmd,
     retrieve_cmd,
 )
@@ -79,6 +80,7 @@ HANDLERS["report"] = report_cmd.run
 HANDLERS["index"] = index_cmd.run
 HANDLERS["retrieve"] = retrieve_cmd.run
 HANDLERS["generate"] = generate_cmd.run
+HANDLERS["judge"] = judge_cmd.run
 HANDLERS["gold"] = gold_cmd.run
 
 #: Extra options registered per stage, beyond the common ones.
@@ -88,6 +90,7 @@ STAGE_OPTIONS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "index": index_cmd.add_options,
     "retrieve": retrieve_cmd.add_options,
     "generate": generate_cmd.add_options,
+    "judge": judge_cmd.add_options,
     "report": report_cmd.add_options,
     "gold": gold_cmd.add_options,
 }
