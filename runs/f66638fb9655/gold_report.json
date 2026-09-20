@@ -1,0 +1,1036 @@
+{
+  "arms": {
+    "fixed": {
+      "chunks_to_cover": {
+        "max": 2,
+        "mean": 1.1,
+        "median": 1.0,
+        "min": 1,
+        "n": 20,
+        "p10": 1.0,
+        "p25": 1.0,
+        "p75": 1.0,
+        "p90": 1.1,
+        "std": 0.3
+      },
+      "covering_chunk_tokens": {
+        "max": 1020,
+        "mean": 561.0,
+        "median": 510.0,
+        "min": 510,
+        "n": 20,
+        "p10": 510.0,
+        "p25": 510.0,
+        "p75": 510.0,
+        "p90": 561.0,
+        "std": 153.0
+      },
+      "histogram": {
+        "1": 18,
+        "2": 2
+      },
+      "mean_max_coverage": 0.99964,
+      "n_chunks": 1574,
+      "spans_needing_more_than_one_chunk": 2,
+      "strategy": "fixed",
+      "window": {
+        "chunks_in_window": {
+          "max": 5,
+          "mean": 3.4,
+          "median": 3.0,
+          "min": 3,
+          "n": 400,
+          "p10": 3.0,
+          "p25": 3.0,
+          "p75": 4.0,
+          "p90": 4.0,
+          "std": 0.5
+        },
+        "distractor_count": {
+          "max": 4,
+          "mean": 2.3,
+          "median": 2.0,
+          "min": 1,
+          "n": 400,
+          "p10": 2.0,
+          "p25": 2.0,
+          "p75": 3.0,
+          "p90": 3.0,
+          "std": 0.6
+        },
+        "evidence_density": {
+          "max": 682,
+          "mean": 304.3,
+          "median": 297.0,
+          "min": 143,
+          "n": 400,
+          "p10": 194.0,
+          "p25": 215.0,
+          "p75": 375.2,
+          "p90": 428.0,
+          "std": 98.0
+        },
+        "mean_distractor_count": 2.32,
+        "mean_evidence_density": 0.030429,
+        "ndcg_at_10": 1.0,
+        "recall_at_10": 1.0,
+        "tokens_before_gold_at_rank": {
+          "1": 0.0,
+          "2": 492.3,
+          "3": 953.0,
+          "5": null
+        },
+        "tokens_used": {
+          "max": 2000,
+          "mean": 1694.2,
+          "median": 1596.5,
+          "min": 1463,
+          "n": 400,
+          "p10": 1505.9,
+          "p25": 1532.8,
+          "p75": 1944.2,
+          "p90": 1984.1,
+          "std": 195.7
+        },
+        "trials_per_query": 20
+      }
+    },
+    "recursive": {
+      "chunks_to_cover": {
+        "max": 1,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1,
+        "n": 20,
+        "p10": 1.0,
+        "p25": 1.0,
+        "p75": 1.0,
+        "p90": 1.0,
+        "std": 0.0
+      },
+      "covering_chunk_tokens": {
+        "max": 508,
+        "mean": 395.2,
+        "median": 426.0,
+        "min": 106,
+        "n": 20,
+        "p10": 285.1,
+        "p25": 379.5,
+        "p75": 455.5,
+        "p90": 489.1,
+        "std": 98.6
+      },
+      "histogram": {
+        "1": 20
+      },
+      "mean_max_coverage": 1.0,
+      "n_chunks": 2066,
+      "spans_needing_more_than_one_chunk": 0,
+      "strategy": "recursive",
+      "window": {
+        "chunks_in_window": {
+          "max": 7,
+          "mean": 4.8,
+          "median": 5.0,
+          "min": 4,
+          "n": 400,
+          "p10": 4.0,
+          "p25": 4.0,
+          "p75": 5.0,
+          "p90": 6.0,
+          "std": 0.7
+        },
+        "distractor_count": {
+          "max": 6,
+          "mean": 3.8,
+          "median": 4.0,
+          "min": 3,
+          "n": 400,
+          "p10": 3.0,
+          "p25": 3.0,
+          "p75": 4.0,
+          "p90": 5.0,
+          "std": 0.7
+        },
+        "evidence_density": {
+          "max": 617,
+          "mean": 291.0,
+          "median": 283.5,
+          "min": 151,
+          "n": 400,
+          "p10": 181.9,
+          "p25": 209.8,
+          "p75": 350.0,
+          "p90": 403.1,
+          "std": 95.4
+        },
+        "mean_distractor_count": 3.81,
+        "mean_evidence_density": 0.029101,
+        "ndcg_at_10": 1.0,
+        "recall_at_10": 1.0,
+        "tokens_before_gold_at_rank": {
+          "1": 0.0,
+          "2": 402.6,
+          "3": 698.2,
+          "5": 1330.5
+        },
+        "tokens_used": {
+          "max": 2000,
+          "mean": 1789.2,
+          "median": 1795.5,
+          "min": 1489,
+          "n": 400,
+          "p10": 1621.9,
+          "p25": 1685.0,
+          "p75": 1895.2,
+          "p90": 1961.0,
+          "std": 126.7
+        },
+        "trials_per_query": 20
+      }
+    }
+  },
+  "arms_if_labelled_by_paragraph": {
+    "fixed": {
+      "chunks_to_cover": {
+        "max": 2,
+        "mean": 1.2,
+        "median": 1.0,
+        "min": 1,
+        "n": 20,
+        "p10": 1.0,
+        "p25": 1.0,
+        "p75": 1.0,
+        "p90": 2.0,
+        "std": 0.4
+      },
+      "covering_chunk_tokens": {
+        "max": 1020,
+        "mean": 612.0,
+        "median": 510.0,
+        "min": 510,
+        "n": 20,
+        "p10": 510.0,
+        "p25": 510.0,
+        "p75": 510.0,
+        "p90": 1020.0,
+        "std": 204.0
+      },
+      "histogram": {
+        "1": 16,
+        "2": 4
+      },
+      "mean_max_coverage": 0.999828,
+      "spans_needing_more_than_one_chunk": 4
+    },
+    "recursive": {
+      "chunks_to_cover": {
+        "max": 1,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1,
+        "n": 20,
+        "p10": 1.0,
+        "p25": 1.0,
+        "p75": 1.0,
+        "p90": 1.0,
+        "std": 0.0
+      },
+      "covering_chunk_tokens": {
+        "max": 508,
+        "mean": 395.2,
+        "median": 426.0,
+        "min": 106,
+        "n": 20,
+        "p10": 285.1,
+        "p25": 379.5,
+        "p75": 455.5,
+        "p90": 489.1,
+        "std": 98.6
+      },
+      "histogram": {
+        "1": 20
+      },
+      "mean_max_coverage": 1.0,
+      "spans_needing_more_than_one_chunk": 0
+    }
+  },
+  "budget": {
+    "budget_tokenizer_id": "Qwen/Qwen2.5-7B-Instruct",
+    "context_token_budget": 2000,
+    "fill_policy": "stop_at_overflow"
+  },
+  "context_chars": {
+    "max": 971,
+    "mean": 584.4,
+    "median": 558.5,
+    "min": 205,
+    "n": 20,
+    "p10": 319.5,
+    "p25": 436.2,
+    "p75": 736.2,
+    "p90": 877.4,
+    "std": 218.3
+  },
+  "frozen": true,
+  "gold_set_sha": "e93b5d7ee992",
+  "manifest_sha": "e12570533916",
+  "n_papers": 20,
+  "n_questions": 20,
+  "n_verified": 20,
+  "questions": [
+    {
+      "context": "We also wanted to test the relationship between the cfDNA methylation levels of PRLHR in our set of samples with clinical parameters. A significant correlation was found between the cfDNA methylation percentage measured with pyrosequencing and age in CpG2 (r = \u22120.242; p-value < 0.05), and no correlation was shown in CpG1 (r = 0.038; p-value = 0.757; Spearman correlation for both tests).",
+      "context_chars": 389,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 463,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "A significant correlation was found between the cfDNA methylation percentage measured with pyrosequencing and age in CpG2 (r = \u22120.242; p-value < 0.05), and no correlation was shown in CpG1 (r = 0.038; p-value = 0.757; Spearman correlation for both tests).",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 20634,
+        "char_start": 20379,
+        "context_end": 20634,
+        "context_start": 20245,
+        "pmcid": "PMC10705731",
+        "section": "3.6. Correlation of PRLHR Methylation Levels in cfDNA with Clinical Parameters"
+      },
+      "judge_note": "",
+      "query_id": "q010",
+      "question": "What correlation with age was found for cfDNA PRLHR methylation at CpG2, and what was found at CpG1?",
+      "reference_answer": "At CpG2 the Spearman correlation with age was r = -0.242 (p < 0.05); at CpG1 there was no correlation (r = 0.038; p = 0.757).",
+      "span_chars": 255,
+      "verified": true
+    },
+    {
+      "context": "ANGPT-2 datasets were normally distributed. A single outlier was identified in the serum ANGPT-2 measurements and was removed prior to analysis. Pearson\u2019s partial correlation (removing age effects) were calculated for all CSF biomarkers. Linear mixed-effects models with random intercepts, age-at-lumbar-puncture as the measure of time, and CSF vascular biomarker as the outcome were used to test associations with tau positivity (> 24.8 pg/mL), and cognitive status.",
+      "context_chars": 467,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 430,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Linear mixed-effects models with random intercepts, age-at-lumbar-puncture as the measure of time, and CSF vascular biomarker as the outcome were used to test associations with tau positivity (> 24.8 pg/mL), and cognitive status.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 10193,
+        "char_start": 9964,
+        "context_end": 10193,
+        "context_start": 9726,
+        "pmcid": "PMC10770135",
+        "section": "Statistical analysis"
+      },
+      "judge_note": "",
+      "query_id": "q017",
+      "question": "What CSF tau threshold defined tau positivity in the linear mixed-effects models of vascular biomarkers?",
+      "reference_answer": "Tau positivity was defined as a value above 24.8 pg/mL.",
+      "span_chars": 229,
+      "verified": true
+    },
+    {
+      "context": "The Drosophila orthologue of TMCC2, called Dementin, protects against developmental and behavioural defects caused by ectopic expression of human APP in flies. Conversely, mutated Dementin causes neurodegeneration with features of AD, that is, perturbed metabolism and proteolysis of the Drosophila APP homologue, the APP\u2010like protein, cytoskeletal and synaptic defects, and early death.",
+      "context_chars": 387,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 396,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "The Drosophila orthologue of TMCC2, called Dementin, protects against developmental and behavioural defects caused by ectopic expression of human APP in flies.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 779,
+        "char_start": 620,
+        "context_end": 1007,
+        "context_start": 620,
+        "pmcid": "PMC11669416",
+        "section": "INTRODUCTION"
+      },
+      "judge_note": "",
+      "query_id": "q018",
+      "question": "What is the Drosophila orthologue of TMCC2 called, and what does it protect against?",
+      "reference_answer": "It is called Dementin, and it protects against the developmental and behavioural defects caused by ectopic expression of human APP in flies.",
+      "span_chars": 159,
+      "verified": true
+    },
+    {
+      "context": "Figure 3b shows the linear regression between CSF GFAP and 18F-FDG brain uptake in BA9 (R2 = 0.1806, F (1,27) = 5.069, p = 0.0342), BA11 (R2 = 0.1705, F (1,27) = 4.727, p = 0.0402) and BA6 (R2 = 0.0313, F (1,27) = 0.9420, p = 0.3419).",
+      "context_chars": 234,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 422,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Figure 3b shows the linear regression between CSF GFAP and 18F-FDG brain uptake in BA9 (R2 = 0.1806, F (1,27) = 5.069, p = 0.0342)",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 14276,
+        "char_start": 14146,
+        "context_end": 14380,
+        "context_start": 14146,
+        "pmcid": "PMC10045805",
+        "section": "3. Results"
+      },
+      "judge_note": "",
+      "query_id": "q029",
+      "question": "What R-squared and p-value were reported for the linear regression between CSF GFAP and 18F-FDG brain uptake in BA9?",
+      "reference_answer": "R2 = 0.1806, with F (1,27) = 5.069 and p = 0.0342.",
+      "span_chars": 130,
+      "verified": true
+    },
+    {
+      "context": "The present study revealed that A\u03b2 oligomers destabilizes synaptic MHC-I-\u03b22M complex, impairing the interaction with NCAM-1, a novel MHC-I partner. We here further showed that inhibiting the A\u03b2-induced destabilization of MHC-I complex by SCT can reverse the neuronal signaling impairment, harnessing a novel therapeutic strategy.",
+      "context_chars": 329,
+      "contiguity_note": "2 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 360,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "The present study revealed that A\u03b2 oligomers destabilizes synaptic MHC-I-\u03b22M complex, impairing the interaction with NCAM-1, a novel MHC-I partner. We here further showed that inhibiting the A\u03b2-induced destabilization of MHC-I complex by SCT can reverse the neuronal signaling impairment",
+      "evidence_sentences": 2,
+      "gold": {
+        "char_end": 29411,
+        "char_start": 29124,
+        "context_end": 29453,
+        "context_start": 29124,
+        "pmcid": "PMC10540404",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q039",
+      "question": "Which novel MHC-I partner does amyloid-beta-oligomer destabilisation of the synaptic MHC-I-beta2M complex impair the interaction with, and what reversed the resulting signalling impairment?",
+      "reference_answer": "NCAM-1; inhibiting the amyloid-beta-induced destabilisation of the MHC-I complex with SCT reversed the neuronal signalling impairment.",
+      "span_chars": 287,
+      "verified": true
+    },
+    {
+      "context": "The tau deposits distinctly appeared at the granular, neuron-facing membrane domains of the astrocytes (Figs. 4B-C, E-H and 5A-D). Three-dimensional (3D) orthogonal slice and volume views reveal that the neurons containing tau deposits (as indicated by the colocalization with MAP2) are wrapped by AQP4+ astrocyte endfeet (Fig. 4C, F-G). Some tau deposits also associated with CD31+ endothelial cells. (Fig. 6A and B). Interestingly, meningeal cells lining the brain also contained intracellular aggregates of tau (Fig. 7A and B).",
+      "context_chars": 530,
+      "contiguity_note": "3 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 386,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "the neurons containing tau deposits (as indicated by the colocalization with MAP2) are wrapped by AQP4+ astrocyte endfeet (Fig. 4C, F-G). Some tau deposits also associated with CD31+ endothelial cells.",
+      "evidence_sentences": 3,
+      "gold": {
+        "char_end": 10647,
+        "char_start": 10446,
+        "context_end": 10776,
+        "context_start": 10246,
+        "pmcid": "PMC9874182",
+        "section": "Cellular localization of cisplatin-induced tau deposits"
+      },
+      "judge_note": "",
+      "query_id": "q040",
+      "question": "Which astrocytic structures wrap the neurons containing cisplatin-induced tau deposits, and which endothelial marker also associated with some deposits?",
+      "reference_answer": "AQP4-positive astrocyte endfeet wrap those neurons, and some tau deposits also associated with CD31-positive endothelial cells.",
+      "span_chars": 201,
+      "verified": true
+    },
+    {
+      "context": "Immunohistochemical staining of MS brains showed that CHIT1 was absent in normal-appearing white matter (NAWM, Supplementary Fig. 6). Where 95.2% of actively demyelinating lesions contained CHIT1+ cells (20/21), none of the inactive lesions contained any CHIT1+ cells (0/8). We did not only observe CHIT1+ cells in active lesions of more late-stage MS patients (RRMS, PPMS and SPMS with a disease duration up to \u00b134 years), but also in acute (monophasic) MS patients (disease duration of 0.2-5 months) \u2013 confirming the presence of CHIT1 already early in the disease course. Of the two smoldering lesions, that only have an active lesion edge, one contained few CHIT1+ cells, whereas the other lacked CHIT1 immunoreactivity.",
+      "context_chars": 723,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 294,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Where 95.2% of actively demyelinating lesions contained CHIT1+ cells (20/21), none of the inactive lesions contained any CHIT1+ cells (0/8).",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 18510,
+        "char_start": 18370,
+        "context_end": 18959,
+        "context_start": 18236,
+        "pmcid": "PMC11169395",
+        "section": "Neuropathological evaluation shows phagocytic CHIT1+ cells in actively demyelinating lesions"
+      },
+      "judge_note": "",
+      "query_id": "q041",
+      "question": "What proportion of actively demyelinating multiple sclerosis lesions contained CHIT1-positive cells, and what was found in inactive lesions?",
+      "reference_answer": "95.2% of actively demyelinating lesions contained CHIT1+ cells (20 of 21), while none of the inactive lesions contained any (0 of 8).",
+      "span_chars": 140,
+      "verified": true
+    },
+    {
+      "context": "Based on our data and on personal interaction with DS adults and their family members, ongoing research should continue to focus on elements of caregiver report and direct assessment of the DS individual that will optimize differential diagnosis. The primary goal of this study was to adapt the widely used CDR for assessment of dementia in adults with DS. We have shown that such adaptation was successful in capturing a range of cognitive decline and in shifting the distribution of decline scores toward lower/no impairment by adjusting original CDR questions to take into account premorbid intellectual and functional ability. Future work of the CDR-QDS and CDR-IDS should include comparison with existing instruments such as the CAMDEX-DS and DSQIID, with neuropsychological performance, and with other biomarkers, such as positron emission tomography for amyloid or tau.",
+      "context_chars": 876,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 415,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "We have shown that such adaptation was successful in capturing a range of cognitive decline and in shifting the distribution of decline scores toward lower/no impairment by adjusting original CDR questions to take into account premorbid intellectual and functional ability.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 27087,
+        "char_start": 26814,
+        "context_end": 27333,
+        "context_start": 26457,
+        "pmcid": "PMC6912998",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q042",
+      "question": "What did adapting the Clinical Dementia Rating scale for adults with Down syndrome achieve with respect to the distribution of decline scores?",
+      "reference_answer": "It captured a range of cognitive decline and shifted the distribution of decline scores toward lower or no impairment, by adjusting the original questions for premorbid intellectual and functional ability.",
+      "span_chars": 273,
+      "verified": true
+    },
+    {
+      "context": "Our results show that amyloid plaques in DS and EOAD are highly enriched in many proteins in addition to A\u03b2. Here, we have identified a core group of 48 proteins that are consistently enriched in plaques in comparison to neighboring non-plaque tissue in DS and EOAD. Many of these enriched plaque proteins have been validated in previous studies to colocalize with plaques or correlate with A\u03b2 pathology in typical late onset AD, suggesting that this core group of enriched plaque proteins is consistent in both early and late onset AD subtypes. We also identified 15 novel proteins that were consistently enriched in plaques in both DS and EOAD. Our immunohistochemistry studies showed that while similar proteins are present in plaques in DS and EOAD the relative abundance of some of these proteins (e.g. pyroglutamate A\u03b2, phosphorylated A\u03b2, SMOC1) is distinct in plaques in DS and EOAD.",
+      "context_chars": 890,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 1020,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 2
+        },
+        "recursive": {
+          "covering_chunk_tokens": 297,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Here, we have identified a core group of 48 proteins that are consistently enriched in plaques in comparison to neighboring non-plaque tissue in DS and EOAD.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 39323,
+        "char_start": 39166,
+        "context_end": 39947,
+        "context_start": 39057,
+        "pmcid": "PMC9008934",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q044",
+      "question": "How many proteins were found to be consistently enriched in amyloid plaques relative to neighbouring non-plaque tissue in both Down syndrome and early-onset Alzheimer's disease?",
+      "reference_answer": "A core group of 48 proteins was consistently enriched in plaques compared with neighbouring non-plaque tissue in both conditions.",
+      "span_chars": 157,
+      "verified": true
+    },
+    {
+      "context": "The time latency algorithm was tested in the AI analysis as a classifier of MCI risk. Using the cross validation LOOC statistic, the training data set was developed and tested with several validation methods (e.g., Neural Networks, Gaussian and Kernel methods) described in Khosroazad et al.. Figure 3a shows the distribution of time latency using the Neural Network approach where zero is the threshold, 70 ms. Note that the clusters of data points separate MCI from NC cases. We note that the time latency values associated with increased MCI risk were negative, i.e. showed the atypical pattern in which RR change leads SM events. For the ROC diagnostics shown in Fig. 3b., the 70 ms time latency threshold optimized detection of true MCI positive cases (sensitivity) vs. false positives (specificity). The ROC achieved an AUC of 88% sensitivity and 87% specificity.",
+      "context_chars": 869,
+      "contiguity_note": "3 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 508,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "the 70 ms time latency threshold optimized detection of true MCI positive cases (sensitivity) vs. false positives (specificity). The ROC achieved an AUC of 88% sensitivity and 87% specificity.",
+      "evidence_sentences": 3,
+      "gold": {
+        "char_end": 26584,
+        "char_start": 26392,
+        "context_end": 26584,
+        "context_start": 25715,
+        "pmcid": "PMC10141904",
+        "section": "SM-RR coupling"
+      },
+      "judge_note": "the source sentence is malformed -- 'The ROC achieved an AUC of 88% sensitivity and 87% specificity'; an AUC is not a sensitivity. The reference answer reads it as intended, and an answer reproducing the paper's own wording must not be penalised.",
+      "query_id": "q045",
+      "question": "What sensitivity and specificity did the time-latency classifier achieve for detecting mild cognitive impairment, and at what latency threshold?",
+      "reference_answer": "At a 70 ms time-latency threshold it achieved 88% sensitivity and 87% specificity.",
+      "span_chars": 192,
+      "verified": true
+    },
+    {
+      "context": "No statistically significant effects were observed for the set of genes that interacted with Tau only under CTRL (Figure 8A) or under CTRL and HS (Figure 8B) conditions. Whereas, significant (P-value < 0.01) Tau-dependent gene expression variations were observed for two out of the set of three genes that interacted with Tau only under HS conditions (Xrcc6 and Dlg1) (Figure 8C). For both of these genes, their expression rates were significantly enhanced in KOTau neurons after HS treatment as compared to CTRL conditions whereas they were not affected by HS in the case of WT neurons.",
+      "context_chars": 587,
+      "contiguity_note": "2 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 445,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Whereas, significant (P-value < 0.01) Tau-dependent gene expression variations were observed for two out of the set of three genes that interacted with Tau only under HS conditions (Xrcc6 and Dlg1) (Figure 8C). For both of these genes, their expression rates were significantly enhanced in KOTau neurons after HS treatment as compared to CTRL conditions whereas they were not affected by HS in the case of WT neurons.",
+      "evidence_sentences": 2,
+      "gold": {
+        "char_end": 36281,
+        "char_start": 35864,
+        "context_end": 36281,
+        "context_start": 35694,
+        "pmcid": "PMC6265482",
+        "section": "A transcriptional repressor role for Tau protein on genes associated to Tau-interacting regions"
+      },
+      "judge_note": "",
+      "query_id": "q047",
+      "question": "Which genes showed significant Tau-dependent expression changes under heat shock, and how did their expression differ between Tau-knockout and wild-type neurons?",
+      "reference_answer": "Xrcc6 and Dlg1; their expression was significantly enhanced in KOTau neurons after heat-shock treatment compared with control conditions, while heat shock did not affect them in wild-type neurons.",
+      "span_chars": 417,
+      "verified": true
+    },
+    {
+      "context": "The PrP-CAA tissue was confirmed negative for A\u03b2 pathology (Fig. 7k) and showed positive for Prp (data not shown). NDP immunoreactivity was highly increased and localised to the affected vessels. NDP staining was more pronounced around affected capillaries than at affected larger vessels. COL6A2 immunoreactivity was clearly present around capillaries and larger affected vessels, of which the vascular pathology was clearly observed using haematoxylin. Although co-occurring in largely the same vessels COL6A2 did not generally co-localize with the deposits, but instead localized more internally as a component of the basal membrane. APOE and APCS were also highly present and co-localized with the Prp deposits.",
+      "context_chars": 715,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 475,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Although co-occurring in largely the same vessels COL6A2 did not generally co-localize with the deposits, but instead localized more internally as a component of the basal membrane.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 28224,
+        "char_start": 28043,
+        "context_end": 28303,
+        "context_start": 27588,
+        "pmcid": "PMC5985582",
+        "section": "Specificity in relation to other small vessel diseases"
+      },
+      "judge_note": "",
+      "query_id": "q048",
+      "question": "Did COL6A2 co-localize with the deposits in prion-protein cerebral amyloid angiopathy tissue, and where was it located instead?",
+      "reference_answer": "COL6A2 did not generally co-localize with the deposits despite co-occurring in largely the same vessels; it localized more internally, as a component of the basal membrane.",
+      "span_chars": 181,
+      "verified": true
+    },
+    {
+      "context": "The Kruskal\u2013Wallis group comparison among different ApoE groups divided by graded risk factor showed that carrying a more high-risk genetic profile did not affect BBB biomarkers but was associated with lower levels of A\u03b242/40 ratio in a dose-dependent manner (H (4) = 9.973, p = 0.041), as seen in Figure 3. As there was only one subject with E2/E2 genotype, that subject was excluded from statistical analysis but kept for data visualization purposes.",
+      "context_chars": 452,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 453,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "group comparison among different ApoE groups divided by graded risk factor showed that carrying a more high-risk genetic profile did not affect BBB biomarkers but was associated with lower levels of A\u03b242/40 ratio in a dose-dependent manner (H (4) = 9.973, p = 0.041),",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 8802,
+        "char_start": 8535,
+        "context_end": 8968,
+        "context_start": 8516,
+        "pmcid": "PMC10418506",
+        "section": "2.3. Relationship between BBB Biomarkers, Demographics, and Cognition"
+      },
+      "judge_note": "",
+      "query_id": "q049",
+      "question": "How did a higher-risk ApoE genetic profile relate to blood-brain barrier biomarkers and to the amyloid 42/40 ratio?",
+      "reference_answer": "It did not affect blood-brain barrier biomarkers, but was associated with lower amyloid 42/40 ratio levels in a dose-dependent manner (H (4) = 9.973, p = 0.041).",
+      "span_chars": 267,
+      "verified": true
+    },
+    {
+      "context": "Importantly, in a slightly different oral infection mouse model, we found the presence of whole live oral bacteria present in fresh mouse brains from both control and infected mice (Additional file 2: Figure S2). Furthermore, we used PCR validation to confirm that one of the live bacteria present in the brains, included a periodontal pathogen, namely, F. nucleatum. This speaks to the idea of a natural living microbial presence in the brains of mice and supports the concept of a natural brain microbiome.",
+      "context_chars": 508,
+      "contiguity_note": "3 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 106,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Furthermore, we used PCR validation to confirm that one of the live bacteria present in the brains, included a periodontal pathogen, namely, F. nucleatum. This speaks to the idea of a natural living microbial presence in the brains of mice and supports the concept of a natural brain microbiome.",
+      "evidence_sentences": 3,
+      "gold": {
+        "char_end": 31045,
+        "char_start": 30750,
+        "context_end": 31045,
+        "context_start": 30537,
+        "pmcid": "PMC10557354",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q050",
+      "question": "Which periodontal pathogen was confirmed by PCR among the live bacteria found in mouse brains, and what did that finding support?",
+      "reference_answer": "F. nucleatum; its presence supports the concept of a natural living microbial presence in the brains of mice, that is, a natural brain microbiome.",
+      "span_chars": 295,
+      "verified": true
+    },
+    {
+      "context": "Some microglial cells were seen to localise around AT8-immunopositive neurons (Fig. 5A, centre panel inset), however, there were no differences in microglial numbers at 10 months of age between transgenic and controls rats (Fig. 5B). At later time points (18\u201320-months), along with extensive proliferation (Fig. 5C), microglia displayed an activated phenotype (Fig. 5D). Additionally, some microglia adopted a distinct, rod-like phenotype, which has previously been described in AD patients and in experimental models of traumatic brain injury. Rod-like microglia ran parallel, either individually or in trains (Fig. 5E), to neuronal projections from the fascioloa cinerea, subiculum, CA1 and layers III and V of the primary somatosensory and entorhinal cortices respectively.",
+      "context_chars": 776,
+      "contiguity_note": "4 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 489,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "there were no differences in microglial numbers at 10 months of age between transgenic and controls rats (Fig. 5B). At later time points (18\u201320-months), along with extensive proliferation (Fig. 5C), microglia displayed an activated phenotype",
+      "evidence_sentences": 4,
+      "gold": {
+        "char_end": 32531,
+        "char_start": 32290,
+        "context_end": 32948,
+        "context_start": 32172,
+        "pmcid": "PMC6597947",
+        "section": "Activation of microglia and astrocytes in regions with tau pathology"
+      },
+      "judge_note": "",
+      "query_id": "q061",
+      "question": "In rats transgenic for human mutant tau, how did microglial numbers at 10 months compare with controls, and what had changed by 18-20 months?",
+      "reference_answer": "At 10 months there were no differences in microglial numbers between transgenic and control rats; by 18-20 months the microglia showed extensive proliferation and an activated phenotype.",
+      "span_chars": 241,
+      "verified": true
+    },
+    {
+      "context": "We examined pathway co-expression to compare the organization of the top 30 ranked KEGG pathways with those that show gene overlap in a network (Figure 6B). The network contained 89 pairs of pathways with a significant correlation (FDR < 0.05). This network contains several links that are not captured in the enrichment-overlap network (Figure 6A). For example, we found that the proteasome pathway is co-expressed with both the AD and PD pathways, yet it has no significant gene overlap.",
+      "context_chars": 489,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 1020,
+          "max_coverage": 0.992806,
+          "n_chunks_to_cover": 2
+        },
+        "recursive": {
+          "covering_chunk_tokens": 394,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "For example, we found that the proteasome pathway is co-expressed with both the AD and PD pathways, yet it has no significant gene overlap.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 23095,
+        "char_start": 22956,
+        "context_end": 23095,
+        "context_start": 22606,
+        "pmcid": "PMC9263183",
+        "section": "Pathway Co-expression"
+      },
+      "judge_note": "",
+      "query_id": "q062",
+      "question": "Which pathway was found to be co-expressed with both the Alzheimer's and Parkinson's disease pathways despite having no significant gene overlap with them?",
+      "reference_answer": "The proteasome pathway, which is co-expressed with both the AD and PD pathways yet has no significant gene overlap.",
+      "span_chars": 139,
+      "verified": true
+    },
+    {
+      "context": "Although the amplitude of N1 is larger in response to the deviant tone, the shape and latency of the ERP responses to standard and deviant tones are identical in mouse studies. Therefore, the MMN in mice is supposed to be the same as the difference in N1 amplitude between deviant and standard ERPs. In this study, we calculated the N1 difference and considered it to be analogous but not exactly the same as the human MMN since the N1 difference has been known to partially account for the MMN wave in humans. We found significantly reduced N1 differences in the parietal cortex in the AD mouse model. Additionally, although not statistically significant, the standard-deviant differences at all components in both frontal and parietal regions tended to be attenuated in the AD mouse model, which can be inferred from the lack of significant differences in the ERP responses to standard and deviant tones in terms of the whole trace in both frontal and parietal regions.",
+      "context_chars": 971,
+      "contiguity_note": "2 sentences -- the answer is stated in more than one place",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 205,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "We found significantly reduced N1 differences in the parietal cortex in the AD mouse model. Additionally, although not statistically significant, the standard-deviant differences at all components in both frontal and parietal regions tended to be attenuated in the AD mouse model,",
+      "evidence_sentences": 2,
+      "gold": {
+        "char_end": 24375,
+        "char_start": 24095,
+        "context_end": 24555,
+        "context_start": 23584,
+        "pmcid": "PMC7065782",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q063",
+      "question": "In which cortical region was the N1 difference significantly reduced in the amyloid-infusion mouse model, and what was the trend across the other components?",
+      "reference_answer": "The parietal cortex; across all components in both frontal and parietal regions the standard-deviant differences tended to be attenuated, although not statistically significant.",
+      "span_chars": 280,
+      "verified": true
+    },
+    {
+      "context": "Subtype 2 shows similarities with the hippocampal-sparing variant of AD characterized by a relative sparing of the medial temporal lobe as observed in previous works. In this subtype hippocampus starts becoming abnormal after most of the others deep gray matter structures, with loss predominantly focused in the insula, caudate nucleus and parietal cortex. The similarity also extends to the demographic characteristics of this group, that is characterized by a higher prevalence of male subjects as reported in previous works. In this subtype, pallidum, putamen and caudate are among the first regions to show atrophy as observed in the subcortical subtype defined in the original SuStaIn work.",
+      "context_chars": 696,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 442,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "In this subtype hippocampus starts becoming abnormal after most of the others deep gray matter structures, with loss predominantly focused in the insula, caudate nucleus and parietal cortex.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 22845,
+        "char_start": 22655,
+        "context_end": 23184,
+        "context_start": 22488,
+        "pmcid": "PMC8173213",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q065",
+      "question": "In the Alzheimer's subtype resembling the hippocampal-sparing variant, when does the hippocampus become abnormal relative to the other deep grey matter structures, and where is the loss concentrated?",
+      "reference_answer": "The hippocampus starts becoming abnormal after most of the other deep gray matter structures, with loss predominantly focused in the insula, caudate nucleus and parietal cortex.",
+      "span_chars": 190,
+      "verified": true
+    },
+    {
+      "context": "All three plasma biomarkers were significantly associated with the primary outcomes on their own, but we showed here that they also provide some degree of overlapping information with each other. Plasma P-tau217 and A\u03b242/A\u03b240 contributed significantly to the prediction of both PACC and risk of AD dementia, while plasma NfL added significant prognostic information for PACC and appeared more useful for predicting general cognitive decline (MMSE) and risk of all-cause dementia. Together, our results demonstrate the wide applicability of this plasma biomarker panel in a CU elderly population.",
+      "context_chars": 595,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 434,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "Plasma P-tau217 and A\u03b242/A\u03b240 contributed significantly to the prediction of both PACC and risk of AD dementia, while plasma NfL added significant prognostic information for PACC and appeared more useful for predicting general cognitive decline (MMSE) and risk of all-cause dementia.",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 12762,
+        "char_start": 12479,
+        "context_end": 12878,
+        "context_start": 12283,
+        "pmcid": "PMC8196018",
+        "section": "Discussion"
+      },
+      "judge_note": "",
+      "query_id": "q068",
+      "question": "Which plasma biomarkers contributed significantly to predicting both PACC and risk of Alzheimer's dementia, and what did plasma NfL appear more useful for?",
+      "reference_answer": "Plasma P-tau217 and Abeta42/Abeta40 contributed significantly to the prediction of both PACC and risk of AD dementia, while plasma NfL added significant prognostic information for PACC and appeared more useful for predicting general cognitive decline and risk of all-cause dementia.",
+      "span_chars": 283,
+      "verified": true
+    },
+    {
+      "context": "While pTau181 showed no association with cognitive and functional decline, higher levels of pTau181 were associated with AD pathology after controlling for age and sex (OR 1.07, 95% CI 1.03\u20131.12, p =.002).",
+      "context_chars": 205,
+      "contiguity_note": "",
+      "cover": {
+        "fixed": {
+          "covering_chunk_tokens": 510,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        },
+        "recursive": {
+          "covering_chunk_tokens": 490,
+          "max_coverage": 1.0,
+          "n_chunks_to_cover": 1
+        }
+      },
+      "evidence": "higher levels of pTau181 were associated with AD pathology after controlling for age and sex (OR 1.07, 95% CI 1.03\u20131.12, p =.002).",
+      "evidence_sentences": 1,
+      "gold": {
+        "char_end": 15472,
+        "char_start": 15342,
+        "context_end": 15472,
+        "context_start": 15267,
+        "pmcid": "PMC10984087",
+        "section": "ASSOCIATIONS OF PLASMA BIOMARKERS WITH COGNITIVE AND FUNCTIONAL DECLINE AND AD PATHOLOGY"
+      },
+      "judge_note": "the span is the second clause of its sentence. A model given the whole sentence may correctly answer 'no association with cognitive and functional decline, but associated with AD pathology'. That is complete and correct and must not be penalised as extraneous.",
+      "query_id": "q069",
+      "question": "What was the association between higher plasma pTau181 levels and AD pathology after controlling for age and sex?",
+      "reference_answer": "Higher pTau181 levels were associated with AD pathology, with an odds ratio of 1.07 (95% CI 1.03-1.12, p = .002).",
+      "span_chars": 130,
+      "verified": true
+    }
+  ],
+  "selection": {
+    "drafters": [
+      "claude-opus-5 (manual local draft, CPU session)"
+    ],
+    "n_auto_rejected": 23,
+    "n_candidates": 69,
+    "n_rejected": 49,
+    "n_selected": 20,
+    "notes": {
+      "auto:general_knowledge": [
+        "q012: rejected by the mechanical checks before hand review"
+      ],
+      "general_knowledge": [
+        "q003: ANOVA and chi-square are standard practice, not this paper's result",
+        "q006: background on why older women fracture; not a finding of this study",
+        "q015: brain age gap = corrected brain age minus chronological age is the standard definition",
+        "q020: alpha-synuclein as the predominant Lewy body protein is textbook",
+        "q025: the roles of omega-3 PUFAs in brain physiology are review background",
+        "q027: amyloid-beta 42 depletion and the 42/40 ratio as CSF biomarkers is textbook",
+        "q038: the practical limitations of the MMSE are widely known"
+      ],
+      "in_abstract": [
+        "q043: a Discussion paragraph restating the abstract's three numbered findings (answer/abstract token overlap 0.81, over the 0.80 threshold)",
+        "q055: a RESEARCH IN CONTEXT block, which restates the abstract almost verbatim",
+        "q058: answer/abstract token overlap 0.82, and answer grounding only 0.29 because the span writes the regions as abbreviations (EC, L-STG, DC, L-PCu) that the expanded answer does not contain",
+        "q064: answer/abstract token overlap 0.89: the finding is a Results detail, but its vocabulary is the study's own and the abstract states the whole comparison in the same terms",
+        "q066: answer/abstract token overlap 0.82, and answer grounding only 0.29 because the span writes the regions as abbreviations (EC, L-STG, DC, L-PCu) that the expanded answer does not contain"
+      ],
+      "input_count": [
+        "q013: counts of inputs are provenance: 171 miRNAs measured and 648 individuals recruited describe what went into the study, not what came out of it",
+        "q021: counts of inputs are provenance: '49 samples after filtering' is intake. Also half-and-half in the q036 pattern -- 49 samples is an input, 10 modules is a result -- and it was the one record carrying an off-topic override"
+      ],
+      "methods_provenance": [
+        "q002: software package and version (XGBoost 0.90)",
+        "q005: software version (R 3.4.3)",
+        "q008: instrument identity and setting (Hitachi H7600, 80 kV)",
+        "q011: animal housing (cage dimensions, age at housing)",
+        "q016: reagent concentration and staining time",
+        "q022: software packages and versions (presto, fgsea)",
+        "q024: animal counts and strain",
+        "q026: cohort composition and routine procedure, not a result",
+        "q030: cell line and reagent catalogue number (MAK039)",
+        "q036: half provenance: the node and edge counts are a result, but 'which database built it' is tool identity, and the marker list excludes 'database' only by accident of tuning",
+        "q051: a statement of study design in the introduction, not a result",
+        "q052: assay protocol and reagent identity",
+        "q053: breeding scheme and animal housing",
+        "q054: a standard index definition, not a design choice specific to this study",
+        "q056: strain genotype; also a yeast model rather than an AD cohort"
+      ],
+      "no_specific_fact": [
+        "q004: a generic limitations statement",
+        "q031: Holm correction at p < 0.05 is an analysis convention",
+        "q032: a conclusion paragraph of aspirations, nothing stated as fact",
+        "q035: speculation about the future role of MRI",
+        "q046: two alternative hypotheses the data cannot distinguish, not a result",
+        "q057: a stated hypothesis in the introduction, not a result",
+        "q060: a conventional fold-change cutoff, the same in most proteomics papers"
+      ],
+      "non_effect_answer": [
+        "q067: the reference answer is a non-effect: the span withdraws its own claim with 'did not reach statistical significance', and the section is titled 'Nfl Levels are not Affected'. A model answering 'NfL was not significantly affected' is right and would not match the reference, so the question would score the judge's tolerance for hedging rather than retrieval"
+      ],
+      "off_topic_paper": [
+        "q019: cardiac echocardiography of DMAMCL-treated aged mice; 0 topic terms in title and abstract, and not Alzheimer's biomarker work under any reading",
+        "q023: 'Brain Morphometry Estimation: From Hours to Seconds Using Deep Learning' -- a CNN speed-up validated on healthy controls and epilepsy patients; 2 topic terms, and the question asks about a tool's reliability rather than a finding",
+        "q028: transcriptomics of Thmem cells in hidradenitis suppurativa; 1 topic term, and the finding is about a skin disease",
+        "q059: Huntington's disease imaging tracers; not an AD biomarker finding"
+      ]
+    },
+    "rejected_by_reason": {
+      "auto:general_knowledge": 1,
+      "general_knowledge": 7,
+      "in_abstract": 5,
+      "input_count": 2,
+      "methods_provenance": 15,
+      "no_specific_fact": 7,
+      "non_effect_answer": 1,
+      "off_topic_paper": 4,
+      "surplus_nearest_abstract_overlap": 7
+    }
+  },
+  "span_chars": {
+    "max": 417,
+    "mean": 222.3,
+    "median": 215.0,
+    "min": 130,
+    "n": 20,
+    "p10": 138.1,
+    "p25": 158.5,
+    "p75": 274.8,
+    "p90": 287.8,
+    "std": 72.0
+  },
+  "unverified": []
+}
