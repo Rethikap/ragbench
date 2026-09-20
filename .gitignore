@@ -1,6 +1,6 @@
-# Caches and generated artefacts. Everything here is reproducible from configs/.
+# Regenerable caches. Everything here is rebuilt from configs/ by re-running a
+# stage, so none of it belongs in git.
 data/
-runs/
 .venv/
 __pycache__/
 *.py[cod]
@@ -8,3 +8,55 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 .ipynb_checkpoints/
+
+# ---------------------------------------------------------------- run outputs
+#
+# `runs/` is NOT regenerable, and treating it as though it were is the mistake
+# these rules exist to fix. A run directory holds two very different kinds of
+# thing:
+#
+#   * derived views -- reports that any laptop recomputes in seconds from the
+#     artefacts below;
+#   * measurements -- what the GPU session actually retrieved and generated,
+#     what the judge actually scored, and what a human actually hand-scored.
+#     Those cost GPU hours, API spend, or an afternoon of reading, and no
+#     amount of re-running reproduces them locally.
+#
+# The same argument as the corpus manifest: the artefact that cannot be
+# regenerated must not sit in a directory declared regenerable. So the default
+# here is to ignore, and the measurements are named back in explicitly -- by
+# what they ARE, never by run id, because the run id moves whenever the config
+# does and a rule keyed to one would need editing every time.
+runs/**
+!runs/*/
+
+# What the GPU produced.
+!runs/*/retrieve/
+!runs/*/retrieve/**
+!runs/*/generate/
+!runs/*/generate/**
+
+# What the judge produced. API spend, and rate-limited.
+!runs/*/judge/
+!runs/*/judge/**
+
+# Hand-scored calibration -- the least regenerable artefact in the project,
+# since re-running the sampler reproduces the questions but not the judgement
+# that an answer was wrong. The blind key sits beside them so the agreement
+# figures can be recomputed.
+!runs/*/calibration_*
+
+# The aggregated reports. Cheap to recompute, but they are what gets read and
+# quoted, and a report committed beside its inputs is a record of what the
+# numbers were when they were written.
+!runs/*/*_report.json
+
+# What the run was configured with. Small, and it is what makes a run
+# self-describing: the directory name can be re-derived from this file, so a
+# result can be checked against the config that produced it rather than trusted
+# because of where it sits.
+!runs/*/resolved_config.json
+
+# Archives made for moving results off Kaggle. Their contents are tracked
+# above; the zip is a transport detail and a binary blob.
+runs/**/*.zip
