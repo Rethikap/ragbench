@@ -7,8 +7,13 @@ fact.
 
 | provider | model | free tier |
 |---|---|---|
-| `groq` | `llama-3.3-70b-versatile` | no card required; request **and token** limits |
+| `groq` | `openai/gpt-oss-120b` | no card required; request **and token** limits |
 | `openrouter` | `meta-llama/llama-3.3-70b-instruct` | now requires a credit balance |
+
+Neither is the Llama-3.3-70B the proposal named: Groq has retired it from the
+free tier, and OpenRouter's free variants now need a credit balance. The reasons
+and the substitution are recorded in ``configs/base.yaml``, because they reach
+the methodology rather than only the plumbing.
 
 Both speak `/chat/completions` with the same request and response shape, so what
 differs is an endpoint, a key, some headers and the limits. That is data, not
@@ -16,10 +21,10 @@ code, and it lives in `judge.providers` in config.
 
 **Tokens are the binding constraint, not requests.** One judgement carries the
 retrieved context -- it must, or faithfulness cannot be assessed -- which makes
-it roughly 3,250 tokens. At a free tier's 12,000 tokens/minute that is under
-four calls a minute, far below the 30 requests/minute the same tier allows. A
-client pacing only on requests would spend its day collecting 429s. So this one
-paces on both, and stops cleanly against a daily token cap rather than
+it about 2,900 tokens. At a free tier's 8,000 tokens/minute that is under three
+calls a minute, an order of magnitude below the 30 requests/minute the same tier
+allows. A client pacing only on requests would spend its day collecting 429s. So
+this one paces on both, and stops cleanly against a daily token cap rather than
 discovering it as an error.
 """
 
@@ -176,6 +181,10 @@ class ChatCompletionsJudge:
             body["seed"] = int(self._params["seed"])
         if self._send_response_format:
             body["response_format"] = {"type": "json_object"}
+        # Provider-specific fields, passed through untouched: `reasoning_effort`
+        # for the gpt-oss models, say. Config rather than code, so the choice
+        # reaches the run id instead of living in a client nobody re-reads.
+        body.update(self._params.get("extra_body") or {})
         return body
 
     def _estimate(self, system: str, user: str) -> int:

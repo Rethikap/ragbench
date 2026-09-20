@@ -101,7 +101,7 @@ and the reranker run happily on 4.57 too.
 > transformers to 4.57.x. Installing both leaves whichever ran last in place and
 > silently breaks the other. They never need to coexist: **indexing and
 > retrieval are one session, generation is another**, and the only thing that
-> travels between them is `runs/7c5db2359a75/retrieve/` — under 100 KB. Start a
+> travels between them is `runs/ac0afe3816c4/retrieve/` — under 100 KB. Start a
 > fresh notebook for §9 rather than adding vLLM to this one.
 
 Restart the kernel after the install so the downgraded transformers is the one
@@ -294,7 +294,7 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 ```
 
 `retrieve` covers all eight configurations. `report retrieval` writes
-`runs/7c5db2359a75/retrieval_report.json` and prints the two tables.
+`runs/ac0afe3816c4/retrieval_report.json` and prints the two tables.
 
 Generation is **not** part of this session — see §9.
 
@@ -331,10 +331,10 @@ fewer of them.
 **Essential — under 1 MB, and all the laptop needs to read the results:**
 
 ```
-runs/7c5db2359a75/retrieve/*.jsonl        per-query RetrievalResult records
-runs/7c5db2359a75/retrieve/summary.json   per-configuration summary
-runs/7c5db2359a75/retrieval_report.json   the six metrics, aggregated
-runs/7c5db2359a75/resolved_config.json    what the run was configured with
+runs/ac0afe3816c4/retrieve/*.jsonl        per-query RetrievalResult records
+runs/ac0afe3816c4/retrieve/summary.json   per-configuration summary
+runs/ac0afe3816c4/retrieval_report.json   the six metrics, aggregated
+runs/ac0afe3816c4/resolved_config.json    what the run was configured with
 data/indexes/*/index.json                 per-index stats and truncation census
 ```
 
@@ -343,7 +343,7 @@ themselves. Bring them back only if a later Kaggle session should skip
 re-embedding (see §7). They are of no use on a laptop that cannot run the query
 encoder.
 
-`runs/7c5db2359a75/retrieve/` is also the **only** thing the generation session
+`runs/ac0afe3816c4/retrieve/` is also the **only** thing the generation session
 in §9 needs from this one. Keep it somewhere you can upload again.
 
 Zip the essentials so one download covers it:
@@ -360,7 +360,7 @@ run). The file appears under the notebook's Output tab; download it there, or:
 kaggle kernels output <user>/<notebook-slug> -p ./from-kaggle
 ```
 
-Unzip into the repository root on the laptop. `runs/7c5db2359a75/` is the same
+Unzip into the repository root on the laptop. `runs/ac0afe3816c4/` is the same
 path the local config resolves to — the digest is computed from `configs/`, which
 is in git — so the reports read without any rewiring.
 
@@ -521,7 +521,7 @@ Restart the kernel, then confirm the GPU is visible to vLLM:
 > |---|---|
 > | when `retrieve` ran | `runs/44e112902a29/` |
 > | when `generate` ran | `runs/f66638fb9655/` |
-> | now | `runs/7c5db2359a75/` |
+> | now | `runs/ac0afe3816c4/` |
 >
 > It has moved twice, once per stage configured: adding `base.generation` moved
 > it the first time and adding `base.judge` the second. **The pipeline is now
@@ -540,10 +540,10 @@ no index and no embedder. Mount the earlier notebook's output
 (**Add data -> Notebook Output**) and copy that directory to the **new** id:
 
 ```python
-!mkdir -p /kaggle/working/ragbench/runs/7c5db2359a75
+!mkdir -p /kaggle/working/ragbench/runs/ac0afe3816c4
 !cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/runs/44e112902a29/retrieve \
-       /kaggle/working/ragbench/runs/7c5db2359a75/
-!ls /kaggle/working/ragbench/runs/7c5db2359a75/retrieve
+       /kaggle/working/ragbench/runs/ac0afe3816c4/
+!ls /kaggle/working/ragbench/runs/ac0afe3816c4/retrieve
 ```
 
 Confirm the destination id first, because it moves again the next time anything
@@ -621,9 +621,9 @@ if you need each answer reproducible independently of what else was pending.
 ### 9e. What to bring back
 
 ```
-runs/7c5db2359a75/generate/*.jsonl        the 160 answers, with length and timing
-runs/7c5db2359a75/generate/summary.json   per-configuration summary
-runs/7c5db2359a75/generation_report.json  answer length, truncation, abstention
+runs/ac0afe3816c4/generate/*.jsonl        the 160 answers, with length and timing
+runs/ac0afe3816c4/generate/summary.json   per-configuration summary
+runs/ac0afe3816c4/generation_report.json  answer length, truncation, abstention
 ```
 
 Under 1 MB. Read them on the laptop with:
@@ -642,7 +642,7 @@ cheap to fix.
 
 ## 10. Judging — on the laptop, not on Kaggle
 
-The judge uses no GPU and nothing from Kaggle except `runs/7c5db2359a75/generate/`.
+The judge uses no GPU and nothing from Kaggle except `runs/ac0afe3816c4/generate/`.
 Bring that home from §9, then run it locally.
 
 ### 10a. Which judge, and why two
@@ -651,18 +651,32 @@ Bring that home from §9, then run it locally.
 
 | provider | model | free tier |
 |---|---|---|
-| **`groq`** (default) | `llama-3.3-70b-versatile` | free, no card |
+| **`groq`** (default) | `openai/gpt-oss-120b` | free, no card |
 | `openrouter` | `meta-llama/llama-3.3-70b-instruct` | requires a credit balance as of 2026-09 |
 
-The alternative is kept rather than deleted because a reviewer may ask whether
-the result depends on the judge provider, and that is only answerable if the
-other backend is still configured. Switching is one word in `configs/base.yaml`,
+**Neither is the Llama-3.3-70B the proposal named, and that is worth stating in
+the write-up rather than quietly substituting.** Groq has retired
+`llama-3.3-70b-versatile` from its free tier, and OpenRouter's free variants now
+require a credit balance. Of the chat models Groq's free tier still offers —
+`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `openai/gpt-oss-safeguard-20b`,
+`qwen/qwen3.8-27b`, `groq/compound`, `groq/compound-mini`, `allam-2-7b` —
+`gpt-oss-120b` is the largest that is not a Qwen model. The judge is therefore a
+120B open-weights model rather than a 70B Llama: a deviation forced by
+availability, not chosen.
+
+**"Not a Qwen model" is doing real work there.** The generator is
+Qwen2.5-7B-Instruct, and the generator's family may not grade its own output —
+self-preference bias on top of small-judge unreliability, and the two are not
+separable afterwards. `qwen/qwen3.8-27b` sits on the same account's model list,
+so that rule excluded a genuinely eligible candidate here rather than ruling out
+a hypothetical one. A test checks it for the selected provider *and* every
+alternative, so switching backends cannot reintroduce it.
+
+The unused backend is kept rather than deleted because a reviewer may ask
+whether the result depends on the judge provider, and that is only answerable if
+the other one is still configured. Switching is one word in `configs/base.yaml`,
 and because the whole resolved config reaches the run id, scores from two judges
 can never land in one directory.
-
-Neither is Qwen. The generator must not grade its own output, and a test fails
-the build if the judge id ever matches the generator's — checked for the
-selected provider *and* for every alternative.
 
 ### 10b. The key
 
@@ -693,20 +707,29 @@ trimmed without changing what faithfulness means.
 
 Two limits bite, and the token one bites first:
 
-- **Tokens per minute.** At 12,000 TPM a ~3,250-token call (the pacer's
-  conservative estimate, which includes the `max_tokens` ceiling) means **three
+- **Tokens per minute.** 8,000 TPM against a ~2,900-token call is **under three
   calls a minute** — an order of magnitude below the 30 requests/minute the same
   tier allows. A client pacing only on requests would collect 429s all day, so
-  this one paces on both.
-- **Tokens per day.** `daily_token_cap` defaults to 100,000, which is about
-  **30 calls**. A full run therefore spans **several days**.
+  this one paces on both. Its pre-call estimate is more conservative still
+  (~3,250, because it counts a `max_tokens` ceiling the model will not use), and
+  is replaced by the usage figure the response reports.
+- **Tokens per day.** 200,000 TPD against ~2,900 a call is about **68 calls**,
+  so 280 calls is roughly **four days**.
 
-> **Set `daily_token_cap` to whatever your own console reports.** The published
-> figures move and the docs page renders its table in JavaScript, so the value
-> in `configs/base.yaml` is a conservative starting point rather than a verified
+> **Set `daily_token_cap` to whatever your own console reports.** Published
+> figures move — this model replaced one that was retired mid-project — so the
+> value in `configs/base.yaml` is what your account showed, not a permanent
 > fact. The client also reads Groq's `x-ratelimit-remaining-tokens` and
 > `x-ratelimit-limit-tokens` response headers, so what the server actually says
 > is what gets reported.
+
+> **If replies start coming back empty and the `unparsed` column climbs**, the
+> likely cause is reasoning tokens: gpt-oss models think before answering and
+> that spend counts against `max_tokens`, which is 400. The lever is
+> `reasoning_effort: low` under the provider's `extra_body`, or a larger
+> `max_tokens` at the cost of fewer calls per day. It is left unset rather than
+> guessed at, because it changes how the judge thinks and that belongs in the
+> run id as a deliberate choice.
 
 If several days is not acceptable, the options are yours to weigh, and none
 should be taken silently:
@@ -745,6 +768,7 @@ judged twice.
 |---|---|
 | `GROQ_API_KEY is not set` | Exported in a different shell, or spelled differently from the provider's `api_key_env`. |
 | `groq rejected the API key (401)` | Not retried, deliberately — a bad key is not transient. |
+| `model_not_found` or similar | The free tier's model list changes. Check the console and update `judge.providers.groq.model_id`; the judge-is-not-the-generator rule excludes any Qwen variant. |
 | `STOPPED ON QUOTA` | Expected. Re-run tomorrow. |
 | `judged against a different answer` | `generate` has been re-run under this run directory. Delete that configuration's judge JSONL rather than scoring two sets of answers into one. |
 | a nonzero `unparsed` column | The judge returned something that was not the schema twice. Those items are persisted so a re-run does not spend the calls again; delete their lines to retry them. |
@@ -773,7 +797,7 @@ Fill in the CSV, then:
 
 ```bash
 ragbench report judge --config configs/base.yaml \
-    --calibration runs/7c5db2359a75/calibration_scores.csv
+    --calibration runs/ac0afe3816c4/calibration_scores.csv
 ```
 
 That prints quadratically weighted Cohen's kappa and Spearman per scale, an
@@ -788,10 +812,10 @@ genuine disagreement, and has a different remedy.
 ### 10f. What to keep
 
 ```
-runs/7c5db2359a75/judge/*.jsonl          two judgements per answer
-runs/7c5db2359a75/judge/summary.json     per-configuration summary
-runs/7c5db2359a75/judge_report.json      scores, verdicts, self-consistency
-runs/7c5db2359a75/calibration_*          the sheet, your scores, the key
+runs/ac0afe3816c4/judge/*.jsonl          two judgements per answer
+runs/ac0afe3816c4/judge/summary.json     per-configuration summary
+runs/ac0afe3816c4/judge_report.json      scores, verdicts, self-consistency
+runs/ac0afe3816c4/calibration_*          the sheet, your scores, the key
 ```
 
 All of it is tracked by git — see `.gitignore`, which ignores the regenerable

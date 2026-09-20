@@ -90,6 +90,11 @@ def judge_params(resolved: Mapping[str, Any]) -> dict[str, Any]:
     block = (params.get("providers") or {}).get(provider)
     if isinstance(block, Mapping):
         params.update(block)
+    # A provider with no block of its own -- `stand-in` -- still has to name
+    # something, or the report prints a blank judge and the stand-in banner
+    # never fires. That banner is the only thing between a lexical-overlap
+    # table and a thesis.
+    params.setdefault("model_id", provider)
     return params
 
 

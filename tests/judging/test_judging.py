@@ -184,6 +184,32 @@ def test_the_shipped_config_does_not_let_the_generator_judge_itself() -> None:
         assert "qwen" not in model, f"{name} names a Qwen model"
 
 
+def test_the_selected_judge_is_the_largest_non_qwen_option_on_the_tier() -> None:
+    """Records the substitution, and why it was forced.
+
+    The proposal named Llama-3.3-70B; Groq retired it from the free tier. Of the
+    chat models the tier still offers, gpt-oss-120b is the largest that is not a
+    Qwen model -- and "not Qwen" excluded qwen3.8-27b, which is on the same
+    account and would otherwise have been a candidate. The judge-is-not-the-
+    generator rule therefore cost a real option here, which is the point of
+    having it checked rather than remembered.
+    """
+    active = judge_params({"base": _shipped()})
+    assert active["model_id"] == "openai/gpt-oss-120b"
+    assert "qwen" not in active["model_id"].lower()
+
+    text = Path("configs/base.yaml").read_text(encoding="utf-8")
+    assert "qwen3.8-27b" in text, "the excluded candidate is not recorded"
+    assert "retired" in text, "the reason for the substitution is not recorded"
+
+
+def test_provider_specific_request_fields_are_config_not_code() -> None:
+    """gpt-oss models spend tokens on reasoning before answering, and those
+    count against max_tokens. `reasoning_effort` is the lever if replies come
+    back empty; it lives in config so the choice reaches the run id."""
+    assert "extra_body" in _shipped()["judge"]["providers"]["groq"]
+
+
 def test_both_backends_stay_configured_so_the_question_stays_answerable() -> None:
     """A reviewer may ask whether the result depends on the judge provider.
     Deleting the alternative makes that unanswerable after the fact."""
@@ -198,7 +224,7 @@ def test_the_backend_is_selected_from_config_not_from_a_flag() -> None:
     base = _shipped()
     assert base["judge"]["provider"] == "groq"
     active = judge_params({"base": base})
-    assert active["model_id"] == "llama-3.3-70b-versatile"
+    assert active["model_id"] == "openai/gpt-oss-120b"
     assert active["endpoint"].startswith("https://api.groq.com/")
     assert active["api_key_env"] == "GROQ_API_KEY"
 
@@ -260,7 +286,7 @@ def _reply(text: str) -> _Response:
 HOSTED: dict[str, Any] = {
     **JUDGE,
     "provider": "groq",
-    "model_id": "llama-3.3-70b-versatile",
+    "model_id": "openai/gpt-oss-120b",
     "endpoint": "https://api.groq.com/openai/v1/chat/completions",
     "requests_per_minute": 0,
     "tokens_per_minute": 0,
@@ -713,3 +739,26 @@ def test_a_quota_stop_keeps_what_was_written_and_says_so(tmp_path: Path) -> None
     assert again["n_judgements"] == 4
     assert again["reused"] == 2
     assert len(resumed.seen) == 2
+
+
+def test_extra_body_reaches_the_request_untouched(monkeypatch) -> None:
+    judge = _client(monkeypatch, [_reply(GOOD)], extra_body={"reasoning_effort": "low"})
+    judge.score(prompt())
+    assert judge._session.sent[0]["body"]["reasoning_effort"] == "low"
+
+
+def test_an_empty_extra_body_adds_nothing(monkeypatch) -> None:
+    judge = _client(monkeypatch, [_reply(GOOD)], extra_body={})
+    judge.score(prompt())
+    body = judge._session.sent[0]["body"]
+    assert set(body) == {"model", "messages", "temperature", "max_tokens", "seed",
+                         "response_format"}
+
+
+def test_a_provider_without_a_block_still_names_itself() -> None:
+    """`stand-in` has no provider block, so nothing merges a model_id in. Left
+    blank, the report printed an empty judge and -- worse -- the CPU STAND-IN
+    banner never fired, because it keys on that name. That banner is the only
+    thing between a lexical-overlap table and a thesis."""
+    params = judge_params({"base": {"judge": {"provider": "stand-in", "providers": {}}}})
+    assert params["model_id"] == "stand-in"
