@@ -188,22 +188,38 @@ judge:
       api_key_env: GROQ_API_KEY
       # TOKENS are the binding constraint here, not requests. One judgement
       # carries the retrieved context -- it must, or faithfulness cannot be
-      # assessed -- so a call costs about 2,900 tokens.
+      # assessed.
+      #
+      # MEASURED on the first real run, 199,211 tokens over 69 HTTP requests:
+      #
+      #   2,887 tokens per request      (the ~2,900 estimate was right)
+      #   4,743 tokens per judgement    (42 judgements needed 69 requests)
+      #  11,718 tokens per USABLE judgement, because only 17 parsed
+      #
+      # The per-request cost was never the problem. The waste was retries: 27 of
+      # 42 judgements returned no content, each one buying a second full-prompt
+      # request that failed identically. Fixing max_tokens and reasoning_effort
+      # removes the retries, which is where nearly all of that 4x went.
       #
       #   8,000 tokens/minute / ~2,900 = under THREE calls a minute,
       #                                  against the 30 requests/minute allowed.
       #
       # A client pacing only on requests would spend the day collecting 429s, so
       # the client paces on both. Its pre-call estimate is deliberately more
-      # conservative still (~3,250, because it counts the max_tokens ceiling it
-      # cannot yet know the model will not use), and is replaced by the usage
-      # figure the response reports.
+      # conservative still (it counts a max_tokens ceiling it cannot yet know
+      # the model will not use), and is replaced by the usage figure the
+      # response reports.
       requests_per_minute: 30
       tokens_per_minute: 8000
-      # And the day:
+      # And the day, on the corrected assumption of ONE request per judgement:
       #
-      #   200,000 tokens/day / ~2,900 = about 68 calls,
-      #   280 calls / 68 per day      = roughly FOUR DAYS for a full run.
+      #   200,000 tokens/day / ~2,900 = about 69 judgements,
+      #   280 judgements / 69 per day = roughly FOUR DAYS for a full run.
+      #
+      # Under the broken settings it was 200,000 / 11,718 = 17 usable judgements
+      # a day, or over two weeks. The next run will confirm the corrected figure
+      # rather than leave it derived: each judgement now records the tokens it
+      # cost, and `ragbench judge` prints the per-judgement average.
       #
       # That is a schedule rather than a failure: the stage stops cleanly at the
       # cap, keeps everything written, and continues when the same command is
@@ -213,13 +229,21 @@ judge:
       # so the client also reads the x-ratelimit-* response headers and prints
       # what the server actually says is left.
       daily_token_cap: 200000
-      # Provider-specific request fields, passed through untouched. Empty by
-      # default. gpt-oss models emit reasoning tokens before their answer, and
-      # those count against max_tokens: if replies start coming back empty and
-      # the `unparsed` column climbs, `reasoning_effort: low` here is the lever.
-      # Left unset rather than guessed at, because it changes how the judge
-      # thinks and that belongs in the run id as a deliberate choice.
-      extra_body: {}
+      # Provider-specific request fields, passed through untouched.
+      #
+      # `reasoning_effort: low` is set because the first real run established it
+      # was needed, not as a precaution. gpt-oss models reason before answering
+      # and that spend counts against max_tokens; at the previous settings it
+      # consumed the entire allowance and 60% of judgements came back with no
+      # content. Low effort is the right level for this task: the rubric asks
+      # for a bounded comparison against a reference answer that is supplied,
+      # not for open-ended problem solving.
+      #
+      # It changes how the judge thinks, so it belongs in config where it
+      # reaches the run id -- scores produced with and without it are not
+      # interchangeable and must not share a directory.
+      extra_body:
+        reasoning_effort: low
     # Kept as the second backend. As of 2026-09 its free variants require a
     # credit balance, which is why it is not the default.
     openrouter:
@@ -235,7 +259,19 @@ judge:
         X-Title: ragbench
   temperature: 0.0
   seed: 20260813
-  max_tokens: 400
+  # 800, raised from 400, and the reason is measured rather than tuned.
+  #
+  # The rubric's own reply is a small JSON object -- about 150 tokens. The other
+  # 650 are headroom for the gpt-oss models' reasoning, which is emitted BEFORE
+  # the answer and counted against this same ceiling. At 400 the reasoning
+  # consumed the whole allowance and the reply came back with no content at all:
+  # the first real run produced 24 unparsed out of 40 in its first configuration
+  # (60%), each one costing a corrective retry that then failed the same way.
+  #
+  # A ceiling is not a charge. Raising it costs nothing on a call that does not
+  # use it, and the daily cap is spent on tokens actually emitted. What it buys
+  # is that reasoning can no longer starve the answer.
+  max_tokens: 800
   max_retries: 5
   # Ask the provider to constrain the response to a JSON object. Not every
   # provider accepts the parameter, so the client drops it and retries once if

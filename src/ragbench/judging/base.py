@@ -179,6 +179,10 @@ class LazyJudge:
     def name(self) -> str:
         return getattr(self._judge, "name", "not built (nothing needed judging)")
 
+    @property
+    def tokens_spent(self) -> int:
+        return int(getattr(self._judge, "tokens_spent", 0))
+
     def score(self, prompt: Any) -> Verdict:
         if self._judge is None:
             self._judge = build_judge(self._params)

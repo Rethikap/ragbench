@@ -38,7 +38,7 @@ from ..generation.pipeline import answers_path, load_answers
 from ..generation.prompt import render_context
 from ..gold.freeze import GOLD_SET_FILENAME, verify_frozen
 from ..hashing import sha256_text
-from ..jsonl import append_jsonl, read_jsonl
+from ..jsonl import append_jsonl, read_jsonl, write_jsonl
 from ..retrieval.pipeline import cells, config_name, load_results, results_path
 from ..types import Judgement
 from .base import (
@@ -62,6 +62,28 @@ def load_judgements(path: Path) -> list[Judgement]:
     return [Judgement.from_dict(record) for record in read_jsonl(path)]
 
 
+def clear_unparsed(path: Path) -> int:
+    """Drop the unparsed records from one configuration's file.
+
+    An unparsed record is persisted deliberately: it stops a re-run spending the
+    calls again, and it keeps the configuration's denominator honest. But that
+    makes it permanent, and a judgement that failed because the *settings* were
+    wrong must not survive a change to those settings -- the configuration would
+    then be scored under two regimes with nothing to say which item came from
+    which.
+
+    Rewriting the file rather than hand-editing JSONL is the point: the records
+    that stay are re-serialised through the same canonical writer that appended
+    them, so the file is byte-identical to one that had never held the failures.
+    """
+    records = load_judgements(path)
+    keep = [record for record in records if record.verdict != UNPARSED]
+    removed = len(records) - len(keep)
+    if removed:
+        write_jsonl(path, [record.to_dict() for record in keep])
+    return removed
+
+
 def is_refusal(answer: str, refusal_text: str) -> bool:
     """Exact match on the configured sentence, modulo a trailing full stop."""
     return bool(refusal_text) and answer.strip().rstrip(".") == refusal_text.strip().rstrip(".")
@@ -81,6 +103,7 @@ def judge_one_config(
     data_root: Path,
     run_directory: Path,
     judge: Any = None,
+    retry_unparsed: bool = False,
     on_progress: Progress = None,
 ) -> dict[str, Any]:
     """One of the 8 cells, every answer, every pass."""
@@ -120,6 +143,7 @@ def judge_one_config(
     }
 
     path = judgements_path(run_directory, chunking_level, embedding_level, rerank_level)
+    cleared = clear_unparsed(path) if retry_unparsed else 0
     existing = load_judgements(path)
     done: set[tuple[str, int]] = set()
     for record in existing:
@@ -156,6 +180,7 @@ def judge_one_config(
         chunk_ids = list(answer.context_chunk_ids) or fallback.get(query_id, [])
         started = time.perf_counter()
 
+        before = int(getattr(judge, "tokens_spent", 0))
         if is_refusal(answer.answer, refusal_text):
             verdict = Verdict(verdict=ABSTAINED, rationale="exact refusal sentence")
             from_match = True
@@ -194,6 +219,7 @@ def judge_one_config(
                 pass_index=index,
                 answer_sha256=sha256_text(answer.answer),
                 n_parse_retries=verdict.n_parse_retries,
+                n_tokens=int(getattr(judge, "tokens_spent", 0)) - before,
                 latency_ms=round((time.perf_counter() - started) * 1000.0, 1),
                 from_refusal_match=from_match,
             ).to_dict(),
@@ -217,11 +243,13 @@ def judge_one_config(
         "reused": len(existing),
         "outstanding": len(answers) * passes - len(records),
         "api_calls": calls,
+        "unparsed_cleared": cleared,
         "quota_exhausted": bool(exhausted),
         "quota_message": exhausted,
         "abstained": sum(1 for r in records if r.verdict == ABSTAINED),
         "unparsed": sum(1 for r in records if r.verdict == UNPARSED),
         "parse_retries": sum(r.n_parse_retries for r in records),
+        "tokens": sum(r.n_tokens for r in records),
         "path": str(path),
     }
 
@@ -233,6 +261,7 @@ def run_judge(
     run_directory: Path,
     levels: Sequence[tuple[str, str, str]] | None = None,
     judge: Any = None,
+    retry_unparsed: bool = False,
     on_progress: Progress = None,
 ) -> list[dict[str, Any]]:
     """Every cell, sharing one judge so the rate limiter paces the whole run."""
@@ -241,7 +270,7 @@ def run_judge(
     reports = [
         judge_one_config(
             resolved, chunking, embedding, rerank, configs_dir, data_root, run_directory,
-            judge=judge, on_progress=on_progress,
+            judge=judge, retry_unparsed=retry_unparsed, on_progress=on_progress,
         )
         for chunking, embedding, rerank in wanted
     ]

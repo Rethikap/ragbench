@@ -395,6 +395,17 @@ command continues. Published limits move, so the client also reads the
 `x-ratelimit-*` response headers and reports what the server says is left rather
 than trusting a documented figure.
 
+> **A corrective retry is a second full-prompt request.** The first real judge
+> run spent its entire daily allowance on 17 usable judgements: the per-request
+> cost was exactly as estimated, but 27 of 42 judgements returned no content and
+> each bought a retry that failed identically. Budget arithmetic that counts
+> judgements rather than requests is wrong by whatever the failure rate is, so
+> every judgement now records the tokens it cost and the stage prints the
+> per-judgement average. An `unparsed` record is permanent by design — it stops
+> a re-run paying twice — which is why `--retry-unparsed` exists: a judgement
+> that failed because a *setting* was wrong must not survive the fix, or the
+> configuration is scored under two regimes.
+
 **Three scales and a categorical verdict, because one scale cannot separate the
 two failure modes.** The real output contains both: q044 produced three
 different fabricated protein counts (22, 15, 30) where the paper says 48, and

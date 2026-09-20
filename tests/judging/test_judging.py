@@ -34,7 +34,15 @@ from ragbench.judging.pipeline import (
 )
 from ragbench.judging.prompt import build_prompt, rubric_digest
 from ragbench.judging.standin import StandInJudge
-from ragbench.types import Chunk, GeneratedAnswer, GoldSpan, Query, RetrievalResult, ScoredChunk
+from ragbench.types import (
+    Chunk,
+    GeneratedAnswer,
+    GoldSpan,
+    Judgement,
+    Query,
+    RetrievalResult,
+    ScoredChunk,
+)
 
 REFUSAL = "The provided context does not contain the answer."
 JUDGE: dict[str, Any] = {
@@ -762,3 +770,115 @@ def test_a_provider_without_a_block_still_names_itself() -> None:
     thing between a lexical-overlap table and a thesis."""
     params = judge_params({"base": {"judge": {"provider": "stand-in", "providers": {}}}})
     assert params["model_id"] == "stand-in"
+
+
+# ------------------------------------------------------- retrying the failures
+
+
+def test_clear_unparsed_removes_only_the_failures(tmp_path: Path) -> None:
+    from ragbench.judging.pipeline import clear_unparsed
+
+    path = tmp_path / "cell.jsonl"
+    write_jsonl(path, [
+        Judgement(query_id="q001", scores={"faithfulness": 5.0}, rationale="", judge_model="j",
+                  rubric_id="v1", verdict="correct", pass_index=0).to_dict(),
+        Judgement(query_id="q002", scores={}, rationale="bad json", judge_model="j",
+                  rubric_id="v1", verdict=UNPARSED, pass_index=0).to_dict(),
+        Judgement(query_id="q003", scores={}, rationale="", judge_model="refusal-match",
+                  rubric_id="v1", verdict=ABSTAINED, pass_index=0).to_dict(),
+    ])
+    assert clear_unparsed(path) == 1
+    kept = {r.query_id: r.verdict for r in load_judgements(path)}
+    assert kept == {"q001": "correct", "q003": ABSTAINED}
+
+
+def test_clearing_nothing_leaves_the_file_untouched(tmp_path: Path) -> None:
+    from ragbench.judging.pipeline import clear_unparsed
+
+    path = tmp_path / "cell.jsonl"
+    write_jsonl(path, [
+        Judgement(query_id="q001", scores={"faithfulness": 5.0}, rationale="", judge_model="j",
+                  rubric_id="v1", verdict="correct", pass_index=0).to_dict(),
+    ])
+    before = path.read_bytes()
+    assert clear_unparsed(path) == 0
+    assert path.read_bytes() == before
+
+
+def test_retry_unparsed_rejudges_the_failures_and_nothing_else(tmp_path: Path) -> None:
+    """A judgement that failed because a setting was wrong must not survive the
+    fix to that setting: the configuration would be scored under two regimes
+    with nothing to say which item came from which."""
+    class _Failing(_CountingJudge):
+        def score(self, prompt: Any) -> Verdict:
+            self.seen.append(prompt.answer)
+            raise ValueError("verdict '' is not one of correct, ...")
+
+    resolved, configs, data, run = _world(
+        tmp_path, [_answer("q001", "a"), _answer("q002", "b")]
+    )
+    broken = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=_Failing()
+    )
+    assert broken["unparsed"] == 4
+
+    # Without the flag, the failures are permanent and cost nothing more.
+    idle = _CountingJudge()
+    assert judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=idle
+    )["api_calls"] == 0
+    assert idle.seen == []
+
+    fixed = _CountingJudge()
+    report = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run,
+        judge=fixed, retry_unparsed=True,
+    )
+    assert report["unparsed_cleared"] == 4
+    assert report["unparsed"] == 0
+    assert report["n_judgements"] == 4
+    assert len(fixed.seen) == 4
+
+
+def test_retry_unparsed_keeps_the_judgements_that_worked(tmp_path: Path) -> None:
+    """Re-judging everything would spend the allowance twice over."""
+    class _HalfFailing(_CountingJudge):
+        def score(self, prompt: Any) -> Verdict:
+            self.seen.append(prompt.answer)
+            if prompt.answer == "b":
+                raise ValueError("not the schema")
+            return Verdict(verdict="correct", scores={s: 5.0 for s in
+                           ("faithfulness", "relevance", "completeness")})
+
+    resolved, configs, data, run = _world(
+        tmp_path, [_answer("q001", "a"), _answer("q002", "b")]
+    )
+    judge_one_config(resolved, "fixed", "bge", "off", configs, data, run, judge=_HalfFailing())
+
+    retried = _CountingJudge()
+    report = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run,
+        judge=retried, retry_unparsed=True,
+    )
+    assert report["unparsed_cleared"] == 2
+    assert report["reused"] == 2          # q001's two passes were kept
+    assert retried.seen == ["b", "b"]     # only q002 was scored again
+
+
+def test_a_judgement_records_what_it_cost(tmp_path: Path) -> None:
+    """The first real run had its per-call cost reconstructed from an aggregate.
+    The daily cap is spent in these units, so they are recorded per item."""
+    class _Metered(_CountingJudge):
+        tokens_spent = 0
+
+        def score(self, prompt: Any) -> Verdict:
+            type(self).tokens_spent += 2900
+            return super().score(prompt)
+
+    resolved, configs, data, run = _world(tmp_path, [_answer("q001", "a")])
+    report = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=_Metered()
+    )
+    assert report["tokens"] == 5800
+    assert all(r.n_tokens == 2900 for r in load_judgements(
+        judgements_path(run, "fixed", "bge", "off")))

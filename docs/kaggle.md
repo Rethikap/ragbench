@@ -101,7 +101,7 @@ and the reranker run happily on 4.57 too.
 > transformers to 4.57.x. Installing both leaves whichever ran last in place and
 > silently breaks the other. They never need to coexist: **indexing and
 > retrieval are one session, generation is another**, and the only thing that
-> travels between them is `runs/ac0afe3816c4/retrieve/` — under 100 KB. Start a
+> travels between them is `runs/562c4bb23747/retrieve/` — under 100 KB. Start a
 > fresh notebook for §9 rather than adding vLLM to this one.
 
 Restart the kernel after the install so the downgraded transformers is the one
@@ -294,7 +294,7 @@ Builds four indexes: `fixed×bge`, `fixed×specter2`, `recursive×bge`,
 ```
 
 `retrieve` covers all eight configurations. `report retrieval` writes
-`runs/ac0afe3816c4/retrieval_report.json` and prints the two tables.
+`runs/562c4bb23747/retrieval_report.json` and prints the two tables.
 
 Generation is **not** part of this session — see §9.
 
@@ -331,10 +331,10 @@ fewer of them.
 **Essential — under 1 MB, and all the laptop needs to read the results:**
 
 ```
-runs/ac0afe3816c4/retrieve/*.jsonl        per-query RetrievalResult records
-runs/ac0afe3816c4/retrieve/summary.json   per-configuration summary
-runs/ac0afe3816c4/retrieval_report.json   the six metrics, aggregated
-runs/ac0afe3816c4/resolved_config.json    what the run was configured with
+runs/562c4bb23747/retrieve/*.jsonl        per-query RetrievalResult records
+runs/562c4bb23747/retrieve/summary.json   per-configuration summary
+runs/562c4bb23747/retrieval_report.json   the six metrics, aggregated
+runs/562c4bb23747/resolved_config.json    what the run was configured with
 data/indexes/*/index.json                 per-index stats and truncation census
 ```
 
@@ -343,7 +343,7 @@ themselves. Bring them back only if a later Kaggle session should skip
 re-embedding (see §7). They are of no use on a laptop that cannot run the query
 encoder.
 
-`runs/ac0afe3816c4/retrieve/` is also the **only** thing the generation session
+`runs/562c4bb23747/retrieve/` is also the **only** thing the generation session
 in §9 needs from this one. Keep it somewhere you can upload again.
 
 Zip the essentials so one download covers it:
@@ -360,7 +360,7 @@ run). The file appears under the notebook's Output tab; download it there, or:
 kaggle kernels output <user>/<notebook-slug> -p ./from-kaggle
 ```
 
-Unzip into the repository root on the laptop. `runs/ac0afe3816c4/` is the same
+Unzip into the repository root on the laptop. `runs/562c4bb23747/` is the same
 path the local config resolves to — the digest is computed from `configs/`, which
 is in git — so the reports read without any rewiring.
 
@@ -521,7 +521,7 @@ Restart the kernel, then confirm the GPU is visible to vLLM:
 > |---|---|
 > | when `retrieve` ran | `runs/44e112902a29/` |
 > | when `generate` ran | `runs/f66638fb9655/` |
-> | now | `runs/ac0afe3816c4/` |
+> | now | `runs/562c4bb23747/` |
 >
 > It has moved twice, once per stage configured: adding `base.generation` moved
 > it the first time and adding `base.judge` the second. **The pipeline is now
@@ -540,10 +540,10 @@ no index and no embedder. Mount the earlier notebook's output
 (**Add data -> Notebook Output**) and copy that directory to the **new** id:
 
 ```python
-!mkdir -p /kaggle/working/ragbench/runs/ac0afe3816c4
+!mkdir -p /kaggle/working/ragbench/runs/562c4bb23747
 !cp -r /kaggle/input/<indexing-notebook-slug>/ragbench/runs/44e112902a29/retrieve \
-       /kaggle/working/ragbench/runs/ac0afe3816c4/
-!ls /kaggle/working/ragbench/runs/ac0afe3816c4/retrieve
+       /kaggle/working/ragbench/runs/562c4bb23747/
+!ls /kaggle/working/ragbench/runs/562c4bb23747/retrieve
 ```
 
 Confirm the destination id first, because it moves again the next time anything
@@ -621,9 +621,9 @@ if you need each answer reproducible independently of what else was pending.
 ### 9e. What to bring back
 
 ```
-runs/ac0afe3816c4/generate/*.jsonl        the 160 answers, with length and timing
-runs/ac0afe3816c4/generate/summary.json   per-configuration summary
-runs/ac0afe3816c4/generation_report.json  answer length, truncation, abstention
+runs/562c4bb23747/generate/*.jsonl        the 160 answers, with length and timing
+runs/562c4bb23747/generate/summary.json   per-configuration summary
+runs/562c4bb23747/generation_report.json  answer length, truncation, abstention
 ```
 
 Under 1 MB. Read them on the laptop with:
@@ -642,7 +642,7 @@ cheap to fix.
 
 ## 10. Judging — on the laptop, not on Kaggle
 
-The judge uses no GPU and nothing from Kaggle except `runs/ac0afe3816c4/generate/`.
+The judge uses no GPU and nothing from Kaggle except `runs/562c4bb23747/generate/`.
 Bring that home from §9, then run it locally.
 
 ### 10a. Which judge, and why two
@@ -697,13 +697,15 @@ go in the prompt; that is the design, not an oversight, and it cannot be
 trimmed without changing what faithfulness means.
 
 ```
-  retrieved context      ~1,940 tokens
-  rubric + scaffolding     ~815
-  question/reference/answer ~100
-  the judge's own reply      ~60
-  ------------------------------------
-  ~2,900 tokens per call, ~810,000 for a full 280-call run
+  ~2,900 tokens per REQUEST   (measured: 199,211 over 69 requests)
+  ~2,900 tokens per judgement once each judgement takes one request
+  ~810,000 for a full 280-judgement run
 ```
+
+That per-request figure is measured, not estimated, and it was never the
+problem. The first real run cost **4,743 tokens per judgement and 11,718 per
+*usable* judgement**, because 27 of 42 judgements returned no content, each one
+buying a second full-prompt request that failed the same way. See 10c-bis.
 
 Two limits bite, and the token one bites first:
 
@@ -713,8 +715,9 @@ Two limits bite, and the token one bites first:
   this one paces on both. Its pre-call estimate is more conservative still
   (~3,250, because it counts a `max_tokens` ceiling the model will not use), and
   is replaced by the usage figure the response reports.
-- **Tokens per day.** 200,000 TPD against ~2,900 a call is about **68 calls**,
-  so 280 calls is roughly **four days**.
+- **Tokens per day.** 200,000 TPD against ~2,900 a judgement is about **69
+  judgements**, so 280 is roughly **four days**. Under the settings that
+  produced empty replies it was 17 usable judgements a day — over two weeks.
 
 > **Set `daily_token_cap` to whatever your own console reports.** Published
 > figures move — this model replaced one that was retired mid-project — so the
@@ -723,13 +726,48 @@ Two limits bite, and the token one bites first:
 > `x-ratelimit-limit-tokens` response headers, so what the server actually says
 > is what gets reported.
 
-> **If replies start coming back empty and the `unparsed` column climbs**, the
-> likely cause is reasoning tokens: gpt-oss models think before answering and
-> that spend counts against `max_tokens`, which is 400. The lever is
-> `reasoning_effort: low` under the provider's `extra_body`, or a larger
-> `max_tokens` at the cost of fewer calls per day. It is left unset rather than
-> guessed at, because it changes how the judge thinks and that belongs in the
-> run id as a deliberate choice.
+### 10c-bis. What the first run cost, and why the settings changed
+
+Worth reading before trusting the estimates above, because it is the one place
+the arithmetic has already been wrong in practice.
+
+The first real run, under `max_tokens: 400` with no `reasoning_effort`:
+
+| | |
+|---|---|
+| unparsed | **24 of 40** in the first configuration (60%) |
+| corrective retries | 27, across 42 judgements |
+| HTTP requests | 69 for those 42 judgements |
+| tokens spent | 199,211 — the whole day's allowance |
+| usable judgements | **17** |
+
+gpt-oss models emit reasoning tokens *before* their answer, and that spend counts
+against `max_tokens`. At 400 the reasoning consumed the entire allowance and the
+reply arrived with no content at all. Each failure then bought a corrective
+retry — a second full-prompt request — which failed identically.
+
+Two things follow, and both are now in `configs/base.yaml` with the numbers
+attached:
+
+- **`max_tokens: 800`.** The rubric's reply is a ~150-token JSON object; the
+  rest is headroom so reasoning cannot starve it. A ceiling is not a charge —
+  raising it costs nothing on a call that does not use it.
+- **`extra_body: {reasoning_effort: low}`.** Set because the run established it
+  was needed, not as a precaution. Low is the right level for this task: the
+  rubric asks for a bounded comparison against a reference answer that is
+  supplied, not for open-ended problem solving.
+
+**The per-request cost was fine all along** — 2,887 measured against a ~2,900
+estimate. Nearly all of the 4× overrun was retries, so removing them is most of
+the fix.
+
+Each judgement now records the tokens it cost, and `ragbench judge` prints the
+per-judgement average, so the next run confirms this rather than leaving it to
+be reconstructed from a daily total.
+
+**If the `unparsed` column climbs again**, raise `max_tokens` further or set
+`reasoning_effort` back to `medium` — and re-judge the failures, below, rather
+than leaving them recorded.
 
 If several days is not acceptable, the options are yours to weigh, and none
 should be taken silently:
@@ -764,6 +802,28 @@ When the daily allowance runs out the stage stops and says so:
 the identical command after the allowance resets and it continues; nothing is
 judged twice.
 
+#### Re-judging recorded failures
+
+An `unparsed` record is deliberately permanent: it stops a re-run spending the
+calls again, and it keeps the configuration's denominator honest. But a
+judgement that failed because a *setting* was wrong must not survive the fix to
+that setting, or the configuration ends up scored under two regimes with nothing
+to say which item came from which.
+
+```bash
+ragbench judge --config configs/base.yaml --retry-unparsed
+```
+
+That deletes the recorded failures first and scores those items again under the
+current settings. Judgements that succeeded are kept, so the allowance is not
+spent twice on work that was already good.
+
+> Changing `max_tokens` or `extra_body` moves the **run id**, so judgements made
+> under the old settings stay in the old run directory and the new one starts
+> empty — the two regimes are already separated. `--retry-unparsed` is for the
+> other case: failures that need re-judging without any config change, such as a
+> provider having a bad afternoon.
+
 | Symptom | What it means |
 |---|---|
 | `GROQ_API_KEY is not set` | Exported in a different shell, or spelled differently from the provider's `api_key_env`. |
@@ -771,7 +831,7 @@ judged twice.
 | `model_not_found` or similar | The free tier's model list changes. Check the console and update `judge.providers.groq.model_id`; the judge-is-not-the-generator rule excludes any Qwen variant. |
 | `STOPPED ON QUOTA` | Expected. Re-run tomorrow. |
 | `judged against a different answer` | `generate` has been re-run under this run directory. Delete that configuration's judge JSONL rather than scoring two sets of answers into one. |
-| a nonzero `unparsed` column | The judge returned something that was not the schema twice. Those items are persisted so a re-run does not spend the calls again; delete their lines to retry them. |
+| a nonzero `unparsed` column | The judge returned something that was not the schema twice. Those items are persisted so a re-run does not spend the calls again — see `--retry-unparsed` below. |
 
 ### 10e. Calibration
 
@@ -797,7 +857,7 @@ Fill in the CSV, then:
 
 ```bash
 ragbench report judge --config configs/base.yaml \
-    --calibration runs/ac0afe3816c4/calibration_scores.csv
+    --calibration runs/562c4bb23747/calibration_scores.csv
 ```
 
 That prints quadratically weighted Cohen's kappa and Spearman per scale, an
@@ -812,10 +872,10 @@ genuine disagreement, and has a different remedy.
 ### 10f. What to keep
 
 ```
-runs/ac0afe3816c4/judge/*.jsonl          two judgements per answer
-runs/ac0afe3816c4/judge/summary.json     per-configuration summary
-runs/ac0afe3816c4/judge_report.json      scores, verdicts, self-consistency
-runs/ac0afe3816c4/calibration_*          the sheet, your scores, the key
+runs/562c4bb23747/judge/*.jsonl          two judgements per answer
+runs/562c4bb23747/judge/summary.json     per-configuration summary
+runs/562c4bb23747/judge_report.json      scores, verdicts, self-consistency
+runs/562c4bb23747/calibration_*          the sheet, your scores, the key
 ```
 
 All of it is tracked by git — see `.gitignore`, which ignores the regenerable

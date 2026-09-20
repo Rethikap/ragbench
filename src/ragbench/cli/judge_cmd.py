@@ -32,6 +32,14 @@ def add_options(parser: argparse.ArgumentParser) -> None:
         help="root holding the chunk sets the judge reads the context from "
         "(default: %(default)s)",
     )
+    parser.add_argument(
+        "--retry-unparsed",
+        action="store_true",
+        help="delete the recorded UNPARSED judgements first, so they are scored "
+        "again. Use it after changing a setting that caused them -- a judgement "
+        "that failed because max_tokens was too small must not survive raising "
+        "max_tokens, or the configuration is scored under two regimes",
+    )
 
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
@@ -41,6 +49,7 @@ def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> 
             Path(args.config).parent,
             args.data_root,
             directory,
+            retry_unparsed=bool(args.retry_unparsed),
             on_progress=lambda message: print(f"  {message}", end="\r", flush=True),
         )
     except (ValueError, KeyError, OSError, GoldSetError, JudgeError) as exc:
@@ -81,7 +90,22 @@ def render(reports: list[dict[str, Any]]) -> str:
     total_retries = sum(report["parse_retries"] for report in reports)
     outstanding = sum(report.get("outstanding", 0) for report in reports)
     add("=" * 100)
-    add(f"  {total_calls} API calls; {total_retries} corrective retries after a bad reply.")
+
+    cleared = sum(report.get("unparsed_cleared", 0) for report in reports)
+    if cleared:
+        add(f"  --retry-unparsed removed {cleared} recorded failures before judging, so they")
+        add("  were scored again under the current settings.")
+
+    tokens = sum(report.get("tokens", 0) for report in reports)
+    add(
+        f"  {total_calls} judgements via the API; "
+        f"{total_retries} corrective retries after a bad reply."
+    )
+    if tokens:
+        add(f"  {tokens:,} tokens spent, {tokens / max(1, total_calls):,.0f} per judgement.")
+    if total_retries:
+        add("  A corrective retry is a SECOND full-prompt request, so a retried judgement")
+        add("  costs about double -- and returns nothing at all if it then fails.")
 
     stopped = next((r for r in reports if r.get("quota_exhausted")), None)
     if stopped is not None:

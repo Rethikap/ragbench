@@ -327,6 +327,11 @@ class Judgement(JsonRecord):
     #: Corrective retries spent before this parsed. >0 means the judge returned
     #: something that was not the schema at least once.
     n_parse_retries: int = 0
+    #: Tokens this judgement cost, summed over every request it took -- so a
+    #: judgement that needed a corrective retry shows the full price of both.
+    #: Recorded because the daily cap is spent in these units, and the first
+    #: real run had to have its per-call cost reconstructed from an aggregate.
+    n_tokens: int = 0
     latency_ms: float = 0.0
     #: True when the abstention was recognised from the answer text and no API
     #: call was made. Those items cost nothing and contribute to no mean.
