@@ -131,9 +131,18 @@ def test_the_stand_in_needs_no_gpu_stack() -> None:
     assert "torch" not in sys.modules
 
 
+@pytest.mark.network
 def test_a_real_model_id_never_falls_back_to_the_stand_in() -> None:
     """The stand-in is chosen by id, so a config asking for a real model fails
-    when it cannot be loaded instead of quietly measuring something else."""
+    when it cannot be loaded instead of quietly measuring something else.
+
+    Marked ``network`` because proving that takes a real attempt: constructing
+    the arm calls ``AutoTokenizer.from_pretrained``, which reaches the Hub before
+    it can fail. Deselected by default with the rest, not because the rule is
+    optional but because the check costs a round trip -- 6s against a warm cache,
+    and 16 minutes of retry backoff on a bad connection, which is what it did to
+    the suite once. Run it with ``-m network`` alongside the NCBI tests.
+    """
     with pytest.raises(Exception) as caught:
         build_embedder({**BASE, "model_id": "BAAI/bge-base-en-v1.5", "model_revision": ""})
     assert "stand-in" not in str(caught.value).lower()
