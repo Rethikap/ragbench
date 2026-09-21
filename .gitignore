@@ -51,6 +51,13 @@ runs/**
 # numbers were when they were written.
 !runs/*/*_report.json
 
+# The thesis figures. Regenerable like the reports, and tracked for the same
+# reason with more force: these are the objects that end up in the document, so
+# what the figure showed when it was written belongs in the history beside the
+# numbers it drew.
+!runs/*/figures/
+!runs/*/figures/**
+
 # What the run was configured with. Small, and it is what makes a run
 # self-describing: the directory name can be re-derived from this file, so a
 # result can be checked against the config that produced it rather than trusted

@@ -1,0 +1,74 @@
+# The analysis plan, fixed BEFORE the judge results were available.
+#
+# Written and committed on 2026-09-21, with judging 24% complete: only
+# fixed-bge-rerank_off and fixed-bge-rerank_on had been scored, so no comparison
+# between chunking levels, embedding arms, or across the full design could be
+# seen at the time these choices were made. The git history is the evidence for
+# that, which is the point of the file being separate and committed on its own.
+#
+# WHY THIS FILE IS NOT IN base.yaml, and therefore not in the run id. Two
+# reasons, and the second is the one that would otherwise cost real money.
+#
+#  1. The run id exists so that artefacts produced under different settings can
+#     never be mixed. This file produces no artefact that could mix with
+#     another: it selects which already-finished measurements get a multiple-
+#     comparison correction. Changing it re-renders a report in seconds and
+#     invalidates not one judgement, embedding or retrieval result.
+#  2. base.yaml reaches the run id, so adding a `stats:` block to it would move
+#     the run directory out from under a judge run that takes four days and is
+#     metered by a daily token cap. The analysis must not be able to orphan the
+#     measurements it analyses.
+#
+# The report embeds this file's digest, so a set of results still says which
+# plan produced it.
+stats:
+  # ONE primary metric per family. Everything else is exploratory and reported
+  # uncorrected, clearly marked -- the correction is only honest if the family
+  # it covers was fixed in advance.
+  #
+  # span coverage: the primary retrieval metric by I5. Recall@k and nDCG divide
+  # by the number of chunks THAT ARM needs to hold the span, so the two arms are
+  # not asked the same question; coverage is measured in characters and is
+  # neutral between them.
+  #
+  # correct rate: the categorical verdict, not a mean of the three scales. One
+  # scale cannot separate a confident fabrication from a correct abstention
+  # (I8), and a mean over three of them is a composite no rubric defines.
+  primary:
+    retrieval: span_coverage
+    generation: correct
+
+  # The Holm family: one test per research question per primary metric. Six
+  # tests, listed explicitly so the family cannot grow quietly after the fact.
+  research_questions:
+    RQ1: chunking
+    RQ2: embedding
+    RQ3: rerank
+
+  # Reported uncorrected and labelled exploratory. Listed here so that "what
+  # else did you look at" has a written answer rather than a reconstructed one.
+  exploratory:
+    - gold_found
+    - ndcg_at_10
+    - recall_at_10
+    - evidence_density
+    - distractor_count
+    - abstained
+    - faithfulness
+    - relevance
+    - completeness
+    - answer_tokens
+
+  # Reported with intervals and labelled exploratory, never as claims. An
+  # interaction contrast is a difference of differences and carries about twice
+  # the variance of either main effect; twenty questions cannot support one.
+  interactions:
+    - [chunking, rerank]
+    - [embedding, rerank]
+
+  alpha: 0.05
+  confidence: 0.95
+  # Resampling QUESTIONS, which are the independent unit. Seeded so the interval
+  # is the same number every time it is printed.
+  bootstrap_resamples: 10000
+  bootstrap_seed: 20260813

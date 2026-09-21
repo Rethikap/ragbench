@@ -1,0 +1,162 @@
+{
+  "00585606": {
+    "config": "fixed-bge-rerank_off",
+    "query_id": "q040"
+  },
+  "0a03b7a3": {
+    "config": "recursive-specter2-rerank_on",
+    "query_id": "q045"
+  },
+  "133f02ae": {
+    "config": "recursive-bge-rerank_off",
+    "query_id": "q045"
+  },
+  "1799e7ec": {
+    "config": "fixed-specter2-rerank_off",
+    "query_id": "q065"
+  },
+  "31598f5f": {
+    "config": "recursive-bge-rerank_on",
+    "query_id": "q045"
+  },
+  "32e7e71a": {
+    "config": "recursive-specter2-rerank_on",
+    "query_id": "q042"
+  },
+  "4c203a9f": {
+    "config": "fixed-specter2-rerank_on",
+    "query_id": "q048"
+  },
+  "538b9950": {
+    "config": "fixed-specter2-rerank_off",
+    "query_id": "q029"
+  },
+  "56c60f52": {
+    "config": "recursive-specter2-rerank_off",
+    "query_id": "q061"
+  },
+  "56d5ae49": {
+    "config": "recursive-bge-rerank_on",
+    "query_id": "q061"
+  },
+  "62a3df05": {
+    "config": "fixed-bge-rerank_on",
+    "query_id": "q050"
+  },
+  "6f1f024d": {
+    "config": "recursive-bge-rerank_off",
+    "query_id": "q042"
+  },
+  "71dff36c": {
+    "config": "recursive-specter2-rerank_off",
+    "query_id": "q017"
+  },
+  "724f8965": {
+    "config": "recursive-specter2-rerank_on",
+    "query_id": "q068"
+  },
+  "7c4bbb7e": {
+    "config": "recursive-bge-rerank_on",
+    "query_id": "q048"
+  },
+  "86b9a351": {
+    "config": "fixed-bge-rerank_off",
+    "query_id": "q061"
+  },
+  "8b66207c": {
+    "config": "fixed-bge-rerank_on",
+    "query_id": "q041"
+  },
+  "8c43db2d": {
+    "config": "fixed-bge-rerank_on",
+    "query_id": "q040"
+  },
+  "8e25d463": {
+    "config": "recursive-specter2-rerank_off",
+    "query_id": "q062"
+  },
+  "90b1752f": {
+    "config": "recursive-specter2-rerank_on",
+    "query_id": "q018"
+  },
+  "93bc6e1a": {
+    "config": "recursive-bge-rerank_off",
+    "query_id": "q039"
+  },
+  "9dc2a48b": {
+    "config": "recursive-specter2-rerank_on",
+    "query_id": "q048"
+  },
+  "a5377343": {
+    "config": "fixed-bge-rerank_off",
+    "query_id": "q044"
+  },
+  "a9865b23": {
+    "config": "fixed-specter2-rerank_on",
+    "query_id": "q017"
+  },
+  "ae0e2ca6": {
+    "config": "recursive-bge-rerank_on",
+    "query_id": "q039"
+  },
+  "b67cc8d7": {
+    "config": "fixed-specter2-rerank_off",
+    "query_id": "q068"
+  },
+  "bc2a02ac": {
+    "config": "fixed-specter2-rerank_off",
+    "query_id": "q041"
+  },
+  "c280db9c": {
+    "config": "fixed-bge-rerank_on",
+    "query_id": "q029"
+  },
+  "c4ee8217": {
+    "config": "recursive-bge-rerank_off",
+    "query_id": "q061"
+  },
+  "c7efee5f": {
+    "config": "recursive-specter2-rerank_off",
+    "query_id": "q048"
+  },
+  "c81e899f": {
+    "config": "fixed-bge-rerank_off",
+    "query_id": "q065"
+  },
+  "c867f698": {
+    "config": "fixed-specter2-rerank_on",
+    "query_id": "q042"
+  },
+  "e55293bc": {
+    "config": "fixed-specter2-rerank_on",
+    "query_id": "q063"
+  },
+  "e93def72": {
+    "config": "recursive-bge-rerank_on",
+    "query_id": "q049"
+  },
+  "ef8118ae": {
+    "config": "fixed-specter2-rerank_off",
+    "query_id": "q045"
+  },
+  "f256e59b": {
+    "config": "fixed-bge-rerank_on",
+    "query_id": "q039"
+  },
+  "f431daa4": {
+    "config": "fixed-bge-rerank_off",
+    "query_id": "q017"
+  },
+  "f69b5225": {
+    "config": "recursive-bge-rerank_off",
+    "query_id": "q050"
+  },
+  "f816689c": {
+    "config": "fixed-specter2-rerank_on",
+    "query_id": "q049"
+  },
+  "ff53963b": {
+    "config": "recursive-specter2-rerank_off",
+    "query_id": "q039"
+  }
+}

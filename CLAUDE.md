@@ -363,7 +363,8 @@ removes it at 4-6x the wall clock.
 Two rules, and the second is the one that is easy to get wrong.
 
 **The judge is a different model from the generator.** Qwen2.5-7B-Instruct
-produced the answers; a 70B Llama grades them. Asking the generator to grade its
+produced the answers; a 120B open-weights model grades them. Asking the
+generator to grade its
 own output stacks self-preference bias — models score their own continuations
 higher — on top of the unreliability the LLM-as-judge literature reports for
 small judges, and the two are not separable afterwards. A test reads
@@ -371,9 +372,12 @@ small judges, and the two are not separable afterwards. A test reads
 provider **and every alternative**, so switching backends cannot reintroduce it.
 
 **Two backends, selected from config, and the loser is kept.**
-`judge.provider` picks between `groq` (`llama-3.3-70b-versatile`, free without a
+`judge.provider` picks between `groq` (`openai/gpt-oss-120b`, free without a
 card) and `openrouter` (`meta-llama/llama-3.3-70b-instruct`, which now requires
-a credit balance). Both blocks stay in the resolved config, so the run id
+a credit balance). Neither is the Llama-3.3-70B the proposal named: Groq retired
+it from the free tier mid-project, and gpt-oss-120b is the largest non-Qwen chat
+model the tier still offers. That substitution is a deviation forced by
+availability and is recorded in `configs/base.yaml` with its reasoning. Both blocks stay in the resolved config, so the run id
 records which judge produced a result *and* what the alternative was: "does this
 depend on the judge?" is then answerable from the artefact rather than from
 memory. Deleting the unused one would make it unanswerable.
@@ -387,8 +391,8 @@ shell history and in the process table.
 judgement must carry the retrieved context — that is what makes faithfulness a
 question about what the system was shown — so a call is ~2,900 tokens and a full
 280-call run is ~810,000. On a free tier that is several days. The client
-therefore paces on tokens per minute as well as requests per minute (at 12,000
-TPM, three calls a minute, against the 30 requests the same tier allows), and
+therefore paces on tokens per minute as well as requests per minute (at 8,000
+TPM, under three calls a minute, against the 30 requests the same tier allows), and
 stops cleanly at a configured daily cap instead of burning retries against it.
 Stopping is a pause: judgements already written stay, and re-running the same
 command continues. Published limits move, so the client also reads the
@@ -460,6 +464,68 @@ from one configuration reconstruct the label from the ordering alone.
 > The judge is not a GPU stage. It runs from the laptop against an API, so it
 > needs nothing from Kaggle except `runs/<id>/generate/`.
 
+### I9 — Twenty questions, not eighty rows, and the family is fixed in advance
+
+**A factor's effect on a question is one number.** With two levels there are
+four ways to hold the other two factors fixed, so four paired comparisons per
+question — and all four are measured on the *same* question. The main effect
+per question is their **average**, giving 20 differences; the questions, never
+the configurations, are the independent unit for every test, interval and
+bootstrap resample.
+
+Pooling those four into 80 rows is the failure mode, and it is worth being exact
+about why rather than waving at "n=80". If the four differed only by independent
+per-cell noise it would be harmless: averaging four and dividing by √20 is the
+same arithmetic as dividing by √80. The damage is the part that does *not*
+average away — a real effect is heterogeneous, helping some questions and not
+others, and that per-question component is identical in all four pairs. Pooling
+counts it four times and the interval comes out about half the width it earned.
+Effect heterogeneity is what a 20-question set has most of.
+`tests/stats/test_design.py` measures the gap on constructed data rather than
+asserting it.
+
+**A question contributes only when every cell it needs is present.** Judging
+arrives one configuration at a time over several days, and averaging over four
+cells for one question and one cell for another would be two estimators wearing
+one name. `n` is printed on every row and the absent configurations are named —
+all of them, not the first one found.
+
+**The test follows the data type.** Binary per-question outcomes (gold chunk
+retrieved, verdict == correct) get the exact sign test, which for a 0/1 outcome
+measured once per condition *is* McNemar's exact test; continuous ones get the
+exact Wilcoxon signed-rank. Both are computed in-house and exactly: at n=20 the
+signed-rank null is a sign-flip distribution a dynamic program convolves in a
+few hundred additions, and scipy's Wilcoxon silently falls back to a normal
+approximation the moment there are ties — which on a 1-5 scale is always. The
+in-house arithmetic is bit-identical to scipy where scipy is exact, and
+`tests/stats` pins that.
+
+**One primary metric per family, pre-specified, and the family does not move.**
+`configs/stats.yaml` fixes span coverage for retrieval and the correct rate for
+generation, and Holm corrects across those six tests only. Everything else is
+reported uncorrected and labelled exploratory.
+
+Two consequences that are easy to get wrong:
+
+- **The Holm family is the one written down, not the one that happens to be
+  computable.** With judging a quarter done, correcting a retrieval p of 0.01
+  against the two available tests makes it significant; correcting it against
+  the pre-specified six does not. Same measurement, two verdicts, decided by how
+  far the run had got — exactly the data-dependent choice pre-specification
+  exists to rule out. Uncomputable tests count toward the family from the first
+  report.
+- **`configs/stats.yaml` is deliberately NOT in the run id.** It produces no
+  artefact that could mix with another, and putting it in `base.yaml` would move
+  the run directory out from under a four-day, token-capped judge run. The
+  analysis must not be able to orphan the measurements it analyses. The report
+  embeds the plan's digest instead.
+
+**Interactions are reported and never claimed.** An interaction contrast is a
+difference of differences and carries roughly twice the variance of either main
+effect it is built from. Twenty questions cannot support one. They are computed
+with intervals so the write-up can say the data do not settle the question,
+which is a different statement from not having looked.
+
 ---
 
 ## The design
@@ -478,7 +544,9 @@ is symmetric and takes no prefix.
 Everything else is held fixed in [`configs/base.yaml`](configs/base.yaml) and may not be
 overridden anywhere except by a factor level: 512-token target chunks with 0 overlap,
 normalized embeddings, greedy decoding (`temperature: 0.0`) from Qwen2.5-7B-Instruct at
-AWQ, and a pinned OpenRouter judge (`meta-llama/llama-3.3-70b-instruct`, rubric `v1`).
+AWQ, and a pinned judge selected by `judge.provider` (`openai/gpt-oss-120b` over
+Groq by default, `meta-llama/llama-3.3-70b-instruct` over OpenRouter as the second
+backend; rubric `v1` either way).
 
 Adding a level to `factors.yaml` changes the experiment size and nothing else needs
 editing anywhere in the codebase. Keep it that way — never hard-code the number 8.

@@ -41,6 +41,14 @@ specter = ["adapters~=1.3", "transformers~=4.57.6"]
 # and generation are separate sessions -- see docs/kaggle.md -- so they never
 # need to coexist, and this is recorded here rather than discovered on the host.
 generate = ["vllm>=0.6"]
+# The analysis stage. matplotlib only: the paired tests are exact and computed
+# in-house (ragbench/stats/tests.py), because at n=20 an exact sign-flip null is
+# a few hundred additions and scipy's Wilcoxon falls back to a normal
+# approximation as soon as there are ties -- which, on a 1-5 scale, is always.
+# tests/stats cross-checks every function against scipy when scipy is
+# importable, so the arithmetic is validated against the standard
+# implementation without depending on it.
+analysis = ["matplotlib>=3.8"]
 dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [project.scripts]

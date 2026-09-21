@@ -1,0 +1,3026 @@
+{
+  "availability": {
+    "judged_configs": [
+      "fixed-bge-rerank_off",
+      "fixed-bge-rerank_on"
+    ],
+    "n_configs": 8,
+    "n_judgements": 39,
+    "n_judgements_expected": 160,
+    "n_questions": 20,
+    "per_config": [
+      {
+        "config": "fixed-bge-rerank_off",
+        "n_answers": 20,
+        "n_judged": 20,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "fixed-bge-rerank_on",
+        "n_answers": 20,
+        "n_judged": 19,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "fixed-specter2-rerank_off",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "fixed-specter2-rerank_on",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "recursive-bge-rerank_off",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "recursive-bge-rerank_on",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "recursive-specter2-rerank_off",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      },
+      {
+        "config": "recursive-specter2-rerank_on",
+        "n_answers": 20,
+        "n_judged": 0,
+        "n_questions": 20,
+        "n_retrieved": 20
+      }
+    ],
+    "unjudged_configs": [
+      "fixed-specter2-rerank_off",
+      "fixed-specter2-rerank_on",
+      "recursive-bge-rerank_off",
+      "recursive-bge-rerank_on",
+      "recursive-specter2-rerank_off",
+      "recursive-specter2-rerank_on"
+    ]
+  },
+  "calibration": null,
+  "exploratory": [
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.2375,
+      "ci_low": -0.1125,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.75
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          -1.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          1.0
+        ],
+        [
+          "q065",
+          -0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.25,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": 0.0625,
+      "metric": "gold_found",
+      "metric_label": "gold chunk retrieved",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 12,
+      "name": "chunking:gold_found",
+      "note": "",
+      "p_value": 0.7265625,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.0125,
+      "ci_low": -0.25,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          -0.25
+        ],
+        [
+          "q018",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.75
+        ],
+        [
+          "q068",
+          -0.25
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": -0.6666666666666667,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -0.1125,
+      "metric": "gold_found",
+      "metric_label": "gold chunk retrieved",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 14,
+      "name": "embedding:gold_found",
+      "note": "",
+      "p_value": 0.21875,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.2375,
+      "ci_low": 0.05,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.25
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.5
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 1.0,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 0.1375,
+      "metric": "gold_found",
+      "metric_label": "gold chunk retrieved",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 13,
+      "name": "rerank:gold_found",
+      "note": "",
+      "p_value": 0.015625,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.18612435906249994,
+      "ci_low": -0.14767593906249998,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.0922675
+        ],
+        [
+          "q017",
+          0.5327325
+        ],
+        [
+          "q018",
+          0.0922675
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0922675
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          -0.184535
+        ],
+        [
+          "q042",
+          0.09671325
+        ],
+        [
+          "q044",
+          0.2153385
+        ],
+        [
+          "q045",
+          -1.0
+        ],
+        [
+          "q047",
+          0.0922675
+        ],
+        [
+          "q048",
+          0.0922675
+        ],
+        [
+          "q049",
+          -0.5456175
+        ],
+        [
+          "q050",
+          0.2172675
+        ],
+        [
+          "q061",
+          -0.184535
+        ],
+        [
+          "q062",
+          0.028961249999999994
+        ],
+        [
+          "q063",
+          0.9077325
+        ],
+        [
+          "q065",
+          -0.3422675
+        ],
+        [
+          "q068",
+          0.1577325
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.1695906432748538,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": 0.021316275000000006,
+      "metric": "ndcg_at_10",
+      "metric_label": "nDCG@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 2,
+      "name": "chunking:ndcg_at_10",
+      "note": "",
+      "p_value": 0.5425872802734375,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.00271219156250003,
+      "ci_low": -0.2308290268749999,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.0922675
+        ],
+        [
+          "q017",
+          -0.0327325
+        ],
+        [
+          "q018",
+          -0.9077325
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0922675
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          -0.15328675
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          -0.0922675
+        ],
+        [
+          "q048",
+          0.0922675
+        ],
+        [
+          "q049",
+          0.239044
+        ],
+        [
+          "q050",
+          -0.0327325
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          -0.020069749999999997
+        ],
+        [
+          "q063",
+          0.0922675
+        ],
+        [
+          "q065",
+          -0.6577325
+        ],
+        [
+          "q068",
+          -0.3422675
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": -0.4666666666666667,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -0.10326212500000001,
+      "metric": "ndcg_at_10",
+      "metric_label": "nDCG@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 6,
+      "name": "embedding:ndcg_at_10",
+      "note": "",
+      "p_value": 0.1292724609375,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.253587735,
+      "ci_low": 0.08786537499999998,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0922675
+        ],
+        [
+          "q017",
+          0.2827325
+        ],
+        [
+          "q018",
+          0.0922675
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0922675
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          -0.184535
+        ],
+        [
+          "q042",
+          0.40328675
+        ],
+        [
+          "q044",
+          0.2153385
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0922675
+        ],
+        [
+          "q048",
+          0.1577325
+        ],
+        [
+          "q049",
+          0.1389175
+        ],
+        [
+          "q050",
+          0.2172675
+        ],
+        [
+          "q061",
+          0.184535
+        ],
+        [
+          "q062",
+          0.01117825
+        ],
+        [
+          "q063",
+          0.0922675
+        ],
+        [
+          "q065",
+          0.3422675
+        ],
+        [
+          "q068",
+          0.3422675
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 0.8758169934640523,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 0.16611630000000002,
+      "metric": "ndcg_at_10",
+      "metric_label": "nDCG@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 3,
+      "name": "rerank:ndcg_at_10",
+      "note": "",
+      "p_value": 0.000579833984375,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.25,
+      "ci_low": -0.1,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.75
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          -1.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.25
+        ],
+        [
+          "q063",
+          1.0
+        ],
+        [
+          "q065",
+          -0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.35555555555555557,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": 0.075,
+      "metric": "recall_at_10",
+      "metric_label": "Recall@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 11,
+      "name": "chunking:recall_at_10",
+      "note": "",
+      "p_value": 0.3828125,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.0125,
+      "ci_low": -0.25,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          -0.25
+        ],
+        [
+          "q018",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.75
+        ],
+        [
+          "q068",
+          -0.25
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": -0.7619047619047619,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -0.1125,
+      "metric": "recall_at_10",
+      "metric_label": "Recall@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 14,
+      "name": "embedding:recall_at_10",
+      "note": "",
+      "p_value": 0.15625,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.225,
+      "ci_low": 0.0375,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.25
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.5
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          -0.25
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 0.8333333333333334,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 0.125,
+      "metric": "recall_at_10",
+      "metric_label": "Recall@10",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 12,
+      "name": "rerank:recall_at_10",
+      "note": "",
+      "p_value": 0.046875,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.006711991874999998,
+      "ci_low": -0.0032541703124999988,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.004181500000000001
+        ],
+        [
+          "q017",
+          0.024648249999999997
+        ],
+        [
+          "q018",
+          -0.0014512499999999994
+        ],
+        [
+          "q029",
+          -0.002834249999999999
+        ],
+        [
+          "q039",
+          0.0007305000000000002
+        ],
+        [
+          "q040",
+          -0.0009964999999999991
+        ],
+        [
+          "q041",
+          -0.0007887499999999995
+        ],
+        [
+          "q042",
+          -0.003406000000000001
+        ],
+        [
+          "q044",
+          0.009986
+        ],
+        [
+          "q045",
+          -0.02360275
+        ],
+        [
+          "q047",
+          -0.00174325
+        ],
+        [
+          "q048",
+          0.00179875
+        ],
+        [
+          "q049",
+          -0.009600000000000001
+        ],
+        [
+          "q050",
+          0.004150750000000002
+        ],
+        [
+          "q061",
+          -0.004219250000000003
+        ],
+        [
+          "q062",
+          0.003189749999999999
+        ],
+        [
+          "q063",
+          0.03184975
+        ],
+        [
+          "q065",
+          -0.005046999999999999
+        ],
+        [
+          "q068",
+          0.006797000000000001
+        ],
+        [
+          "q069",
+          0.00509175
+        ]
+      ],
+      "effect_size": 0.047619047619047616,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": 0.0015186,
+      "metric": "evidence_density",
+      "metric_label": "evidence density",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 0,
+      "name": "chunking:evidence_density",
+      "note": "",
+      "p_value": 0.8694877624511719,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.0005801643750000009,
+      "ci_low": -0.005688763437499998,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0009690000000000011
+        ],
+        [
+          "q017",
+          -0.00702225
+        ],
+        [
+          "q018",
+          -0.020570249999999998
+        ],
+        [
+          "q029",
+          -0.00035925000000000106
+        ],
+        [
+          "q039",
+          -0.0013569999999999988
+        ],
+        [
+          "q040",
+          -0.002418
+        ],
+        [
+          "q041",
+          -0.00117425
+        ],
+        [
+          "q042",
+          -0.0026595000000000004
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          -0.002653749999999999
+        ],
+        [
+          "q047",
+          6.77500000000001e-05
+        ],
+        [
+          "q048",
+          0.0001237500000000006
+        ],
+        [
+          "q049",
+          0.007578500000000002
+        ],
+        [
+          "q050",
+          0.0004547500000000003
+        ],
+        [
+          "q061",
+          -0.0016532499999999993
+        ],
+        [
+          "q062",
+          4.0250000000000355e-05
+        ],
+        [
+          "q063",
+          -0.00044925
+        ],
+        [
+          "q065",
+          -0.0153335
+        ],
+        [
+          "q068",
+          -0.007011
+        ],
+        [
+          "q069",
+          -0.004143750000000001
+        ]
+      ],
+      "effect_size": -0.6210526315789474,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -0.0028785499999999997,
+      "metric": "evidence_density",
+      "metric_label": "evidence density",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 1,
+      "name": "embedding:evidence_density",
+      "note": "",
+      "p_value": 0.015972137451171875,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.0072246578125,
+      "ci_low": 0.0020068090625000026,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.004937500000000001
+        ],
+        [
+          "q017",
+          0.00809725
+        ],
+        [
+          "q018",
+          0.0017757499999999996
+        ],
+        [
+          "q029",
+          0.0005717500000000002
+        ],
+        [
+          "q039",
+          0.002109500000000002
+        ],
+        [
+          "q040",
+          -0.0034505000000000004
+        ],
+        [
+          "q041",
+          -0.0007372500000000001
+        ],
+        [
+          "q042",
+          0.0171935
+        ],
+        [
+          "q044",
+          0.009986
+        ],
+        [
+          "q045",
+          -0.0003307500000000003
+        ],
+        [
+          "q047",
+          0.011155250000000004
+        ],
+        [
+          "q048",
+          0.0009597500000000005
+        ],
+        [
+          "q049",
+          0.004791500000000001
+        ],
+        [
+          "q050",
+          -0.0009237499999999975
+        ],
+        [
+          "q061",
+          0.004529250000000001
+        ],
+        [
+          "q062",
+          -0.00489375
+        ],
+        [
+          "q063",
+          0.0005202500000000016
+        ],
+        [
+          "q065",
+          0.0055709999999999996
+        ],
+        [
+          "q068",
+          0.014223
+        ],
+        [
+          "q069",
+          0.014420249999999999
+        ]
+      ],
+      "effect_size": 0.7047619047619048,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 0.0045252750000000005,
+      "metric": "evidence_density",
+      "metric_label": "evidence density",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 0,
+      "name": "rerank:evidence_density",
+      "note": "",
+      "p_value": 0.0042209625244140625,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 1.5125,
+      "ci_low": 1.0,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.75
+        ],
+        [
+          "q017",
+          0.25
+        ],
+        [
+          "q018",
+          3.0
+        ],
+        [
+          "q029",
+          1.0
+        ],
+        [
+          "q039",
+          1.5
+        ],
+        [
+          "q040",
+          1.25
+        ],
+        [
+          "q041",
+          1.25
+        ],
+        [
+          "q042",
+          1.25
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          2.0
+        ],
+        [
+          "q047",
+          0.75
+        ],
+        [
+          "q048",
+          1.0
+        ],
+        [
+          "q049",
+          1.5
+        ],
+        [
+          "q050",
+          1.0
+        ],
+        [
+          "q061",
+          1.25
+        ],
+        [
+          "q062",
+          1.5
+        ],
+        [
+          "q063",
+          2.0
+        ],
+        [
+          "q065",
+          1.25
+        ],
+        [
+          "q068",
+          1.0
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 1.0,
+      "factor": "chunking",
+      "higher_is_better": false,
+      "label": "recursive - fixed",
+      "mean_difference": 1.2375,
+      "metric": "distractor_count",
+      "metric_label": "distractors in window",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 0,
+      "name": "chunking:distractor_count",
+      "note": "",
+      "p_value": 1.9073486328125e-06,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.7375,
+      "ci_low": 0.1375,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.25
+        ],
+        [
+          "q017",
+          0.75
+        ],
+        [
+          "q018",
+          3.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.25
+        ],
+        [
+          "q041",
+          0.25
+        ],
+        [
+          "q042",
+          0.25
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          1.0
+        ],
+        [
+          "q047",
+          0.25
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.25
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          1.25
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 1.0,
+      "factor": "embedding",
+      "higher_is_better": false,
+      "label": "specter2 - bge",
+      "mean_difference": 0.3875,
+      "metric": "distractor_count",
+      "metric_label": "distractors in window",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 9,
+      "name": "embedding:distractor_count",
+      "note": "",
+      "p_value": 0.0009765625,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.125,
+      "ci_low": -0.6625,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.25
+        ],
+        [
+          "q017",
+          -0.25
+        ],
+        [
+          "q018",
+          -2.5
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.5
+        ],
+        [
+          "q040",
+          0.25
+        ],
+        [
+          "q041",
+          0.25
+        ],
+        [
+          "q042",
+          -0.75
+        ],
+        [
+          "q044",
+          -0.5
+        ],
+        [
+          "q045",
+          -0.5
+        ],
+        [
+          "q047",
+          -0.75
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          -0.75
+        ],
+        [
+          "q062",
+          0.5
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.75
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          -0.75
+        ]
+      ],
+      "effect_size": -0.780952380952381,
+      "factor": "rerank",
+      "higher_is_better": false,
+      "label": "on - off",
+      "mean_difference": -0.3625,
+      "metric": "distractor_count",
+      "metric_label": "distractors in window",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 6,
+      "name": "rerank:distractor_count",
+      "note": "",
+      "p_value": 0.0079345703125,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "chunking",
+      "higher_is_better": false,
+      "label": "recursive - fixed",
+      "mean_difference": null,
+      "metric": "abstained",
+      "metric_label": "abstention",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking:abstained",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "embedding",
+      "higher_is_better": false,
+      "label": "specter2 - bge",
+      "mean_difference": null,
+      "metric": "abstained",
+      "metric_label": "abstention",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding:abstained",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "rerank",
+      "higher_is_better": false,
+      "label": "on - off",
+      "mean_difference": null,
+      "metric": "abstained",
+      "metric_label": "abstention",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "rerank:abstained",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": null,
+      "metric": "faithfulness",
+      "metric_label": "faithfulness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking:faithfulness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": null,
+      "metric": "faithfulness",
+      "metric_label": "faithfulness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding:faithfulness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": null,
+      "metric": "faithfulness",
+      "metric_label": "faithfulness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "rerank:faithfulness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": null,
+      "metric": "relevance",
+      "metric_label": "relevance (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking:relevance",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": null,
+      "metric": "relevance",
+      "metric_label": "relevance (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding:relevance",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": null,
+      "metric": "relevance",
+      "metric_label": "relevance (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "rerank:relevance",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": null,
+      "metric": "completeness",
+      "metric_label": "completeness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking:completeness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": null,
+      "metric": "completeness",
+      "metric_label": "completeness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding:completeness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": null,
+      "metric": "completeness",
+      "metric_label": "completeness (1-5)",
+      "missing_configs": [
+        "fixed-bge-rerank_off",
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "rerank:completeness",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 2.9,
+      "ci_low": -5.8375,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -7.5
+        ],
+        [
+          "q017",
+          8.5
+        ],
+        [
+          "q018",
+          -8.0
+        ],
+        [
+          "q029",
+          -2.0
+        ],
+        [
+          "q039",
+          0.25
+        ],
+        [
+          "q040",
+          6.25
+        ],
+        [
+          "q041",
+          8.5
+        ],
+        [
+          "q042",
+          15.75
+        ],
+        [
+          "q044",
+          -3.25
+        ],
+        [
+          "q045",
+          -26.0
+        ],
+        [
+          "q047",
+          2.0
+        ],
+        [
+          "q048",
+          -10.25
+        ],
+        [
+          "q049",
+          -9.0
+        ],
+        [
+          "q050",
+          -1.75
+        ],
+        [
+          "q061",
+          -19.5
+        ],
+        [
+          "q062",
+          -4.25
+        ],
+        [
+          "q063",
+          4.75
+        ],
+        [
+          "q065",
+          10.25
+        ],
+        [
+          "q068",
+          -2.0
+        ],
+        [
+          "q069",
+          10.25
+        ]
+      ],
+      "effect_size": -0.0761904761904762,
+      "factor": "chunking",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": -1.35,
+      "metric": "answer_tokens",
+      "metric_label": "answer length (tokens)",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 0,
+      "name": "chunking:answer_tokens",
+      "note": "",
+      "p_value": 0.776580810546875,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 1.9625,
+      "ci_low": -4.575,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.5
+        ],
+        [
+          "q017",
+          -1.0
+        ],
+        [
+          "q018",
+          -19.0
+        ],
+        [
+          "q029",
+          3.0
+        ],
+        [
+          "q039",
+          0.75
+        ],
+        [
+          "q040",
+          -2.25
+        ],
+        [
+          "q041",
+          3.5
+        ],
+        [
+          "q042",
+          -12.75
+        ],
+        [
+          "q044",
+          3.25
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          2.0
+        ],
+        [
+          "q048",
+          -1.25
+        ],
+        [
+          "q049",
+          0.5
+        ],
+        [
+          "q050",
+          -1.75
+        ],
+        [
+          "q061",
+          -7.0
+        ],
+        [
+          "q062",
+          -0.25
+        ],
+        [
+          "q063",
+          -1.25
+        ],
+        [
+          "q065",
+          19.75
+        ],
+        [
+          "q068",
+          -3.5
+        ],
+        [
+          "q069",
+          -10.25
+        ]
+      ],
+      "effect_size": -0.22631578947368422,
+      "factor": "embedding",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -1.35,
+      "metric": "answer_tokens",
+      "metric_label": "answer length (tokens)",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 1,
+      "name": "embedding:answer_tokens",
+      "note": "",
+      "p_value": 0.4009361267089844,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 6.075,
+      "ci_low": -1.75,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -4.0
+        ],
+        [
+          "q017",
+          8.5
+        ],
+        [
+          "q018",
+          8.0
+        ],
+        [
+          "q029",
+          2.5
+        ],
+        [
+          "q039",
+          -8.75
+        ],
+        [
+          "q040",
+          7.75
+        ],
+        [
+          "q041",
+          -8.5
+        ],
+        [
+          "q042",
+          0.75
+        ],
+        [
+          "q044",
+          3.25
+        ],
+        [
+          "q045",
+          -4.0
+        ],
+        [
+          "q047",
+          -1.5
+        ],
+        [
+          "q048",
+          -2.25
+        ],
+        [
+          "q049",
+          10.5
+        ],
+        [
+          "q050",
+          6.25
+        ],
+        [
+          "q061",
+          -2.0
+        ],
+        [
+          "q062",
+          4.75
+        ],
+        [
+          "q063",
+          -0.75
+        ],
+        [
+          "q065",
+          -12.25
+        ],
+        [
+          "q068",
+          -1.5
+        ],
+        [
+          "q069",
+          30.75
+        ]
+      ],
+      "effect_size": 0.14285714285714285,
+      "factor": "rerank",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 1.875,
+      "metric": "answer_tokens",
+      "metric_label": "answer length (tokens)",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 0,
+      "name": "rerank:answer_tokens",
+      "note": "",
+      "p_value": 0.5889949798583984,
+      "primary": false,
+      "test": "exact Wilcoxon signed-rank"
+    }
+  ],
+  "factor_levels": {
+    "chunking": [
+      "fixed",
+      "recursive"
+    ],
+    "embedding": [
+      "bge",
+      "specter2"
+    ],
+    "rerank": [
+      "off",
+      "on"
+    ]
+  },
+  "figures": {
+    "chunk_lengths": {
+      "written": [
+        "runs\\562c4bb23747\\figures\\chunk_lengths.svg",
+        "runs\\562c4bb23747\\figures\\chunk_lengths.png"
+      ]
+    },
+    "coverage_per_config": {
+      "written": [
+        "runs\\562c4bb23747\\figures\\coverage_per_config.svg",
+        "runs\\562c4bb23747\\figures\\coverage_per_config.png"
+      ]
+    },
+    "directory": "runs\\562c4bb23747\\figures",
+    "main_effects": {
+      "n_rows": 3,
+      "written": [
+        "runs\\562c4bb23747\\figures\\main_effects.svg",
+        "runs\\562c4bb23747\\figures\\main_effects.png"
+      ]
+    }
+  },
+  "gold_set_sha": "e93b5d7ee992",
+  "interactions": [
+    {
+      "cells_averaged": 2,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "effect_size": null,
+      "exploratory": true,
+      "factor": "chunking x rerank",
+      "family": "generation",
+      "label": "effect of chunking under on minus under off",
+      "mean_difference": null,
+      "metric": "correct",
+      "metric_label": "verdict == correct",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking x rerank:correct",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 2,
+      "ci_high": 0.2503597,
+      "ci_low": -0.04982015,
+      "complete": true,
+      "effect_size": 0.5714285714285714,
+      "exploratory": true,
+      "factor": "chunking x rerank",
+      "family": "retrieval",
+      "label": "effect of chunking under on minus under off",
+      "mean_difference": 0.10017985,
+      "metric": "span_coverage",
+      "metric_label": "span coverage",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 13,
+      "name": "chunking x rerank:span_coverage",
+      "note": "",
+      "p_value": 0.265625,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 2,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "effect_size": null,
+      "exploratory": true,
+      "factor": "embedding x rerank",
+      "family": "generation",
+      "label": "effect of embedding under on minus under off",
+      "mean_difference": null,
+      "metric": "correct",
+      "metric_label": "verdict == correct",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding x rerank:correct",
+      "note": "incomplete: some cells have no data yet",
+      "p_value": null,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 2,
+      "ci_high": 0.125,
+      "ci_low": -0.075,
+      "complete": true,
+      "effect_size": 0.2,
+      "exploratory": true,
+      "factor": "embedding x rerank",
+      "family": "retrieval",
+      "label": "effect of embedding under on minus under off",
+      "mean_difference": 0.025,
+      "metric": "span_coverage",
+      "metric_label": "span coverage",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 15,
+      "name": "embedding x rerank:span_coverage",
+      "note": "",
+      "p_value": 1.0,
+      "test": "exact Wilcoxon signed-rank"
+    }
+  ],
+  "metrics": [
+    {
+      "family": "retrieval",
+      "kind": "continuous",
+      "label": "span coverage",
+      "name": "span_coverage"
+    },
+    {
+      "family": "retrieval",
+      "kind": "binary",
+      "label": "gold chunk retrieved",
+      "name": "gold_found"
+    },
+    {
+      "family": "retrieval",
+      "kind": "continuous",
+      "label": "nDCG@10",
+      "name": "ndcg_at_10"
+    },
+    {
+      "family": "retrieval",
+      "kind": "continuous",
+      "label": "Recall@10",
+      "name": "recall_at_10"
+    },
+    {
+      "family": "retrieval",
+      "kind": "continuous",
+      "label": "evidence density",
+      "name": "evidence_density"
+    },
+    {
+      "family": "retrieval",
+      "kind": "continuous",
+      "label": "distractors in window",
+      "name": "distractor_count"
+    },
+    {
+      "family": "generation",
+      "kind": "binary",
+      "label": "verdict == correct",
+      "name": "correct"
+    },
+    {
+      "family": "generation",
+      "kind": "binary",
+      "label": "abstention",
+      "name": "abstained"
+    },
+    {
+      "family": "generation",
+      "kind": "continuous",
+      "label": "faithfulness (1-5)",
+      "name": "faithfulness"
+    },
+    {
+      "family": "generation",
+      "kind": "continuous",
+      "label": "relevance (1-5)",
+      "name": "relevance"
+    },
+    {
+      "family": "generation",
+      "kind": "continuous",
+      "label": "completeness (1-5)",
+      "name": "completeness"
+    },
+    {
+      "family": "generation",
+      "kind": "continuous",
+      "label": "answer length (tokens)",
+      "name": "answer_tokens"
+    }
+  ],
+  "prespecification": {
+    "alpha": 0.05,
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260813,
+    "confidence": 0.95,
+    "exploratory": [
+      "gold_found",
+      "ndcg_at_10",
+      "recall_at_10",
+      "evidence_density",
+      "distractor_count",
+      "abstained",
+      "faithfulness",
+      "relevance",
+      "completeness",
+      "answer_tokens"
+    ],
+    "interactions": [
+      [
+        "chunking",
+        "rerank"
+      ],
+      [
+        "embedding",
+        "rerank"
+      ]
+    ],
+    "primary": {
+      "generation": "correct",
+      "retrieval": "span_coverage"
+    },
+    "research_questions": {
+      "RQ1": "chunking",
+      "RQ2": "embedding",
+      "RQ3": "rerank"
+    }
+  },
+  "prespecification_digest": "164fb04f0116",
+  "primaries": [
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "chunking",
+      "family": "generation",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": null,
+      "metric": "correct",
+      "metric_label": "verdict == correct",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "chunking:correct",
+      "note": "incomplete: some cells have no data yet",
+      "p_holm": null,
+      "p_value": null,
+      "primary": true,
+      "rank": null,
+      "research_question": "RQ1",
+      "significant": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.25,
+      "ci_low": -0.099550375,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.75
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          -1.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.2589925
+        ],
+        [
+          "q063",
+          1.0
+        ],
+        [
+          "q065",
+          -0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.4,
+      "factor": "chunking",
+      "family": "retrieval",
+      "higher_is_better": true,
+      "label": "recursive - fixed",
+      "mean_difference": 0.07544962499999999,
+      "metric": "span_coverage",
+      "metric_label": "span coverage",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 11,
+      "name": "chunking:span_coverage",
+      "note": "",
+      "p_holm": 1.0,
+      "p_value": 0.34375,
+      "primary": true,
+      "rank": 3,
+      "research_question": "RQ1",
+      "significant": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "embedding",
+      "family": "generation",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": null,
+      "metric": "correct",
+      "metric_label": "verdict == correct",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "embedding:correct",
+      "note": "incomplete: some cells have no data yet",
+      "p_holm": null,
+      "p_value": null,
+      "primary": true,
+      "rank": null,
+      "research_question": "RQ2",
+      "significant": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": -0.0125,
+      "ci_low": -0.25,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          -0.25
+        ],
+        [
+          "q018",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.0
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.75
+        ],
+        [
+          "q068",
+          -0.25
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": -0.7619047619047619,
+      "factor": "embedding",
+      "family": "retrieval",
+      "higher_is_better": true,
+      "label": "specter2 - bge",
+      "mean_difference": -0.1125,
+      "metric": "span_coverage",
+      "metric_label": "span coverage",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 14,
+      "name": "embedding:span_coverage",
+      "note": "",
+      "p_holm": 0.78125,
+      "p_value": 0.15625,
+      "primary": true,
+      "rank": 2,
+      "research_question": "RQ2",
+      "significant": false,
+      "test": "exact Wilcoxon signed-rank"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": null,
+      "ci_low": null,
+      "complete": false,
+      "differences": [],
+      "effect_size": null,
+      "factor": "rerank",
+      "family": "generation",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": null,
+      "metric": "correct",
+      "metric_label": "verdict == correct",
+      "missing_configs": [
+        "fixed-bge-rerank_on",
+        "fixed-specter2-rerank_off",
+        "fixed-specter2-rerank_on",
+        "recursive-bge-rerank_off",
+        "recursive-bge-rerank_on",
+        "recursive-specter2-rerank_off",
+        "recursive-specter2-rerank_on"
+      ],
+      "n": 0,
+      "n_questions_dropped": 20,
+      "n_ties": 0,
+      "name": "rerank:correct",
+      "note": "incomplete: some cells have no data yet",
+      "p_holm": null,
+      "p_value": null,
+      "primary": true,
+      "rank": null,
+      "research_question": "RQ3",
+      "significant": false,
+      "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
+    },
+    {
+      "cells_averaged": 4,
+      "ci_high": 0.225,
+      "ci_low": 0.0371403,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.25
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.5
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          -0.2517985
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.25
+        ],
+        [
+          "q068",
+          0.25
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 0.7222222222222222,
+      "factor": "rerank",
+      "family": "retrieval",
+      "higher_is_better": true,
+      "label": "on - off",
+      "mean_difference": 0.124910075,
+      "metric": "span_coverage",
+      "metric_label": "span coverage",
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 12,
+      "name": "rerank:span_coverage",
+      "note": "",
+      "p_holm": 0.5625,
+      "p_value": 0.09375,
+      "primary": true,
+      "rank": 1,
+      "research_question": "RQ3",
+      "significant": false,
+      "test": "exact Wilcoxon signed-rank"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""The `report` subcommand: `chunks`, `gold`, `retrieval`, `generation`, `judge`."""
+"""The `report` subcommand: chunks, gold, retrieval, generation, judge, stats."""
 
 from __future__ import annotations
 
@@ -10,15 +10,22 @@ from typing import Any
 from ..config import DEFAULT_DATA_ROOT, gold_candidates_dir
 from ..gold.freeze import GoldSetError
 from ..gold.pipeline import load_candidates
-from ..report import calibration, calibration_agreement, generation_render, judge_render
+from ..report import (
+    calibration,
+    calibration_agreement,
+    generation_render,
+    judge_render,
+    stats_render,
+)
 from ..report import generation as generation_report
 from ..report import gold as gold_report
 from ..report import judge as judge_report
 from ..report import retrieval as retrieval_report
+from ..report import stats as stats_report
 from ..report.chunks import build_report
 
 EXIT_DATA = 5
-TOPICS = ("chunks", "gold", "retrieval", "generation", "judge")
+TOPICS = ("chunks", "gold", "retrieval", "generation", "judge", "stats")
 
 
 def add_options(parser: argparse.ArgumentParser) -> None:
@@ -43,8 +50,15 @@ def add_options(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=None,
         metavar="CSV",
-        help="filled calibration_scores.csv to compare against the judge; `judge` topic "
-        "only. Without it the topic emits a fresh blind sheet to hand-score",
+        help="filled calibration_scores.csv. On `judge` it compares the hand scores "
+        "against the judge; without it that topic emits a fresh blind sheet. On "
+        "`stats` it supplies RQ4, which is otherwise reported as not computed",
+    )
+    parser.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="skip drawing the figures; `stats` topic only. The numbers are the "
+        "result and the figures render them, so this changes nothing but runtime",
     )
     parser.add_argument(
         "--query",
@@ -59,7 +73,14 @@ def add_options(parser: argparse.ArgumentParser) -> None:
 
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
-        if args.topic == "judge":
+        if args.topic == "stats":
+            report = stats_report.build_report(
+                resolved, Path(args.config).parent, args.data_root, directory,
+                calibration=args.calibration,
+            )
+            report["figures"] = _figures(resolved, report, args, directory)
+            rendered = stats_render.render(report)
+        elif args.topic == "judge":
             report = judge_report.build_report(resolved, Path(args.config).parent, directory)
             rendered = judge_render.render(report)
             rendered += _calibration(args, resolved, directory, report)
@@ -472,3 +493,32 @@ def _calibration(
         "  it; opening it before scoring defeats the blind.",
     ]
     return "\n".join(lines)
+
+
+def _figures(
+    resolved: dict[str, Any], report: dict[str, Any], args: argparse.Namespace, directory: Path
+) -> dict[str, Any] | None:
+    """Draw the figures, unless matplotlib is absent or they were turned off.
+
+    A missing optional dependency must not lose the analysis: the numbers are
+    the result and the figures are a rendering of them, so an absent matplotlib
+    is reported in place of the figures rather than raised over the whole report.
+    """
+    if args.no_figures:
+        return None
+    from ..stats.pipeline import build_table
+
+    try:
+        from ..report import figures as figures_module
+    except ImportError as exc:  # pragma: no cover - exercised by hand
+        return {"directory": "", "error": f"matplotlib not installed ({exc})"}
+
+    table, _, _ = build_table(resolved, Path(args.config).parent, args.data_root, directory)
+    try:
+        return figures_module.build_all(resolved, report, table, args.data_root, directory)
+    except ImportError as exc:
+        return {
+            "directory": "",
+            "error": f"matplotlib not installed ({exc}); install the analysis extra: "
+            'pip install -e ".[analysis]"',
+        }

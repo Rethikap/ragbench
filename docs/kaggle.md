@@ -880,3 +880,56 @@ runs/562c4bb23747/calibration_*          the sheet, your scores, the key
 
 All of it is tracked by git — see `.gitignore`, which ignores the regenerable
 caches and names these back in.
+
+---
+
+## 11. Statistics -- also on the laptop
+
+No GPU, no API, no new artefacts. It reads what the earlier stages wrote and
+produces the numbers and the figures.
+
+```bash
+pip install -e ".[analysis]"     # matplotlib; the tests are exact and in-house
+ragbench report stats --config configs/base.yaml
+```
+
+**It runs while judging is still going.** A factor's difference averages over
+four cells, and a question contributes only when all four are present, so any
+comparison touching an unjudged configuration reports `n=0` and names what it
+needs rather than averaging over whichever cells happen to exist. Retrieval is
+complete, so those comparisons are final now; the generation ones fill in as the
+judge works through its daily allowance. Re-run it whenever you like -- it is
+seconds, and nothing it does can disturb the judge.
+
+The Holm correction is applied across the **six pre-specified** primary tests
+whether or not all six are computable yet, so a retrieval result does not change
+its verdict as judging progresses.
+
+`configs/stats.yaml` holds the analysis plan and is deliberately outside the run
+id: it produces no artefact that could mix with another, and putting it in
+`base.yaml` would move the run directory out from under a four-day judge run.
+
+### 11a. RQ4
+
+Once `calibration_scores.csv` is filled in:
+
+```bash
+ragbench report stats --config configs/base.yaml     --calibration runs/<id>/calibration_scores.csv
+```
+
+Without it, RQ4 reports "not computed" rather than a zero.
+
+### 11b. Figures
+
+Written to `runs/<id>/figures/` as SVG **and** PNG:
+
+```
+main_effects            dot-and-interval per factor, with 95% bootstrap intervals
+coverage_per_config     mean span coverage, coloured by chunking arm
+chunk_lengths           chunk-length distribution per arm
+```
+
+Light-mode only, deliberately: these go in a document that gets printed. The
+palette is the validated categorical default and each figure spells its numbers
+out in text as well as colour, so it survives greyscale. `--no-figures` skips
+them if matplotlib is not installed.

@@ -1,0 +1,224 @@
+{
+  "configs": [
+    {
+      "abstained": 2,
+      "abstained_by_match": 4,
+      "abstention_rate": 0.1,
+      "chunking_level": "fixed",
+      "completion_tokens": {
+        "max": 109,
+        "mean": 48.1,
+        "median": 45.0,
+        "min": 10,
+        "n": 20,
+        "p10": 29.8,
+        "p25": 34.0,
+        "p75": 58.2,
+        "p90": 70.1,
+        "std": 22.3
+      },
+      "config": "fixed-bge-rerank_off",
+      "correct_rate": 0.7,
+      "embedding_level": "bge",
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 18,
+      "rerank_level": "off",
+      "scores": {
+        "completeness": 4.361,
+        "completeness_n": 18,
+        "faithfulness": 4.556,
+        "faithfulness_n": 18,
+        "relevance": 4.833,
+        "relevance_n": 18
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.9444,
+          "kappa": 0.984,
+          "n": 18,
+          "spearman": 0.9971,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 18,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 18,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 2,
+        "correct": 14,
+        "incorrect": 2,
+        "partially_correct": 2,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 1,
+      "abstained_by_match": 2,
+      "abstention_rate": 0.0526,
+      "chunking_level": "fixed",
+      "completion_tokens": {
+        "max": 114,
+        "mean": 49.3,
+        "median": 45.0,
+        "min": 10,
+        "n": 19,
+        "p10": 33.6,
+        "p25": 37.0,
+        "p75": 51.5,
+        "p90": 72.0,
+        "std": 21.4
+      },
+      "config": "fixed-bge-rerank_on",
+      "correct_rate": 0.8421,
+      "embedding_level": "bge",
+      "n_answers": 19,
+      "n_judgements": 38,
+      "n_passes": 2,
+      "n_scored": 18,
+      "rerank_level": "on",
+      "scores": {
+        "completeness": 4.694,
+        "completeness_n": 18,
+        "faithfulness": 4.778,
+        "faithfulness_n": 18,
+        "relevance": 4.778,
+        "relevance_n": 18
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.9444,
+          "kappa": 0.9684,
+          "n": 18,
+          "spearman": 0.8169,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 18,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 19,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 18,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 0.9474,
+          "kappa": 0.8376,
+          "n": 19,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 1,
+        "correct": 16,
+        "incorrect": 1,
+        "partially_correct": 1,
+        "unparsed": 0
+      }
+    },
+    {
+      "chunking_level": "fixed",
+      "config": "fixed-specter2-rerank_off",
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "off"
+    },
+    {
+      "chunking_level": "fixed",
+      "config": "fixed-specter2-rerank_on",
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "on"
+    },
+    {
+      "chunking_level": "recursive",
+      "config": "recursive-bge-rerank_off",
+      "embedding_level": "bge",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "off"
+    },
+    {
+      "chunking_level": "recursive",
+      "config": "recursive-bge-rerank_on",
+      "embedding_level": "bge",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "on"
+    },
+    {
+      "chunking_level": "recursive",
+      "config": "recursive-specter2-rerank_off",
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "off"
+    },
+    {
+      "chunking_level": "recursive",
+      "config": "recursive-specter2-rerank_on",
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 0,
+      "rerank_level": "on"
+    }
+  ],
+  "gold_set_sha": "e93b5d7ee992",
+  "judge_model": "openai/gpt-oss-120b",
+  "judge_temperature": 0.0,
+  "n_configs": 8,
+  "n_configs_judged": 2,
+  "n_expected": 320,
+  "n_judgements": 78,
+  "n_questions": 20,
+  "passes": 2,
+  "rubric_digest": "edeea0af0c66",
+  "rubric_id": "v1",
+  "scales": [
+    "faithfulness",
+    "relevance",
+    "completeness"
+  ],
+  "verdicts": [
+    "correct",
+    "partially_correct",
+    "incorrect",
+    "abstained"
+  ]
+}
