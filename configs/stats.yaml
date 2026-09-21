@@ -68,6 +68,26 @@ stats:
 
   alpha: 0.05
   confidence: 0.95
+
+  # Sample size for a FUTURE study. Not the observed power of this one: that is
+  # a monotone function of the p-value, carries no information the p-value did
+  # not, and a reviewer will name the fallacy. Nothing in ragbench.stats.power
+  # computes it, and a test asserts there is no way to ask for it.
+  #
+  # What is estimated is prospective and only that: given an effect the size of
+  # the one seen here, how many questions would a new study need at 80% power?
+  # By simulation rather than a closed form, so the answer is about the exact
+  # sign and signed-rank tests actually used rather than about a t-test on
+  # assumed-normal differences.
+  power:
+    target: 0.80
+    # Resamples per candidate size. 400 puts the standard error on a power near
+    # 0.8 at about 2 points, which is finer than a planning figure needs and
+    # keeps the whole report under about ten seconds.
+    simulations: 400
+    seed: 20260813
+    # Past this the honest answer is "more than a thesis can collect".
+    max_n: 4000
   # Resampling QUESTIONS, which are the independent unit. Seeded so the interval
   # is the same number every time it is printed.
   bootstrap_resamples: 10000

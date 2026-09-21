@@ -177,7 +177,7 @@
       "n_ties": 12,
       "name": "chunking:gold_found",
       "note": "",
-      "p_value": 0.7265625,
+      "p_value": 0.7265624999999989,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -281,7 +281,7 @@
       "n_ties": 14,
       "name": "embedding:gold_found",
       "note": "",
-      "p_value": 0.21875,
+      "p_value": 0.21875000000000014,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -385,7 +385,7 @@
       "n_ties": 13,
       "name": "rerank:gold_found",
       "note": "",
-      "p_value": 0.015625,
+      "p_value": 0.015625000000000003,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -2365,6 +2365,12 @@
         "runs\\562c4bb23747\\figures\\main_effects.svg",
         "runs\\562c4bb23747\\figures\\main_effects.png"
       ]
+    },
+    "power_against_n": {
+      "written": [
+        "runs\\562c4bb23747\\figures\\power_against_n.svg",
+        "runs\\562c4bb23747\\figures\\power_against_n.png"
+      ]
     }
   },
   "gold_set_sha": "e93b5d7ee992",
@@ -2575,6 +2581,12 @@
         "rerank"
       ]
     ],
+    "power": {
+      "max_n": 4000,
+      "seed": 20260813,
+      "simulations": 400,
+      "target": 0.8
+    },
     "primary": {
       "generation": "correct",
       "retrieval": "span_coverage"
@@ -2585,7 +2597,7 @@
       "RQ3": "rerank"
     }
   },
-  "prespecification_digest": "164fb04f0116",
+  "prespecification_digest": "b9533bd2013d",
   "primaries": [
     {
       "cells_averaged": 4,
@@ -2620,6 +2632,7 @@
       "primary": true,
       "rank": null,
       "research_question": "RQ1",
+      "sample_size": null,
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -2726,9 +2739,109 @@
       "note": "",
       "p_holm": 1.0,
       "p_value": 0.34375,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.0275
+        },
+        {
+          "n": 15,
+          "power": 0.1575
+        },
+        {
+          "n": 20,
+          "power": 0.2475
+        },
+        {
+          "n": 30,
+          "power": 0.41
+        },
+        {
+          "n": 40,
+          "power": 0.465
+        },
+        {
+          "n": 60,
+          "power": 0.62
+        },
+        {
+          "n": 80,
+          "power": 0.7625
+        },
+        {
+          "n": 120,
+          "power": 0.9075
+        },
+        {
+          "n": 160,
+          "power": 0.9575
+        },
+        {
+          "n": 240,
+          "power": 0.9975
+        },
+        {
+          "n": 320,
+          "power": 1.0
+        },
+        {
+          "n": 480,
+          "power": 1.0
+        }
+      ],
       "primary": true,
       "rank": 3,
       "research_question": "RQ1",
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": 12,
+              "power_at_n": 0.812,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 21,
+              "power_at_n": 0.877,
+              "reason": ""
+            },
+            "effect": 0.25
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 49,
+              "power_at_n": 0.83,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 77,
+              "power_at_n": 0.818,
+              "reason": ""
+            },
+            "effect": -0.099550375
+          },
+          "observed": {
+            "at_alpha": {
+              "n": 86,
+              "power_at_n": 0.8,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 141,
+              "power_at_n": 0.818,
+              "reason": ""
+            },
+            "effect": 0.07544962499999999
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": true,
+        "kind": "continuous",
+        "pessimistic_end": null,
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact Wilcoxon signed-rank"
     },
@@ -2765,6 +2878,7 @@
       "primary": true,
       "rank": null,
       "research_question": "RQ2",
+      "sample_size": null,
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -2871,9 +2985,109 @@
       "note": "",
       "p_holm": 0.78125,
       "p_value": 0.15625,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.015
+        },
+        {
+          "n": 15,
+          "power": 0.105
+        },
+        {
+          "n": 20,
+          "power": 0.255
+        },
+        {
+          "n": 30,
+          "power": 0.52
+        },
+        {
+          "n": 40,
+          "power": 0.7475
+        },
+        {
+          "n": 60,
+          "power": 0.9275
+        },
+        {
+          "n": 80,
+          "power": 0.98
+        },
+        {
+          "n": 120,
+          "power": 1.0
+        },
+        {
+          "n": 160,
+          "power": 1.0
+        },
+        {
+          "n": 240,
+          "power": 1.0
+        },
+        {
+          "n": 320,
+          "power": 1.0
+        },
+        {
+          "n": 480,
+          "power": 1.0
+        }
+      ],
       "primary": true,
       "rank": 2,
       "research_question": "RQ2",
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": 459,
+              "power_at_n": 0.807,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 723,
+              "power_at_n": 0.838,
+              "reason": ""
+            },
+            "effect": -0.0125
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 7,
+              "power_at_n": 0.955,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 9,
+              "power_at_n": 0.935,
+              "reason": ""
+            },
+            "effect": -0.25
+          },
+          "observed": {
+            "at_alpha": {
+              "n": 45,
+              "power_at_n": 0.805,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 68,
+              "power_at_n": 0.81,
+              "reason": ""
+            },
+            "effect": -0.1125
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": false,
+        "kind": "continuous",
+        "pessimistic_end": "ci_high",
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact Wilcoxon signed-rank"
     },
@@ -2910,6 +3124,7 @@
       "primary": true,
       "rank": null,
       "research_question": "RQ3",
+      "sample_size": null,
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -3016,9 +3231,109 @@
       "note": "",
       "p_holm": 0.5625,
       "p_value": 0.09375,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.0525
+        },
+        {
+          "n": 15,
+          "power": 0.26
+        },
+        {
+          "n": 20,
+          "power": 0.4425
+        },
+        {
+          "n": 30,
+          "power": 0.6975
+        },
+        {
+          "n": 40,
+          "power": 0.79
+        },
+        {
+          "n": 60,
+          "power": 0.9325
+        },
+        {
+          "n": 80,
+          "power": 0.9775
+        },
+        {
+          "n": 120,
+          "power": 0.9975
+        },
+        {
+          "n": 160,
+          "power": 1.0
+        },
+        {
+          "n": 240,
+          "power": 1.0
+        },
+        {
+          "n": 320,
+          "power": 1.0
+        },
+        {
+          "n": 480,
+          "power": 1.0
+        }
+      ],
       "primary": true,
       "rank": 1,
       "research_question": "RQ3",
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": 10,
+              "power_at_n": 0.828,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 14,
+              "power_at_n": 0.848,
+              "reason": ""
+            },
+            "effect": 0.225
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 848,
+              "power_at_n": 0.802,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 1281,
+              "power_at_n": 0.825,
+              "reason": ""
+            },
+            "effect": 0.0371403
+          },
+          "observed": {
+            "at_alpha": {
+              "n": 41,
+              "power_at_n": 0.802,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 62,
+              "power_at_n": 0.807,
+              "reason": ""
+            },
+            "effect": 0.124910075
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": false,
+        "kind": "continuous",
+        "pessimistic_end": "ci_low",
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact Wilcoxon signed-rank"
     }

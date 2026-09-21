@@ -101,6 +101,8 @@ def render(report: dict[str, Any]) -> str:
                 + (" ..." if len(row["missing_configs"]) > 3 else "")
             )
 
+    lines.extend(_sample_size(report))
+
     add("")
     add("--- EXPLORATORY  (uncorrected; NOT evidence on their own)")
     add(
@@ -162,7 +164,7 @@ def render(report: dict[str, Any]) -> str:
         add("")
         add("--- FIGURES")
         add(f"  {figures['directory']}")
-        for key in ("main_effects", "coverage_per_config", "chunk_lengths"):
+        for key in ("main_effects", "coverage_per_config", "chunk_lengths", "power_against_n"):
             entry = figures.get(key) or {}
             if entry.get("written"):
                 add(f"    {key:<22} {len(entry['written'])} files (svg + png)")
@@ -170,3 +172,94 @@ def render(report: dict[str, Any]) -> str:
                 add(f"    {key:<22} skipped: {entry.get('skipped', 'unknown')}")
     add("=" * 112)
     return "\n".join(lines)
+
+
+def _n_text(estimate: dict[str, Any]) -> str:
+    if estimate.get("n"):
+        return str(estimate["n"])
+    reason = estimate.get("reason", "")
+    return "not est." if "not estimable" in reason else "--"
+
+
+def _sample_size(report: dict[str, Any]) -> list[str]:
+    """How large a FUTURE study would have to be. Not this study's power.
+
+    The distinction is the whole point of the section, so it is stated in the
+    heading, in the footer, and once more in the row labels.
+    """
+    rows = [row for row in report["primaries"] if row.get("sample_size")]
+    lines: list[str] = ["", "--- SAMPLE SIZE FOR A FUTURE STUDY"]
+    if not rows:
+        lines.append("  Nothing to plan from yet: no primary comparison has data.")
+        return lines
+
+    first = rows[0]["sample_size"]
+    lines.append(
+        f"  Questions a NEW study would need for {first['target_power']:.0%} power at an"
+        " effect the size of the one seen here."
+    )
+    lines.append(
+        "  This is NOT the power of this study. Observed power is a function of the"
+    )
+    lines.append(
+        "  p-value and says nothing the p-value did not; none is computed anywhere."
+    )
+    lines.append("")
+    lines.append(
+        f"  {'RQ':<4}{'metric':<16}{'basis':<22}{'effect':>9}"
+        f"{'n @ ' + format(first['alpha'], '.2f'):>10}"
+        f"{'n @ Holm ' + format(first['holm_alpha'], '.4f'):>18}"
+    )
+    labels = {
+        "observed": "observed effect",
+        "ci_low": "CI lower bound",
+        "ci_high": "CI upper bound",
+    }
+    for row in rows:
+        estimate = row["sample_size"]
+        for key in ("observed", "ci_low", "ci_high"):
+            entry = estimate["estimates"].get(key)
+            if entry is None:
+                continue
+            if key == "observed":
+                head = f"  {row['research_question']:<4}{row['metric'][:15]:<16}"
+            else:
+                head = f"  {'':<4}{'':<16}"
+            effect = entry["effect"]
+            # The marker trails the numbers rather than sharing the label's
+            # field, which it overflowed and pushed every later column out.
+            marker = "   <- worst case" if estimate.get("pessimistic_end") == key else ""
+            lines.append(
+                head
+                + f"{labels[key]:<22}"
+                + (f"{effect:>+9.3f}" if effect is not None else f"{'--':>9}")
+                + f"{_n_text(entry['at_alpha']):>10}"
+                + f"{_n_text(entry['at_holm_alpha']):>18}"
+                + marker
+            )
+        if estimate.get("interval_spans_zero"):
+            lines.append(
+                f"  {'':<4}{'':<16}the interval spans zero: no worst case to size for, and"
+            )
+            lines.append(
+                f"  {'':<4}{'':<16}the two bounds size effects in OPPOSITE directions"
+            )
+    lines.append("")
+    lines.append(
+        "  Three effect sizes because the observed one is itself a noisy estimate from"
+    )
+    lines.append(
+        "  20 questions; a single number would claim a precision the data has not got."
+    )
+    lines.append(
+        "  Two alpha levels because a follow-up carrying the same pre-specification"
+    )
+    lines.append(
+        f"  faces the same correction: Holm's strictest threshold is"
+        f" {first['alpha']}/6 = {first['holm_alpha']:.4f}."
+    )
+    lines.append(
+        f"  By simulation ({first['trials']} resamples per candidate size) using the same"
+    )
+    lines.append("  exact tests as above, not a normal-theory formula.")
+    return lines

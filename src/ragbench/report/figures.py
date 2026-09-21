@@ -1,30 +1,8 @@
-"""Thesis figures, as SVG and PNG.
+"""The four thesis figures.
 
-matplotlib is imported inside each function, so `import ragbench` stays
-stdlib-cheap and the analysis extra is genuinely optional.
-
-Three decisions apply to every figure here.
-
-**One committed look, light, no dark variant.** These are print figures. A
-theme-switching palette is the right answer for a page someone reads on a
-screen; it is not the right answer for a PDF that gets printed in greyscale by
-an examiner.
-
-**Colour follows the entity, never the rank.** The chunking arm keeps its hue
-wherever it appears, so a reader who learns "blue is fixed" on one figure is not
-re-taught on the next. The main-effect plot draws every point in one colour for
-the same reason: colouring the bars by which way they happen to point would
-encode the result in the palette and make a near-zero effect look like a
-category.
-
-**Identity is never carried by colour alone.** Two series always get a legend,
-and the forest plot spells out each interval as text beside it -- which also
-means the figure survives being printed in greyscale.
-
-The palette is the validated categorical default: slot 1 `#2a78d6`, slot 2
-`#eb6834`. Checked with the skill's validator against the `#fcfcfb` surface --
-worst adjacent CVD delta-E 24.7 (protan), normal-vision 33.6, both far above
-their floors.
+Each answers one question and says which. The design-system parameters they draw
+with -- palette, surfaces, how a figure is saved -- live in
+:mod:`ragbench.report.figure_style`.
 """
 
 from __future__ import annotations
@@ -32,36 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-INK_SOFT = "#52514e"
-GRID = "#d9d8d4"
-SERIES = ("#2a78d6", "#eb6834")
-ZERO_LINE = "#8a8984"
-
-
-def _save(figure: Any, directory: Path, stem: str) -> list[str]:
-    """Both formats, same figure. SVG for the thesis, PNG for everything else."""
-    directory.mkdir(parents=True, exist_ok=True)
-    written: list[str] = []
-    for suffix in ("svg", "png"):
-        path = directory / f"{stem}.{suffix}"
-        figure.savefig(path, format=suffix, dpi=200, bbox_inches="tight",
-                       facecolor=SURFACE)
-        written.append(str(path))
-    return written
-
-
-def _style(axes: Any) -> None:
-    """Recessive furniture: the data should be the darkest thing on the page."""
-    axes.set_facecolor(SURFACE)
-    for side in ("top", "right"):
-        axes.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        axes.spines[side].set_color(GRID)
-    axes.tick_params(colors=INK_SOFT, labelsize=9, length=3)
-    axes.grid(True, axis="x", color=GRID, linewidth=0.6, alpha=0.9)
-    axes.set_axisbelow(True)
+from .figure_style import GRID, INK, INK_SOFT, MARKERS, SERIES, SURFACE, ZERO_LINE, _save, _style
 
 
 def main_effects(report: dict[str, Any], directory: Path) -> dict[str, Any]:
@@ -241,4 +190,66 @@ def build_all(
         "main_effects": main_effects(report, directory),
         "coverage_per_config": coverage_per_config(report, table, directory),
         "chunk_lengths": chunk_lengths(resolved, data_root, directory),
+        "power_against_n": power_against_n(report, directory),
     }
+
+
+def power_against_n(report: dict[str, Any], directory: Path) -> dict[str, Any]:
+    """Power against sample size per primary, with the 80% target marked.
+
+    A line chart because the quantity is a curve over a continuous axis and its
+    shape is the point -- where it turns over says how much a few more questions
+    would buy. The title says "future study" because a power curve is the one
+    figure a reader is most likely to mistake for a statement about the study
+    that produced it.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    rows = [row for row in report["primaries"] if row.get("power_curve")]
+    if not rows:
+        return {"written": [], "skipped": "no primary comparison has a power curve"}
+
+    figure, axes = plt.subplots(figsize=(8.2, 4.4), facecolor=SURFACE)
+    _style(axes)
+    axes.grid(True, axis="y", color=GRID, linewidth=0.6)
+
+    target = rows[0]["sample_size"]["target_power"]
+    axes.axhline(target, color=ZERO_LINE, linewidth=1.0, linestyle=(0, (4, 3)), zorder=1)
+    axes.annotate(
+        f"{target:.0%} power",
+        xy=(0.995, target), xycoords=("axes fraction", "data"),
+        ha="right", va="bottom", fontsize=8.5, color=INK_SOFT,
+    )
+
+    for index, row in enumerate(rows):
+        # Fixed order, never cycled: a seventh series would fold into a second
+        # figure rather than reuse slot 1 and collide with it.
+        colour = SERIES[index] if index < len(SERIES) else INK_SOFT
+        marker = MARKERS[index] if index < len(MARKERS) else "x"
+        sizes = [point["n"] for point in row["power_curve"]]
+        powers = [point["power"] for point in row["power_curve"]]
+        needed = row["sample_size"]["estimates"]["observed"]["at_alpha"].get("n")
+        label = f"{row['research_question']} {row['label']}"
+        if needed:
+            label += f"  (n≈{needed})"
+        axes.plot(sizes, powers, color=colour, linewidth=2.0, marker=marker, markersize=5,
+                  markeredgecolor=SURFACE, markeredgewidth=1.0, zorder=3, label=label)
+        if needed and needed <= max(sizes):
+            axes.plot([needed], [target], marker="|", markersize=11, color=colour, zorder=4)
+
+    axes.set_xlabel("questions in a future gold set", fontsize=9, color=INK_SOFT)
+    axes.set_ylabel("power", fontsize=9, color=INK_SOFT)
+    axes.set_ylim(0, 1.02)
+    axes.set_title(
+        "Power against sample size for a FUTURE study\n"
+        "planning estimate at the effects observed here, not the power of this study",
+        fontsize=11, color=INK, loc="left", pad=12,
+    )
+    axes.legend(frameon=False, fontsize=8.5, loc="lower right")
+
+    written = _save(figure, directory, "power_against_n")
+    plt.close(figure)
+    return {"written": written}

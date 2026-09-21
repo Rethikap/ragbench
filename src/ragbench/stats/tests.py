@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from math import comb
+from functools import lru_cache
+from math import exp, lgamma, log
 from typing import Any
 
 import numpy as np
@@ -138,13 +139,32 @@ def wilcoxon_signed_rank(differences: Sequence[float | None]) -> tuple[float | N
     return float(min(1.0, erfc(abs(z) / sqrt(2.0)))), effect
 
 
+@lru_cache(maxsize=100_000)
 def binomial_two_sided(successes: int, trials: int) -> float:
-    """Exact two-sided binomial tail at p=0.5, by summing outcomes no more likely."""
+    """Exact two-sided binomial tail at p=0.5.
+
+    The two-sided rule is "sum every outcome no more likely than the observed
+    one", and at p=0.5 the distribution is symmetric, so that set is exactly the
+    two tails beyond ``min(x, n - x)`` -- which makes the answer twice a
+    one-sided tail, capped at 1.
+
+    Computed in log space rather than by summing binomial coefficients. The
+    direct form needs O(n) big-integer ``comb`` calls, which is fine for a
+    single test at n=20 and far too slow inside a power simulation that runs
+    thousands of tests at n in the hundreds. Cached for the same reason: a
+    simulation asks the same (successes, trials) question repeatedly.
+    """
     if trials <= 0:
         return 1.0
-    observed = comb(trials, successes)
-    total = sum(comb(trials, k) for k in range(trials + 1) if comb(trials, k) <= observed)
-    return min(1.0, total / 2.0**trials)
+    lower = min(successes, trials - successes)
+    log_terms = [
+        lgamma(trials + 1) - lgamma(index + 1) - lgamma(trials - index + 1)
+        - trials * log(2.0)
+        for index in range(lower + 1)
+    ]
+    largest = max(log_terms)
+    tail = exp(largest) * sum(exp(term - largest) for term in log_terms)
+    return min(1.0, 2.0 * tail)
 
 
 def sign_test(differences: Sequence[float | None]) -> tuple[float | None, float | None, int]:

@@ -526,6 +526,39 @@ effect it is built from. Twenty questions cannot support one. They are computed
 with intervals so the write-up can say the data do not settle the question,
 which is a different statement from not having looked.
 
+**Observed power is never reported, and there is no way to ask for it.** The
+power of a study you have already run, evaluated at the effect you just
+observed, is a monotone function of its p-value: a non-significant result always
+has low observed power, so quoting it restates "not significant" with a number
+attached that looks like evidence. It is a named fallacy and a reviewer will
+name it. `ragbench.stats.power` exposes no `observed_power`, `post_hoc_power` or
+`achieved_power`, and a test asserts those names stay absent.
+
+What *is* reported is prospective and only that: **how many questions a future
+study would need** to detect an effect of the size seen here, at 80% power. It
+is estimated by simulation rather than a closed form, so the answer is about the
+exact sign and signed-rank tests actually used rather than a t-test on
+assumed-normal differences — the observed per-question differences are shifted
+to the target effect, resampled at each candidate n, and put through the same
+test the report runs.
+
+Three rules keep that figure honest:
+
+- **A range, not a number.** The observed effect is itself a noisy estimate from
+  twenty questions, so n is reported at the point estimate *and* at both ends of
+  its bootstrap interval. The smaller effect needs the larger sample, so the
+  interval end nearer zero is the worst case.
+- **Both alpha levels.** A follow-up carrying the same pre-specification faces
+  the same Holm correction, so n is reported at 0.05 *and* at Holm's strictest
+  threshold, α/6. Planning against the uncorrected level would under-size it.
+- **"Not estimable" rather than a large number.** An effect indistinguishable
+  from zero needs an unbounded sample, and an interval spanning zero has no
+  worst case at all. Printing 4000 there would look like a plan someone could
+  follow.
+
+Primaries only. A sample-size claim on an exploratory metric would be planning a
+future study around a comparison this one never committed to testing.
+
 ---
 
 ## The design

@@ -14,6 +14,7 @@ from typing import Any
 from ..hashing import canonical_json, sha256_text
 from ..stats.design import factor_levels, interaction, main_effect
 from ..stats.pipeline import BY_NAME, METRICS, build_table, prespecification, primary_metrics
+from ..stats.power import curve_sizes, holm_alpha, power_curve, sample_size
 from ..stats.tests import (
     TestResult,
     bootstrap_ci,
@@ -96,12 +97,12 @@ def build_report(
             row["primary"] = True
             primaries.append(row)
 
-    corrected = holm(
-        {row["name"]: row["p_value"] for row in primaries},
-        alpha=float(plan.get("alpha", 0.05)),
-    )
+    alpha = float(plan.get("alpha", 0.05))
+    corrected = holm({row["name"]: row["p_value"] for row in primaries}, alpha=alpha)
     for row in primaries:
         row.update(corrected.get(row["name"], {}))
+
+    _plan_sample_sizes(primaries, plan, alpha)
 
     exploratory: list[dict[str, Any]] = []
     for metric_name in plan.get("exploratory") or []:
@@ -146,6 +147,63 @@ def build_report(
         ],
         "calibration": _calibration(resolved, run_directory, calibration, plan),
     }
+
+
+def _plan_sample_sizes(
+    primaries: list[dict[str, Any]], plan: dict[str, Any], alpha: float
+) -> None:
+    """Attach the prospective sample size to each primary that has data.
+
+    Primaries only. An exploratory metric has no pre-specified status, so a
+    sample-size claim attached to one would be planning a future study around a
+    comparison this one did not commit to testing.
+    """
+    settings = dict(plan.get("power") or {})
+    strict = holm_alpha(alpha, len(primaries))
+    target = float(settings.get("target", 0.80))
+    trials = int(settings.get("simulations", 400))
+    seed = int(settings.get("seed", 0))
+
+    for row in primaries:
+        if not row["n"]:
+            row["sample_size"] = None
+            continue
+        values = [value for _, value in row["differences"]]
+        row["sample_size"] = sample_size(
+            values,
+            row["mean_difference"],
+            row["ci_low"],
+            row["ci_high"],
+            BY_NAME[row["metric"]].kind,
+            alpha,
+            strict,
+            target_power=target,
+            trials=trials,
+            seed=seed,
+        )
+
+    largest = max(
+        (
+            estimate["at_holm_alpha"]["n"] or 0
+            for row in primaries
+            if row.get("sample_size")
+            for estimate in row["sample_size"]["estimates"].values()
+        ),
+        default=40,
+    )
+    sizes = curve_sizes(largest)
+    for row in primaries:
+        if not row.get("sample_size"):
+            continue
+        row["power_curve"] = power_curve(
+            [value for _, value in row["differences"]],
+            row["mean_difference"],
+            BY_NAME[row["metric"]].kind,
+            alpha,
+            sizes,
+            trials=trials,
+            seed=seed,
+        )
 
 
 def _calibration(

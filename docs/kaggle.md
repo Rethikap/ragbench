@@ -909,7 +909,25 @@ its verdict as judging progresses.
 id: it produces no artefact that could mix with another, and putting it in
 `base.yaml` would move the run directory out from under a four-day judge run.
 
-### 11a. RQ4
+### 11a. Sample size for a follow-up
+
+The report ends with how many questions a **future** study would need to detect
+an effect the size of the one seen here, at 80% power -- the number that turns
+"underpowered at n=20" into something actionable.
+
+It is **not** the power of this study. Observed power is a function of the
+p-value and says nothing the p-value did not; none is computed anywhere, and a
+test keeps it that way.
+
+Each comparison gets three numbers, at two alpha levels: the sample needed at
+the observed effect, and at each end of its bootstrap interval, because the
+observed effect is itself noisy at n=20. The second alpha is Holm's strictest
+threshold, 0.05/6, since a follow-up with the same pre-specification faces the
+same correction. Where an interval spans zero the report says "not estimable"
+rather than printing a number, because an effect near zero needs an unbounded
+sample.
+
+### 11b. RQ4
 
 Once `calibration_scores.csv` is filled in:
 
@@ -919,7 +937,7 @@ ragbench report stats --config configs/base.yaml     --calibration runs/<id>/cal
 
 Without it, RQ4 reports "not computed" rather than a zero.
 
-### 11b. Figures
+### 11c. Figures
 
 Written to `runs/<id>/figures/` as SVG **and** PNG:
 
@@ -927,6 +945,7 @@ Written to `runs/<id>/figures/` as SVG **and** PNG:
 main_effects            dot-and-interval per factor, with 95% bootstrap intervals
 coverage_per_config     mean span coverage, coloured by chunking arm
 chunk_lengths           chunk-length distribution per arm
+power_against_n         power vs sample size for a FUTURE study, 80% line marked
 ```
 
 Light-mode only, deliberately: these go in a document that gets printed. The
