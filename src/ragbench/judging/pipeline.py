@@ -173,6 +173,7 @@ def judge_one_config(
         judge = LazyJudge(params)
 
     calls = 0
+    session_tokens = 0
     exhausted = ""
     for position, (query_id, index) in enumerate(pending, start=1):
         answer = answers[query_id]
@@ -207,6 +208,8 @@ def judge_one_config(
                 # again on the next run, and count it loudly in the report.
                 verdict = Verdict(verdict=UNPARSED, rationale=str(exc)[:300], n_parse_retries=1)
 
+        spent = int(getattr(judge, "tokens_spent", 0)) - before
+        session_tokens += spent
         append_jsonl(
             path,
             Judgement(
@@ -219,7 +222,7 @@ def judge_one_config(
                 pass_index=index,
                 answer_sha256=sha256_text(answer.answer),
                 n_parse_retries=verdict.n_parse_retries,
-                n_tokens=int(getattr(judge, "tokens_spent", 0)) - before,
+                n_tokens=spent,
                 latency_ms=round((time.perf_counter() - started) * 1000.0, 1),
                 from_refusal_match=from_match,
             ).to_dict(),
@@ -249,7 +252,13 @@ def judge_one_config(
         "abstained": sum(1 for r in records if r.verdict == ABSTAINED),
         "unparsed": sum(1 for r in records if r.verdict == UNPARSED),
         "parse_retries": sum(r.n_parse_retries for r in records),
-        "tokens": sum(r.n_tokens for r in records),
+        # Two figures, never one. `tokens_total` sums every record in the file,
+        # including judgements reused from earlier sessions; `tokens_session` is
+        # what THIS invocation spent. Dividing the first by this session's call
+        # count is the bug that made a 2,747-token judgement report as 8,250 --
+        # a cumulative numerator over a session denominator.
+        "tokens_total": sum(r.n_tokens for r in records),
+        "tokens_session": session_tokens,
         "path": str(path),
     }
 

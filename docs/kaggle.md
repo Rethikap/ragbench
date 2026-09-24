@@ -697,9 +697,10 @@ go in the prompt; that is the design, not an oversight, and it cannot be
 trimmed without changing what faithfulness means.
 
 ```
-  ~2,900 tokens per REQUEST   (measured: 199,211 over 69 requests)
-  ~2,900 tokens per judgement once each judgement takes one request
-  ~810,000 for a full 280-judgement run
+  ~2,800 tokens per judgement   (measured: 593,993 over 212 API-backed
+                                 judgements, once the retries were fixed)
+  ~790,000 for a full run       (~283 API-backed judgements; the other ~37 are
+                                 abstentions, matched from the answer text free)
 ```
 
 That per-request figure is measured, not estimated, and it was never the
@@ -709,15 +710,29 @@ buying a second full-prompt request that failed the same way. See 10c-bis.
 
 Two limits bite, and the token one bites first:
 
-- **Tokens per minute.** 8,000 TPM against a ~2,900-token call is **under three
+- **Tokens per minute.** 8,000 TPM against a ~2,800-token call is **under three
   calls a minute** — an order of magnitude below the 30 requests/minute the same
   tier allows. A client pacing only on requests would collect 429s all day, so
   this one paces on both. Its pre-call estimate is more conservative still
   (~3,250, because it counts a `max_tokens` ceiling the model will not use), and
   is replaced by the usage figure the response reports.
-- **Tokens per day.** 200,000 TPD against ~2,900 a judgement is about **69
-  judgements**, so 280 is roughly **four days**. Under the settings that
+- **Tokens per day.** 200,000 TPD against ~2,800 a judgement is about **71
+  judgements**, so a full run is roughly **four days**. Under the settings that
   produced empty replies it was 17 usable judgements a day — over two weeks.
+
+`ragbench judge` prints both figures after every session, and the projection it
+makes for the remainder is derived from what that session actually measured
+rather than from a number written down once:
+
+```
+  this session     197,816 tokens over 72 judgements   = 2,747 each
+  cumulative       593,993 tokens across all 240 judgements on disk
+```
+
+**Read the session line for cost-per-judgement and the cumulative line for
+spend.** They have different denominators: dividing the cumulative total — which
+includes judgements reused from earlier sessions — by the current session's call
+count once reported a 2,747-token judgement as 8,250.
 
 > **Set `daily_token_cap` to whatever your own console reports.** Published
 > figures move — this model replaced one that was retired mid-project — so the

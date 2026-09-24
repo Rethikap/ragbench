@@ -389,8 +389,8 @@ shell history and in the process table.
 
 **Tokens are the binding constraint, and the run does not fit in one day.** A
 judgement must carry the retrieved context — that is what makes faithfulness a
-question about what the system was shown — so a call is ~2,900 tokens and a full
-280-call run is ~810,000. On a free tier that is several days. The client
+question about what the system was shown — so a call is ~2,800 tokens (measured:
+593,993 over 212 API-backed judgements) and a full run is ~790,000. On a free tier that is several days. The client
 therefore paces on tokens per minute as well as requests per minute (at 8,000
 TPM, under three calls a minute, against the 30 requests the same tier allows), and
 stops cleanly at a configured daily cap instead of burning retries against it.
@@ -405,7 +405,16 @@ than trusting a documented figure.
 > each bought a retry that failed identically. Budget arithmetic that counts
 > judgements rather than requests is wrong by whatever the failure rate is, so
 > every judgement now records the tokens it cost and the stage prints the
-> per-judgement average. An `unparsed` record is permanent by design — it stops
+> per-judgement average.
+>
+> **And a cost-per-unit needs both halves from the same population.** The first
+> version of that average divided every record in the files — judgements reused
+> from previous sessions included — by the *current* session's call count, and
+> reported a 2,747-token judgement as 8,250. A cumulative numerator over a
+> session denominator is not a rate. The stage now prints a session figure and a
+> cumulative total as separate lines, and the projection for the remaining work
+> is derived from the session's own measured cost rather than from a constant
+> that goes stale the moment the thing it describes changes. An `unparsed` record is permanent by design — it stops
 > a re-run paying twice — which is why `--retry-unparsed` exists: a judgement
 > that failed because a *setting* was wrong must not survive the fix, or the
 > configuration is scored under two regimes.

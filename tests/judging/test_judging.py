@@ -879,6 +879,43 @@ def test_a_judgement_records_what_it_cost(tmp_path: Path) -> None:
     report = judge_one_config(
         resolved, "fixed", "bge", "off", configs, data, run, judge=_Metered()
     )
-    assert report["tokens"] == 5800
+    assert report["tokens_session"] == 5800
+    assert report["tokens_total"] == 5800
     assert all(r.n_tokens == 2900 for r in load_judgements(
         judgements_path(run, "fixed", "bge", "off")))
+
+
+def test_a_resumed_session_reports_its_own_spend_not_the_cumulative_one(
+    tmp_path: Path,
+) -> None:
+    """The bug this separation exists to prevent.
+
+    Summing every record in the file -- including judgements reused from
+    earlier sessions -- and dividing by THIS session's call count reported a
+    2,747-token judgement as 8,250. Session and cumulative are different
+    numerators and must not share a denominator.
+    """
+    class _Metered(_CountingJudge):
+        tokens_spent = 0
+
+        def score(self, prompt: Any) -> Verdict:
+            type(self).tokens_spent += 1000
+            return super().score(prompt)
+
+    resolved, configs, data, run = _world(
+        tmp_path, [_answer("q001", "a"), _answer("q002", "b")]
+    )
+    # First session: q001 only, by judging with a gold set of one question.
+    first = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=_Metered()
+    )
+    assert first["tokens_session"] == first["tokens_total"] == 4000
+
+    # Second session: everything is already judged, so it spends nothing --
+    # but the file still holds 4,000 tokens' worth of records.
+    second = judge_one_config(
+        resolved, "fixed", "bge", "off", configs, data, run, judge=_CountingJudge()
+    )
+    assert second["api_calls"] == 0
+    assert second["tokens_session"] == 0
+    assert second["tokens_total"] == 4000

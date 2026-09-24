@@ -21,7 +21,8 @@ code, and it lives in `judge.providers` in config.
 
 **Tokens are the binding constraint, not requests.** One judgement carries the
 retrieved context -- it must, or faithfulness cannot be assessed -- which makes
-it about 2,900 tokens. At a free tier's 8,000 tokens/minute that is under three
+it about 2,800 tokens (measured, not estimated: 593,993 over 212 API-backed
+judgements). At a free tier's 8,000 tokens/minute that is under three
 calls a minute, an order of magnitude below the 30 requests/minute the same tier
 allows. A client pacing only on requests would spend its day collecting 429s. So
 this one paces on both, and stops cleanly against a daily token cap rather than

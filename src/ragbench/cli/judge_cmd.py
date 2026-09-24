@@ -96,13 +96,26 @@ def render(reports: list[dict[str, Any]]) -> str:
         add(f"  --retry-unparsed removed {cleared} recorded failures before judging, so they")
         add("  were scored again under the current settings.")
 
-    tokens = sum(report.get("tokens", 0) for report in reports)
+    # Session and cumulative are different numerators and must not share a
+    # denominator. Dividing every record in the files -- including judgements
+    # reused from earlier sessions -- by THIS session's call count reported a
+    # 2,747-token judgement as 8,250.
+    session_tokens = sum(report.get("tokens_session", 0) for report in reports)
+    total_tokens = sum(report.get("tokens_total", 0) for report in reports)
+    per_judgement = session_tokens / total_calls if total_calls else 0.0
+
     add(
         f"  {total_calls} judgements via the API; "
         f"{total_retries} corrective retries after a bad reply."
     )
-    if tokens:
-        add(f"  {tokens:,} tokens spent, {tokens / max(1, total_calls):,.0f} per judgement.")
+    if total_calls and session_tokens:
+        add(
+            f"  this session   {session_tokens:>9,} tokens over {total_calls} judgements"
+            f"   = {per_judgement:,.0f} each"
+        )
+    if total_tokens:
+        judged = sum(report["n_judgements"] for report in reports)
+        add(f"  cumulative     {total_tokens:>9,} tokens across all {judged} judgements on disk")
     if total_retries:
         add("  A corrective retry is a SECOND full-prompt request, so a retried judgement")
         add("  costs about double -- and returns nothing at all if it then fails.")
@@ -113,10 +126,22 @@ def render(reports: list[dict[str, Any]]) -> str:
         add(f"  STOPPED ON QUOTA -- {outstanding} judgements still outstanding.")
         add(f"  {stopped['quota_message']}")
         add("")
-        add("  This is a pause, not a failure. A full run is about 910,000 tokens because")
-        add("  every judgement carries the retrieved context, so it does not fit in one")
-        add("  free day. Re-run the identical command after the allowance resets and it")
-        add("  continues; nothing already scored is judged again.")
+        add("  This is a pause, not a failure. Re-run the identical command after the")
+        add("  allowance resets and it continues; nothing already scored is judged again.")
+        if per_judgement and outstanding:
+            # Derived from what this session actually measured rather than a
+            # figure written down once and left to go stale. An upper bound:
+            # abstentions among the outstanding items are matched from the
+            # answer text and cost nothing.
+            remaining = per_judgement * outstanding
+            add(
+                f"  At {per_judgement:,.0f} tokens per judgement, the {outstanding} outstanding"
+                f" are at most ~{remaining:,.0f} more"
+            )
+            add(
+                f"  (~{(total_tokens + remaining) / 1000:,.0f}K for the whole run). An upper"
+                " bound: abstentions among them cost nothing."
+            )
     if total_unparsed:
         add(
             f"  {total_unparsed} items are recorded as UNPARSED -- the judge returned something"
