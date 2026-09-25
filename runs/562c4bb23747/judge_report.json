@@ -78,42 +78,192 @@
     {
       "abstained": 1,
       "abstained_by_match": 2,
-      "abstention_rate": 0.0526,
+      "abstention_rate": 0.05,
       "chunking_level": "fixed",
       "completion_tokens": {
         "max": 114,
-        "mean": 49.3,
-        "median": 45.0,
+        "mean": 49.4,
+        "median": 46.5,
         "min": 10,
-        "n": 19,
-        "p10": 33.6,
+        "n": 20,
+        "p10": 33.8,
         "p25": 37.0,
-        "p75": 51.5,
-        "p90": 72.0,
-        "std": 21.4
+        "p75": 51.2,
+        "p90": 71.0,
+        "std": 20.9
       },
       "config": "fixed-bge-rerank_on",
-      "correct_rate": 0.8421,
+      "correct_rate": 0.85,
       "embedding_level": "bge",
-      "n_answers": 19,
-      "n_judgements": 38,
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 19,
+      "rerank_level": "on",
+      "scores": {
+        "completeness": 4.711,
+        "completeness_n": 19,
+        "faithfulness": 4.789,
+        "faithfulness_n": 19,
+        "relevance": 4.789,
+        "relevance_n": 19
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.9474,
+          "kappa": 0.9686,
+          "n": 19,
+          "spearman": 0.8168,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 19,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 19,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 0.95,
+          "kappa": 0.8387,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 1,
+        "correct": 17,
+        "incorrect": 1,
+        "partially_correct": 1,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 4,
+      "abstained_by_match": 8,
+      "abstention_rate": 0.2,
+      "chunking_level": "fixed",
+      "completion_tokens": {
+        "max": 107,
+        "mean": 45.8,
+        "median": 45.5,
+        "min": 10,
+        "n": 20,
+        "p10": 10.0,
+        "p25": 33.2,
+        "p75": 59.2,
+        "p90": 74.9,
+        "std": 25.4
+      },
+      "config": "fixed-specter2-rerank_off",
+      "correct_rate": 0.5,
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 16,
+      "rerank_level": "off",
+      "scores": {
+        "completeness": 4.0,
+        "completeness_n": 16,
+        "faithfulness": 4.312,
+        "faithfulness_n": 16,
+        "relevance": 4.75,
+        "relevance_n": 16
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.8125,
+          "kappa": 0.9144,
+          "n": 16,
+          "spearman": 0.9139,
+          "within_one": 0.9375
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 16,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 0.9375,
+          "kappa": 0.7519,
+          "n": 16,
+          "spearman": 0.9911,
+          "within_one": 0.9375
+        },
+        "verdict": {
+          "exact_agreement": 0.95,
+          "kappa": 0.9228,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 4,
+        "correct": 10,
+        "incorrect": 3,
+        "partially_correct": 3,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 2,
+      "abstained_by_match": 4,
+      "abstention_rate": 0.1,
+      "chunking_level": "fixed",
+      "completion_tokens": {
+        "max": 114,
+        "mean": 47.9,
+        "median": 44.0,
+        "min": 10,
+        "n": 20,
+        "p10": 29.8,
+        "p25": 36.2,
+        "p75": 53.8,
+        "p90": 71.0,
+        "std": 22.6
+      },
+      "config": "fixed-specter2-rerank_on",
+      "correct_rate": 0.7,
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 40,
       "n_passes": 2,
       "n_scored": 18,
       "rerank_level": "on",
       "scores": {
-        "completeness": 4.694,
+        "completeness": 4.472,
         "completeness_n": 18,
-        "faithfulness": 4.778,
+        "faithfulness": 4.611,
         "faithfulness_n": 18,
-        "relevance": 4.778,
+        "relevance": 4.667,
         "relevance_n": 18
       },
       "self_consistency": {
         "completeness": {
           "exact_agreement": 0.9444,
-          "kappa": 0.9684,
+          "kappa": 0.9778,
           "n": 18,
-          "spearman": 0.8169,
+          "spearman": 0.999,
           "within_one": 1.0
         },
         "faithfulness": {
@@ -124,7 +274,7 @@
           "within_one": 1.0
         },
         "measured": true,
-        "n_items": 19,
+        "n_items": 20,
         "n_passes": 2,
         "relevance": {
           "exact_agreement": 1.0,
@@ -134,9 +284,159 @@
           "within_one": 1.0
         },
         "verdict": {
-          "exact_agreement": 0.9474,
-          "kappa": 0.8376,
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 2,
+        "correct": 14,
+        "incorrect": 2,
+        "partially_correct": 2,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 4,
+      "abstained_by_match": 8,
+      "abstention_rate": 0.2,
+      "chunking_level": "recursive",
+      "completion_tokens": {
+        "max": 115,
+        "mean": 45.5,
+        "median": 45.0,
+        "min": 10,
+        "n": 20,
+        "p10": 10.0,
+        "p25": 29.2,
+        "p75": 58.0,
+        "p90": 72.8,
+        "std": 26.2
+      },
+      "config": "recursive-bge-rerank_off",
+      "correct_rate": 0.7,
+      "embedding_level": "bge",
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 16,
+      "rerank_level": "off",
+      "scores": {
+        "completeness": 4.906,
+        "completeness_n": 16,
+        "faithfulness": 5.0,
+        "faithfulness_n": 16,
+        "relevance": 5.0,
+        "relevance_n": 16
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.9375,
+          "kappa": 0.6364,
+          "n": 16,
+          "spearman": 0.6831,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 16,
+          "spearman": null,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 16,
+          "spearman": null,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 0.95,
+          "kappa": 0.8837,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 4,
+        "correct": 14,
+        "incorrect": 0,
+        "partially_correct": 2,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 1,
+      "abstained_by_match": 2,
+      "abstention_rate": 0.05,
+      "chunking_level": "recursive",
+      "completion_tokens": {
+        "max": 81,
+        "mean": 48.1,
+        "median": 49.5,
+        "min": 10,
+        "n": 20,
+        "p10": 28.8,
+        "p25": 34.0,
+        "p75": 56.0,
+        "p90": 72.9,
+        "std": 17.8
+      },
+      "config": "recursive-bge-rerank_on",
+      "correct_rate": 0.8,
+      "embedding_level": "bge",
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 19,
+      "rerank_level": "on",
+      "scores": {
+        "completeness": 4.632,
+        "completeness_n": 19,
+        "faithfulness": 4.789,
+        "faithfulness_n": 19,
+        "relevance": 4.974,
+        "relevance_n": 19
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
           "n": 19,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 19,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 0.9474,
+          "kappa": 0.0,
+          "n": 19,
+          "spearman": null,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 0.9,
+          "kappa": 0.759,
+          "n": 20,
           "spearman": null,
           "within_one": null
         }
@@ -146,66 +446,168 @@
         "abstained": 1,
         "correct": 16,
         "incorrect": 1,
+        "partially_correct": 2,
+        "unparsed": 0
+      }
+    },
+    {
+      "abstained": 4,
+      "abstained_by_match": 8,
+      "abstention_rate": 0.2,
+      "chunking_level": "recursive",
+      "completion_tokens": {
+        "max": 95,
+        "mean": 45.2,
+        "median": 43.0,
+        "min": 10,
+        "n": 20,
+        "p10": 10.0,
+        "p25": 30.0,
+        "p75": 61.0,
+        "p90": 75.3,
+        "std": 24.6
+      },
+      "config": "recursive-specter2-rerank_off",
+      "correct_rate": 0.65,
+      "embedding_level": "specter2",
+      "n_answers": 20,
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 16,
+      "rerank_level": "off",
+      "scores": {
+        "completeness": 4.469,
+        "completeness_n": 16,
+        "faithfulness": 4.656,
+        "faithfulness_n": 16,
+        "relevance": 4.844,
+        "relevance_n": 16
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.9375,
+          "kappa": 0.98,
+          "n": 16,
+          "spearman": 0.9984,
+          "within_one": 1.0
+        },
+        "faithfulness": {
+          "exact_agreement": 0.9375,
+          "kappa": 0.76,
+          "n": 16,
+          "spearman": 0.7303,
+          "within_one": 0.9375
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 0.875,
+          "kappa": 0.5238,
+          "n": 16,
+          "spearman": 0.7303,
+          "within_one": 0.9375
+        },
+        "verdict": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 4,
+        "correct": 13,
+        "incorrect": 2,
         "partially_correct": 1,
         "unparsed": 0
       }
     },
     {
-      "chunking_level": "fixed",
-      "config": "fixed-specter2-rerank_off",
-      "embedding_level": "specter2",
-      "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "off"
-    },
-    {
-      "chunking_level": "fixed",
-      "config": "fixed-specter2-rerank_on",
-      "embedding_level": "specter2",
-      "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "on"
-    },
-    {
+      "abstained": 2,
+      "abstained_by_match": 4,
+      "abstention_rate": 0.1,
       "chunking_level": "recursive",
-      "config": "recursive-bge-rerank_off",
-      "embedding_level": "bge",
-      "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "off"
-    },
-    {
-      "chunking_level": "recursive",
-      "config": "recursive-bge-rerank_on",
-      "embedding_level": "bge",
-      "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "on"
-    },
-    {
-      "chunking_level": "recursive",
-      "config": "recursive-specter2-rerank_off",
-      "embedding_level": "specter2",
-      "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "off"
-    },
-    {
-      "chunking_level": "recursive",
+      "completion_tokens": {
+        "max": 92,
+        "mean": 46.9,
+        "median": 49.5,
+        "min": 10,
+        "n": 20,
+        "p10": 23.5,
+        "p25": 33.5,
+        "p75": 56.0,
+        "p90": 72.1,
+        "std": 20.3
+      },
       "config": "recursive-specter2-rerank_on",
+      "correct_rate": 0.7,
       "embedding_level": "specter2",
       "n_answers": 20,
-      "n_judgements": 0,
-      "rerank_level": "on"
+      "n_judgements": 40,
+      "n_passes": 2,
+      "n_scored": 18,
+      "rerank_level": "on",
+      "scores": {
+        "completeness": 4.556,
+        "completeness_n": 18,
+        "faithfulness": 4.778,
+        "faithfulness_n": 18,
+        "relevance": 4.889,
+        "relevance_n": 18
+      },
+      "self_consistency": {
+        "completeness": {
+          "exact_agreement": 0.8333,
+          "kappa": 0.7778,
+          "n": 18,
+          "spearman": 0.837,
+          "within_one": 0.9444
+        },
+        "faithfulness": {
+          "exact_agreement": 0.8889,
+          "kappa": 0.9174,
+          "n": 18,
+          "spearman": 0.7276,
+          "within_one": 1.0
+        },
+        "measured": true,
+        "n_items": 20,
+        "n_passes": 2,
+        "relevance": {
+          "exact_agreement": 1.0,
+          "kappa": 1.0,
+          "n": 18,
+          "spearman": 1.0,
+          "within_one": 1.0
+        },
+        "verdict": {
+          "exact_agreement": 0.95,
+          "kappa": 0.8883,
+          "n": 20,
+          "spearman": null,
+          "within_one": null
+        }
+      },
+      "unparsed": 0,
+      "verdicts": {
+        "abstained": 2,
+        "correct": 14,
+        "incorrect": 1,
+        "partially_correct": 3,
+        "unparsed": 0
+      }
     }
   ],
   "gold_set_sha": "e93b5d7ee992",
   "judge_model": "openai/gpt-oss-120b",
   "judge_temperature": 0.0,
   "n_configs": 8,
-  "n_configs_judged": 2,
+  "n_configs_judged": 8,
   "n_expected": 320,
-  "n_judgements": 78,
+  "n_judgements": 320,
   "n_questions": 20,
   "passes": 2,
   "rubric_digest": "edeea0af0c66",

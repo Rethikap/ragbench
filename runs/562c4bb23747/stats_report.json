@@ -2,10 +2,16 @@
   "availability": {
     "judged_configs": [
       "fixed-bge-rerank_off",
-      "fixed-bge-rerank_on"
+      "fixed-bge-rerank_on",
+      "fixed-specter2-rerank_off",
+      "fixed-specter2-rerank_on",
+      "recursive-bge-rerank_off",
+      "recursive-bge-rerank_on",
+      "recursive-specter2-rerank_off",
+      "recursive-specter2-rerank_on"
     ],
     "n_configs": 8,
-    "n_judgements": 39,
+    "n_judgements": 160,
     "n_judgements_expected": 160,
     "n_questions": 20,
     "per_config": [
@@ -19,61 +25,54 @@
       {
         "config": "fixed-bge-rerank_on",
         "n_answers": 20,
-        "n_judged": 19,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "fixed-specter2-rerank_off",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "fixed-specter2-rerank_on",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "recursive-bge-rerank_off",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "recursive-bge-rerank_on",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "recursive-specter2-rerank_off",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       },
       {
         "config": "recursive-specter2-rerank_on",
         "n_answers": 20,
-        "n_judged": 0,
+        "n_judged": 20,
         "n_questions": 20,
         "n_retrieved": 20
       }
     ],
-    "unjudged_configs": [
-      "fixed-specter2-rerank_off",
-      "fixed-specter2-rerank_on",
-      "recursive-bge-rerank_off",
-      "recursive-bge-rerank_on",
-      "recursive-specter2-rerank_off",
-      "recursive-specter2-rerank_on"
-    ]
+    "unjudged_configs": []
   },
   "calibration": null,
   "exploratory": [
@@ -1639,108 +1638,384 @@
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": 0.1625,
+      "ci_low": -0.0875,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          -0.5
+        ],
+        [
+          "q018",
+          0.25
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          -0.25
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          1.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.0
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": 0.0,
       "factor": "chunking",
       "higher_is_better": false,
       "label": "recursive - fixed",
-      "mean_difference": null,
+      "mean_difference": 0.025,
       "metric": "abstained",
       "metric_label": "abstention",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 14,
       "name": "chunking:abstained",
-      "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "note": "",
+      "p_value": 1.0,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": 0.15,
+      "ci_low": -0.0125,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          0.0
+        ],
+        [
+          "q018",
+          0.75
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.25
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.0
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.5,
       "factor": "embedding",
       "higher_is_better": false,
       "label": "specter2 - bge",
-      "mean_difference": null,
+      "mean_difference": 0.05,
       "metric": "abstained",
       "metric_label": "abstention",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 16,
       "name": "embedding:abstained",
-      "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "note": "",
+      "p_value": 0.6249999999999994,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": -0.025,
+      "ci_low": -0.2,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.0
+        ],
+        [
+          "q017",
+          -0.5
+        ],
+        [
+          "q018",
+          -0.25
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          -0.25
+        ],
+        [
+          "q044",
+          0.0
+        ],
+        [
+          "q045",
+          0.0
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.0
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          -0.75
+        ]
+      ],
+      "effect_size": -1.0,
       "factor": "rerank",
       "higher_is_better": false,
       "label": "on - off",
-      "mean_difference": null,
+      "mean_difference": -0.1,
       "metric": "abstained",
       "metric_label": "abstention",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 15,
       "name": "rerank:abstained",
-      "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "note": "",
+      "p_value": 0.0625,
       "primary": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.5357142857142857,
+      "ci_low": -0.26785714285714285,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.125
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          1.625
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.875
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.2,
       "factor": "chunking",
       "higher_is_better": true,
       "label": "recursive - fixed",
-      "mean_difference": null,
+      "mean_difference": 0.11607142857142858,
       "metric": "faithfulness",
       "metric_label": "faithfulness (1-5)",
       "missing_configs": [
@@ -1753,26 +2028,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 9,
       "name": "chunking:faithfulness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.8125,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.15178571428571427,
+      "ci_low": -0.6517857142857143,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.125
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          -0.375
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -2.875
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": -0.4,
       "factor": "embedding",
       "higher_is_better": true,
       "label": "specter2 - bge",
-      "mean_difference": null,
+      "mean_difference": -0.16964285714285715,
       "metric": "faithfulness",
       "metric_label": "faithfulness (1-5)",
       "missing_configs": [
@@ -1785,26 +2117,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 10,
       "name": "embedding:faithfulness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.625,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.5178571428571429,
+      "ci_low": -0.4375,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.125
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          2.375
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          -2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          1.125
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.06666666666666667,
       "factor": "rerank",
       "higher_is_better": true,
       "label": "on - off",
-      "mean_difference": null,
+      "mean_difference": 0.026785714285714284,
       "metric": "faithfulness",
       "metric_label": "faithfulness (1-5)",
       "missing_configs": [
@@ -1817,26 +2206,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 9,
       "name": "rerank:faithfulness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 1.0,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.5535714285714286,
+      "ci_low": -0.08928571428571429,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -0.125
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          -0.5
+        ],
+        [
+          "q047",
+          1.25
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.125
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.2,
       "factor": "chunking",
       "higher_is_better": true,
       "label": "recursive - fixed",
-      "mean_difference": null,
+      "mean_difference": 0.17857142857142858,
       "metric": "relevance",
       "metric_label": "relevance (1-5)",
       "missing_configs": [
@@ -1849,26 +2295,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 9,
       "name": "chunking:relevance",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.75,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.044642857142857144,
+      "ci_low": -0.2767857142857143,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          0.125
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          -0.5
+        ],
+        [
+          "q047",
+          0.25
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -1.125
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": -0.4,
       "factor": "embedding",
       "higher_is_better": true,
       "label": "specter2 - bge",
-      "mean_difference": null,
+      "mean_difference": -0.08928571428571429,
       "metric": "relevance",
       "metric_label": "relevance (1-5)",
       "missing_configs": [
@@ -1881,26 +2384,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 10,
       "name": "embedding:relevance",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.625,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.2857142857142857,
+      "ci_low": -0.39285714285714285,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -0.125
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          0.5
+        ],
+        [
+          "q047",
+          1.25
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.0
+        ],
+        [
+          "q062",
+          -2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.125
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.13333333333333333,
       "factor": "rerank",
       "higher_is_better": true,
       "label": "on - off",
-      "mean_difference": null,
+      "mean_difference": -0.017857142857142856,
       "metric": "relevance",
       "metric_label": "relevance (1-5)",
       "missing_configs": [
@@ -1913,26 +2473,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 9,
       "name": "rerank:relevance",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.875,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.625,
+      "ci_low": -0.21428571428571427,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -0.75
+        ],
+        [
+          "q029",
+          -0.375
+        ],
+        [
+          "q039",
+          -0.5
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          1.125
+        ],
+        [
+          "q047",
+          1.5
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.375
+        ],
+        [
+          "q062",
+          2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.875
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.25,
       "factor": "chunking",
       "higher_is_better": true,
       "label": "recursive - fixed",
-      "mean_difference": null,
+      "mean_difference": 0.17857142857142858,
       "metric": "completeness",
       "metric_label": "completeness (1-5)",
       "missing_configs": [
@@ -1945,26 +2562,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 6,
       "name": "chunking:completeness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.5703125,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.07142857142857142,
+      "ci_low": -0.6875,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          0.75
+        ],
+        [
+          "q029",
+          -0.375
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          -0.875
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.125
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -2.625
+        ],
+        [
+          "q068",
+          -0.5
+        ]
+      ],
+      "effect_size": -0.5238095238095238,
       "factor": "embedding",
       "higher_is_better": true,
       "label": "specter2 - bge",
-      "mean_difference": null,
+      "mean_difference": -0.25,
       "metric": "completeness",
       "metric_label": "completeness (1-5)",
       "missing_configs": [
@@ -1977,26 +2651,83 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 8,
       "name": "embedding:completeness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.3125,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
+      "ci_high": 0.75,
+      "ci_low": -0.375,
       "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "differences": [
+        [
+          "q010",
+          -0.75
+        ],
+        [
+          "q029",
+          -0.375
+        ],
+        [
+          "q039",
+          -0.5
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q044",
+          2.875
+        ],
+        [
+          "q047",
+          1.5
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.375
+        ],
+        [
+          "q062",
+          -2.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          1.125
+        ],
+        [
+          "q068",
+          0.0
+        ]
+      ],
+      "effect_size": 0.1388888888888889,
       "factor": "rerank",
       "higher_is_better": true,
       "label": "on - off",
-      "mean_difference": null,
+      "mean_difference": 0.16071428571428573,
       "metric": "completeness",
       "metric_label": "completeness (1-5)",
       "missing_configs": [
@@ -2009,12 +2740,12 @@
         "recursive-specter2-rerank_off",
         "recursive-specter2-rerank_on"
       ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "n": 14,
+      "n_questions_dropped": 6,
+      "n_ties": 6,
       "name": "rerank:completeness",
       "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "p_value": 0.765625,
       "primary": false,
       "test": "exact Wilcoxon signed-rank"
     },
@@ -2360,7 +3091,7 @@
     },
     "directory": "runs\\562c4bb23747\\figures",
     "main_effects": {
-      "n_rows": 3,
+      "n_rows": 6,
       "written": [
         "runs\\562c4bb23747\\figures\\main_effects.svg",
         "runs\\562c4bb23747\\figures\\main_effects.png"
@@ -2377,32 +3108,24 @@
   "interactions": [
     {
       "cells_averaged": 2,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "effect_size": null,
+      "ci_high": 0.15,
+      "ci_low": -0.35,
+      "complete": true,
+      "effect_size": -0.23076923076923073,
       "exploratory": true,
       "factor": "chunking x rerank",
       "family": "generation",
       "label": "effect of chunking under on minus under off",
-      "mean_difference": null,
+      "mean_difference": -0.1,
       "metric": "correct",
       "metric_label": "verdict == correct",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 7,
       "name": "chunking x rerank:correct",
-      "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "note": "",
+      "p_value": 0.5810546874999994,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
     {
@@ -2429,32 +3152,24 @@
     },
     {
       "cells_averaged": 2,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "effect_size": null,
+      "ci_high": 0.125,
+      "ci_low": -0.15,
+      "complete": true,
+      "effect_size": 0.0,
       "exploratory": true,
       "factor": "embedding x rerank",
       "family": "generation",
       "label": "effect of embedding under on minus under off",
-      "mean_difference": null,
+      "mean_difference": 0.0,
       "metric": "correct",
       "metric_label": "verdict == correct",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 12,
       "name": "embedding x rerank:correct",
-      "note": "incomplete: some cells have no data yet",
-      "p_value": null,
+      "note": "",
+      "p_value": 1.0,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
     {
@@ -2601,38 +3316,208 @@
   "primaries": [
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": 0.15,
+      "ci_low": -0.0875,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.25
+        ],
+        [
+          "q017",
+          0.5
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.5
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          -0.25
+        ],
+        [
+          "q044",
+          0.25
+        ],
+        [
+          "q045",
+          -0.25
+        ],
+        [
+          "q047",
+          0.5
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          -0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.25
+        ],
+        [
+          "q062",
+          0.5
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.25
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          0.25
+        ]
+      ],
+      "effect_size": 0.0,
       "factor": "chunking",
       "family": "generation",
       "higher_is_better": true,
       "label": "recursive - fixed",
-      "mean_difference": null,
+      "mean_difference": 0.025,
       "metric": "correct",
       "metric_label": "verdict == correct",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 8,
       "name": "chunking:correct",
-      "note": "incomplete: some cells have no data yet",
-      "p_holm": null,
-      "p_value": null,
+      "note": "",
+      "p_holm": 1.0,
+      "p_value": 1.0,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.0275
+        },
+        {
+          "n": 15,
+          "power": 0.025
+        },
+        {
+          "n": 20,
+          "power": 0.0375
+        },
+        {
+          "n": 30,
+          "power": 0.0325
+        },
+        {
+          "n": 40,
+          "power": 0.03
+        },
+        {
+          "n": 60,
+          "power": 0.0375
+        },
+        {
+          "n": 80,
+          "power": 0.04
+        },
+        {
+          "n": 120,
+          "power": 0.0475
+        },
+        {
+          "n": 160,
+          "power": 0.0575
+        },
+        {
+          "n": 240,
+          "power": 0.0425
+        },
+        {
+          "n": 320,
+          "power": 0.0475
+        },
+        {
+          "n": 480,
+          "power": 0.055
+        }
+      ],
       "primary": true,
-      "rank": null,
+      "rank": 6,
       "research_question": "RQ1",
-      "sample_size": null,
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": 51,
+              "power_at_n": 0.843,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 81,
+              "power_at_n": 0.86,
+              "reason": ""
+            },
+            "effect": 0.15
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 51,
+              "power_at_n": 0.825,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 76,
+              "power_at_n": 0.835,
+              "reason": ""
+            },
+            "effect": -0.0875
+          },
+          "observed": {
+            "at_alpha": {
+              "n": null,
+              "reason": "not estimable: below 80% power at n=4000"
+            },
+            "at_holm_alpha": {
+              "n": null,
+              "reason": "not estimable: below 80% power at n=4000"
+            },
+            "effect": 0.025
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": true,
+        "kind": "binary",
+        "pessimistic_end": null,
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -2790,7 +3675,7 @@
         }
       ],
       "primary": true,
-      "rank": 3,
+      "rank": 5,
       "research_question": "RQ1",
       "sample_size": {
         "alpha": 0.05,
@@ -2847,38 +3732,208 @@
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": 0.0,
+      "ci_low": -0.275,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          0.25
+        ],
+        [
+          "q017",
+          0.0
+        ],
+        [
+          "q018",
+          -1.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          0.0
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          -0.25
+        ],
+        [
+          "q044",
+          -0.25
+        ],
+        [
+          "q045",
+          -0.25
+        ],
+        [
+          "q047",
+          0.0
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.25
+        ],
+        [
+          "q062",
+          0.0
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          -0.75
+        ],
+        [
+          "q068",
+          -0.5
+        ],
+        [
+          "q069",
+          -0.25
+        ]
+      ],
+      "effect_size": -0.4,
       "factor": "embedding",
       "family": "generation",
       "higher_is_better": true,
       "label": "specter2 - bge",
-      "mean_difference": null,
+      "mean_difference": -0.125,
       "metric": "correct",
       "metric_label": "verdict == correct",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 10,
       "name": "embedding:correct",
-      "note": "incomplete: some cells have no data yet",
-      "p_holm": null,
-      "p_value": null,
+      "note": "",
+      "p_holm": 1.0,
+      "p_value": 0.3437499999999998,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.0325
+        },
+        {
+          "n": 15,
+          "power": 0.105
+        },
+        {
+          "n": 20,
+          "power": 0.1475
+        },
+        {
+          "n": 30,
+          "power": 0.2775
+        },
+        {
+          "n": 40,
+          "power": 0.35
+        },
+        {
+          "n": 60,
+          "power": 0.5075
+        },
+        {
+          "n": 80,
+          "power": 0.745
+        },
+        {
+          "n": 120,
+          "power": 0.84
+        },
+        {
+          "n": 160,
+          "power": 0.94
+        },
+        {
+          "n": 240,
+          "power": 0.99
+        },
+        {
+          "n": 320,
+          "power": 1.0
+        },
+        {
+          "n": 480,
+          "power": 1.0
+        }
+      ],
       "primary": true,
-      "rank": null,
+      "rank": 4,
       "research_question": "RQ2",
-      "sample_size": null,
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": null,
+              "reason": "not estimable: the effect is indistinguishable from zero"
+            },
+            "at_holm_alpha": {
+              "n": null,
+              "reason": "not estimable: the effect is indistinguishable from zero"
+            },
+            "effect": 0.0
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 15,
+              "power_at_n": 0.843,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 24,
+              "power_at_n": 0.88,
+              "reason": ""
+            },
+            "effect": -0.275
+          },
+          "observed": {
+            "at_alpha": {
+              "n": 108,
+              "power_at_n": 0.853,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 156,
+              "power_at_n": 0.802,
+              "reason": ""
+            },
+            "effect": -0.125
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": true,
+        "kind": "binary",
+        "pessimistic_end": null,
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
@@ -2983,7 +4038,7 @@
       "n_ties": 14,
       "name": "embedding:span_coverage",
       "note": "",
-      "p_holm": 0.78125,
+      "p_holm": 0.7299804687500013,
       "p_value": 0.15625,
       "power_curve": [
         {
@@ -3036,7 +4091,7 @@
         }
       ],
       "primary": true,
-      "rank": 2,
+      "rank": 3,
       "research_question": "RQ2",
       "sample_size": {
         "alpha": 0.05,
@@ -3093,38 +4148,210 @@
     },
     {
       "cells_averaged": 4,
-      "ci_high": null,
-      "ci_low": null,
-      "complete": false,
-      "differences": [],
-      "effect_size": null,
+      "ci_high": 0.275,
+      "ci_low": -0.025,
+      "complete": true,
+      "differences": [
+        [
+          "q010",
+          -0.25
+        ],
+        [
+          "q017",
+          0.5
+        ],
+        [
+          "q018",
+          0.0
+        ],
+        [
+          "q029",
+          0.0
+        ],
+        [
+          "q039",
+          -0.5
+        ],
+        [
+          "q040",
+          0.0
+        ],
+        [
+          "q041",
+          0.0
+        ],
+        [
+          "q042",
+          0.25
+        ],
+        [
+          "q044",
+          0.75
+        ],
+        [
+          "q045",
+          0.25
+        ],
+        [
+          "q047",
+          0.5
+        ],
+        [
+          "q048",
+          0.0
+        ],
+        [
+          "q049",
+          0.25
+        ],
+        [
+          "q050",
+          0.0
+        ],
+        [
+          "q061",
+          0.25
+        ],
+        [
+          "q062",
+          -0.5
+        ],
+        [
+          "q063",
+          0.0
+        ],
+        [
+          "q065",
+          0.25
+        ],
+        [
+          "q068",
+          0.0
+        ],
+        [
+          "q069",
+          0.75
+        ]
+      ],
+      "effect_size": 0.5,
       "factor": "rerank",
       "family": "generation",
       "higher_is_better": true,
       "label": "on - off",
-      "mean_difference": null,
+      "mean_difference": 0.125,
       "metric": "correct",
       "metric_label": "verdict == correct",
-      "missing_configs": [
-        "fixed-bge-rerank_on",
-        "fixed-specter2-rerank_off",
-        "fixed-specter2-rerank_on",
-        "recursive-bge-rerank_off",
-        "recursive-bge-rerank_on",
-        "recursive-specter2-rerank_off",
-        "recursive-specter2-rerank_on"
-      ],
-      "n": 0,
-      "n_questions_dropped": 20,
-      "n_ties": 0,
+      "missing_configs": [],
+      "n": 20,
+      "n_questions_dropped": 0,
+      "n_ties": 8,
       "name": "rerank:correct",
-      "note": "incomplete: some cells have no data yet",
-      "p_holm": null,
-      "p_value": null,
+      "note": "",
+      "p_holm": 0.7299804687500013,
+      "p_value": 0.14599609375000028,
+      "power_curve": [
+        {
+          "n": 10,
+          "power": 0.0925
+        },
+        {
+          "n": 15,
+          "power": 0.24
+        },
+        {
+          "n": 20,
+          "power": 0.305
+        },
+        {
+          "n": 30,
+          "power": 0.555
+        },
+        {
+          "n": 40,
+          "power": 0.6175
+        },
+        {
+          "n": 60,
+          "power": 0.8325
+        },
+        {
+          "n": 80,
+          "power": 0.94
+        },
+        {
+          "n": 120,
+          "power": 0.99
+        },
+        {
+          "n": 160,
+          "power": 1.0
+        },
+        {
+          "n": 240,
+          "power": 1.0
+        },
+        {
+          "n": 320,
+          "power": 1.0
+        },
+        {
+          "n": 480,
+          "power": 1.0
+        }
+      ],
       "primary": true,
-      "rank": null,
+      "rank": 2,
       "research_question": "RQ3",
-      "sample_size": null,
+      "sample_size": {
+        "alpha": 0.05,
+        "estimates": {
+          "ci_high": {
+            "at_alpha": {
+              "n": 15,
+              "power_at_n": 0.818,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 24,
+              "power_at_n": 0.855,
+              "reason": ""
+            },
+            "effect": 0.275
+          },
+          "ci_low": {
+            "at_alpha": {
+              "n": 811,
+              "power_at_n": 0.818,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 1216,
+              "power_at_n": 0.807,
+              "reason": ""
+            },
+            "effect": -0.025
+          },
+          "observed": {
+            "at_alpha": {
+              "n": 54,
+              "power_at_n": 0.81,
+              "reason": ""
+            },
+            "at_holm_alpha": {
+              "n": 86,
+              "power_at_n": 0.818,
+              "reason": ""
+            },
+            "effect": 0.125
+          }
+        },
+        "holm_alpha": 0.008333333333333333,
+        "interval_spans_zero": true,
+        "kind": "binary",
+        "pessimistic_end": null,
+        "target_power": 0.8,
+        "trials": 400
+      },
       "significant": false,
       "test": "exact sign test (McNemar's exact test, generalised over the averaged cells)"
     },
