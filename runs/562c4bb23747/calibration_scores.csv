@@ -1,41 +1,41 @@
 item_id,faithfulness,relevance,completeness,verdict,notes
-62a3df05,,,,,
-c280db9c,,,,,
-ff53963b,,,,,
-1799e7ec,,,,,
-31598f5f,,,,,
-ef8118ae,,,,,
-c867f698,,,,,
-e93def72,,,,,
-f431daa4,,,,,
-ae0e2ca6,,,,,
-724f8965,,,,,
-538b9950,,,,,
-bc2a02ac,,,,,
-6f1f024d,,,,,
-56c60f52,,,,,
-f69b5225,,,,,
-7c4bbb7e,,,,,
-b67cc8d7,,,,,
-8b66207c,,,,,
-c81e899f,,,,,
-133f02ae,,,,,
-a9865b23,,,,,
-4c203a9f,,,,,
-f256e59b,,,,,
-86b9a351,,,,,
-56d5ae49,,,,,
-8e25d463,,,,,
-00585606,,,,,
-c4ee8217,,,,,
-32e7e71a,,,,,
-c7efee5f,,,,,
-0a03b7a3,,,,,
-e55293bc,,,,,
-9dc2a48b,,,,,
-8c43db2d,,,,,
-a5377343,,,,,
-90b1752f,,,,,
-71dff36c,,,,,
-93bc6e1a,,,,,
-f816689c,,,,,
+62a3df05,5,5,5,correct,Directly matches reference; retrieved passage explicitly supports F. nucleatum and natural brain microbiome.
+c280db9c,5,5,4,correct,R2 and p-value match; F statistic from reference was omitted.
+ff53963b,5,5,5,correct,Matches NCAM1 interaction and SCT-mediated reversal.
+1799e7ec,1,3,1,incorrect,Reverses the timing of hippocampal abnormality and incorrectly says loss is concentrated in hippocampus.
+31598f5f,,,,abstained,Abstained despite the retrieved passages containing the 70 ms and 88%/87% result.
+ef8118ae,2,4,2,incorrect,"70 ms threshold is correct, but 87.5%/89.2% are metrics from a different final algorithm, not the time-latency classifier."
+c867f698,5,5,4,correct,Correctly captures the distribution shift and premorbid-function adjustment; does not explicitly mention capturing a range of decline.
+e93def72,5,5,4,correct,Core relationship and p-value are correct; H statistic is omitted.
+f431daa4,,,,abstained,No answer supplied.
+ae0e2ca6,5,5,4,partially_correct,"Correct NCAM1 interaction and stabilization mechanism, but omits that SCT was the intervention and the explicit neuronal signalling reversal."
+724f8965,5,5,5,correct,Matches both biomarker groups and NfL's broader cognitive/all-cause dementia usefulness.
+538b9950,5,5,4,correct,R2 and p-value match; F statistic omitted.
+bc2a02ac,5,5,5,correct,Matches 95.2% and none of inactive lesions; equivalent to the reference.
+6f1f024d,5,5,4,correct,Correct distribution shift and premorbid-function adjustment; extra detail is consistent with the source.
+56c60f52,5,5,4,partially_correct,"10-month comparison and later proliferation are correct, but activated phenotype is not stated."
+f69b5225,5,5,5,correct,Matches pathogen and natural brain microbiome conclusion.
+7c4bbb7e,5,5,4,correct,Correct co-localization conclusion and basal membrane location; omits explicit same-vessel context.
+b67cc8d7,5,4,3,partially_correct,"Correct P-tau217/Aβ42/40 portion, but misstates NfL as useful for non-AD neurodegenerative changes rather than general cognitive decline/all-cause dementia."
+8b66207c,5,5,5,correct,Matches 95.2% and none of inactive lesions.
+c81e899f,5,5,5,correct,Directly matches the reference.
+133f02ae,,,,abstained,No answer supplied.
+a9865b23,,,,abstained,No answer supplied.
+4c203a9f,5,5,4,correct,Correctly states no general co-localization and internal basal membrane localization; same-vessel context is omitted.
+f256e59b,5,5,5,correct,Matches NCAM1 and SCT-mediated stabilization/reversal.
+86b9a351,5,5,4,partially_correct,"Correct numerical/location findings, but omits the activated phenotype."
+56d5ae49,5,5,4,partially_correct,Correct 10-month comparison and later proliferation; activated phenotype is omitted.
+8e25d463,5,5,5,correct,Directly matches the reference.
+00585606,5,5,5,correct,Matches AQP4-positive astrocyte structures and CD31-positive endothelial association.
+c4ee8217,5,5,4,partially_correct,"Correct numerical/location findings, but omits the activated phenotype."
+32e7e71a,5,5,5,correct,Directly matches the reference.
+c7efee5f,5,5,4,correct,Correct core finding; omits the same-vessel context.
+0a03b7a3,,,,abstained,No answer supplied.
+e55293bc,5,5,5,correct,Matches parietal cortex and the nonsignificant attenuation trend across other components.
+9dc2a48b,5,5,4,correct,Correct core finding; omits the same-vessel context.
+8c43db2d,5,5,5,correct,Matches AQP4-positive astrocyte structures and CD31-positive endothelial association.
+a5377343,1,5,1,incorrect,"The count is wrong: reference gives 48, not 22."
+90b1752f,,,,abstained,No answer supplied.
+71dff36c,,,,abstained,No answer supplied.
+93bc6e1a,5,5,4,correct,"Correctly identifies NCAM1 and SCT-mediated restoration/reversal, though phrased less explicitly."
+f816689c,5,5,4,correct,Core relationship is correct; H statistic and p-value are omitted.
