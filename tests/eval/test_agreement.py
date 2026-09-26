@@ -124,3 +124,38 @@ def test_mismatched_lengths_are_an_error() -> None:
 
     with pytest.raises(ValueError, match="unequal lengths"):
         exact_agreement([1.0, 2.0], [1.0])
+
+
+def test_a_value_outside_the_declared_categories_is_a_level_not_a_crash() -> None:
+    """The bug that killed `report judge --calibration` with the message "1.5".
+
+    Each judge score is the mean of its two passes, so a scale the passes
+    disagreed on lands on a half-point. Passed alongside an integer category
+    list, that value had no row in the contingency table and raised a bare
+    KeyError naming the float and nothing else. `categories` is a MINIMUM level
+    set -- it exists so unused levels still shape the expected agreement -- and
+    anything observed has to be a level too.
+    """
+    human = [4.0, 5.0, 3.0, 4.0]
+    judge = [4.5, 5.0, 3.0, 4.0]
+    result = cohens_kappa(human, judge, [1.0, 2.0, 3.0, 4.0, 5.0])
+    assert result is not None
+    assert -1.0 <= result <= 1.0
+
+
+def test_a_half_point_counts_as_a_near_miss_not_a_disagreement() -> None:
+    """Quadratic weights are defined on the values, so 4.5 against 4 costs far
+    less than 1 against 5 -- which is the whole reason the scale is ordinal."""
+    near = cohens_kappa([4.0] * 6 + [5.0], [4.5] * 6 + [5.0], FIVE)
+    far = cohens_kappa([4.0] * 6 + [5.0], [1.0] * 6 + [5.0], FIVE)
+    assert near is not None and far is not None
+    assert near > far
+
+
+def test_exact_agreement_cannot_match_a_half_point_and_that_is_reported() -> None:
+    """The figure itself is right; what would be wrong is printing it without
+    saying three of the rows could never have matched."""
+    human = [4.0, 4.0, 5.0]
+    judge = [4.5, 4.0, 5.0]
+    assert exact_agreement(human, judge) == round(2 / 3, 4)
+    assert within_one(human, judge) == 1.0

@@ -135,18 +135,76 @@ def write_sheet(
     return {"sheet": sheet, "scores": scores, "key": key}
 
 
-def read_scores(path: Path, scales: tuple[str, ...]) -> dict[str, dict[str, Any]]:
-    """Load the filled CSV. Blank rows are skipped; bad values are an error."""
+def read_scores(
+    path: Path, scales: tuple[str, ...], verdicts: tuple[str, ...] = ()
+) -> dict[str, dict[str, Any]]:
+    """Load the filled CSV.
+
+    Hand-entered data, so every failure names the file, the row, the column, the
+    value found and what was expected. A message a person cannot act on is worse
+    than no message: it sends them back to stare at a spreadsheet.
+
+    Three things are checked that a bare `DictReader` loop lets through:
+
+    * **The header.** A missing column would otherwise read as every row having
+      blanked that score, which is silently a different dataset.
+    * **Row width.** `DictReader` puts surplus fields under the key ``None`` and
+      pads short rows with ``None`` values, so an unquoted comma in a note
+      shifts the columns and the scores become whatever landed in them. Both
+      shapes are caught and reported with the row.
+    * **The verdict spelling.** An unrecognised one would pair against nothing
+      and drop out of the comparison without appearing anywhere -- silent loss,
+      which this project treats as worse than a crash.
+
+    Blank score fields are "not scored" and stay ``None``: an abstention has no
+    faithfulness, and a row the reader chose to skip should not be invented.
+    """
     path = Path(path)
     if not path.is_file():
         raise ValueError(f"no calibration scores at {path}")
+
+    permitted = {name.lower() for name in verdicts}
     out: dict[str, dict[str, Any]] = {}
     with path.open("r", encoding="utf-8", newline="") as handle:
-        for number, row in enumerate(csv.DictReader(handle), start=2):
+        reader = csv.DictReader(handle)
+        header = reader.fieldnames or []
+        required = ("item_id", "verdict", *scales)
+        missing = [column for column in required if column not in header]
+        if missing:
+            raise ValueError(
+                f"{path}: missing column(s) {', '.join(missing)}. Found {', '.join(header)}. "
+                "A missing score column would read as every row leaving it blank, which is "
+                "a different dataset rather than an error."
+            )
+
+        for number, row in enumerate(reader, start=2):
+            if row.get(None):
+                raise ValueError(
+                    f"{path}:{number}: more fields than the header has columns "
+                    f"({len(header) + len(row[None])} against {len(header)}). A comma inside "
+                    "an unquoted note does this, and it shifts every later column -- so the "
+                    "scores read back are whichever fields landed in those positions. Quote "
+                    'the note ("like this") or remove the comma.'
+                )
+            short = [column for column in required if row.get(column) is None]
+            if short:
+                raise ValueError(
+                    f"{path}:{number}: fewer fields than the header has columns; "
+                    f"{', '.join(short)} ran off the end of the row."
+                )
+
             identifier = (row.get("item_id") or "").strip()
             if not identifier:
                 continue
-            record: dict[str, Any] = {"verdict": (row.get("verdict") or "").strip().lower()}
+            verdict = (row.get("verdict") or "").strip().lower()
+            if verdict and permitted and verdict not in permitted:
+                raise ValueError(
+                    f"{path}:{number}: verdict is {verdict!r}, which is not one of "
+                    f"{', '.join(sorted(permitted))}. An unrecognised verdict would pair "
+                    "against nothing and vanish from the comparison without being counted."
+                )
+
+            record: dict[str, Any] = {"verdict": verdict}
             for name in scales:
                 raw = (row.get(name) or "").strip()
                 if not raw:
@@ -155,9 +213,14 @@ def read_scores(path: Path, scales: tuple[str, ...]) -> dict[str, dict[str, Any]
                 try:
                     value = float(raw)
                 except ValueError:
-                    raise ValueError(f"{path}:{number}: {name} is {raw!r}, not a number") from None
+                    raise ValueError(
+                        f"{path}:{number}: {name} is {raw!r}, which is not a number. "
+                        "Expected a score from 1 to 5, or blank for not scored."
+                    ) from None
                 if not 1 <= value <= 5:
-                    raise ValueError(f"{path}:{number}: {name} is {value}, outside the 1-5 scale")
+                    raise ValueError(
+                        f"{path}:{number}: {name} is {value}, outside the 1-5 scale."
+                    )
                 record[name] = value
             if record["verdict"] or any(record[name] is not None for name in scales):
                 out[identifier] = record

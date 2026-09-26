@@ -55,7 +55,18 @@ def cohens_kappa(
     if first.size == 0:
         return None
 
-    levels = sorted({float(v) for v in categories} if categories else set(first) | set(second))
+    # `categories` is a MINIMUM level set, never an exhaustive one: it is passed
+    # so that levels nobody used still contribute to the expected-agreement
+    # marginals. Any value actually observed has to be a level too, or the
+    # lookup below raises a bare KeyError naming the value and nothing else.
+    #
+    # That is not hypothetical. Each judge score here is the mean of two passes,
+    # so a judge that scored 4 once and 5 once contributes 4.5 -- a value no
+    # integer category list contains. Three of ninety-nine scores on the real
+    # calibration sample were such means, and they aborted the whole report with
+    # the message "1.5".
+    declared = {float(value) for value in categories} if categories else set()
+    levels = sorted(declared | set(first) | set(second))
     index = {value: position for position, value in enumerate(levels)}
     size = len(levels)
     if size == 1:

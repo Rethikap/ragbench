@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +74,65 @@ def add_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+#: Set this to any non-empty value for the full traceback alongside the summary.
+#: The failure message offers it, so it has to exist -- a message that names a
+#: switch which does nothing is worse than one that stays quiet.
+TRACEBACK_ENV = "RAGBENCH_TRACEBACK"
+
+#: What each topic reads, so a failure can say where to look rather than leaving
+#: the reader to guess which of several inputs was being parsed.
+INPUTS: dict[str, tuple[str, ...]] = {
+    "chunks": ("the chunk sets under --data-root",),
+    "gold": ("configs/gold_set.jsonl", "the drafted candidates under --data-root"),
+    "retrieval": ("configs/gold_set.jsonl", "runs/<id>/retrieve/", "the chunk sets"),
+    "generation": ("configs/gold_set.jsonl", "runs/<id>/generate/"),
+    "judge": ("runs/<id>/judge/", "runs/<id>/generate/", "the calibration CSV if given"),
+    "stats": (
+        "configs/stats.yaml",
+        "runs/<id>/retrieve/, generate/ and judge/",
+        "the calibration CSV if given",
+    ),
+}
+
+
+def explain_failure(exc: BaseException, args: argparse.Namespace, directory: Path) -> str:
+    """Say what was being read, what went wrong, and in whose words.
+
+    An exception's own message is written for whoever raised it, and some
+    builtins barely have one: a `KeyError` whose key is the float 1.5 prints as
+    `1.5` and nothing else, which is what `report judge --calibration` did when
+    a judge score that was the mean of two disagreeing passes met a lookup table
+    of whole numbers. The type name and the inputs in play are the difference
+    between a puzzle and a place to look.
+    """
+    name = type(exc).__name__
+    detail = str(exc)
+    if isinstance(exc, KeyError):
+        detail = f"no entry for {exc.args[0]!r}" if exc.args else "missing key"
+    elif not detail:
+        detail = "(no message)"
+
+    lines = [f"ragbench: report {args.topic} failed.", f"  {name}: {detail}"]
+    if getattr(args, "calibration", None):
+        lines.append(f"  calibration scores : {args.calibration}")
+    lines.append(f"  run directory      : {directory}")
+    lines.append(f"  config             : {args.config}")
+    reading = INPUTS.get(args.topic)
+    if reading:
+        lines.append(f"  this topic reads   : {'; '.join(reading)}")
+    if not isinstance(exc, (ValueError, GoldSetError)):
+        # A ValueError here was raised deliberately with context. Anything else
+        # arrived from further down and is worth flagging as such, because the
+        # message was not written for this reader.
+        lines.append(
+            "  This came from below the reporting layer, so the message above was not"
+        )
+        lines.append(
+            "  written for you. Re-run with RAGBENCH_TRACEBACK=1 for the full traceback."
+        )
+    return "\n".join(lines)
+
+
 def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> int:
     try:
         if args.topic == "stats":
@@ -108,8 +170,10 @@ def run(args: argparse.Namespace, resolved: dict[str, Any], directory: Path) -> 
         else:
             report = build_report(resolved, args.data_root, trials=args.trials)
             rendered = render(report, resolved)
-    except (ValueError, KeyError, GoldSetError) as exc:
-        print(f"ragbench: {exc}")
+    except (ValueError, KeyError, IndexError, TypeError, OSError, GoldSetError) as exc:
+        print(explain_failure(exc, args, directory), file=sys.stderr)
+        if os.environ.get(TRACEBACK_ENV):
+            traceback.print_exc()
         return EXIT_DATA
 
     target = directory / f"{args.topic}_report.json"

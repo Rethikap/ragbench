@@ -158,6 +158,13 @@ def render(report: dict[str, Any]) -> str:
             )
         verdict = calibration["verdict"]
         add(f"  {'verdict':<16}{verdict['n']:>5}{_num(verdict['kappa'], 2):>10}")
+        for name, summary in calibration["scales"].items():
+            if summary.get("judge_pass_means"):
+                add(
+                    f"  {summary['judge_pass_means']} of {name}'s judge scores are two-pass"
+                    " means (e.g. 4.5) and cannot match an integer;"
+                )
+                add("  they depress `exact` but not kappa or spearman.")
 
     figures = report.get("figures")
     if figures:

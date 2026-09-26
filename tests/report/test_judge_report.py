@@ -352,3 +352,88 @@ def test_comparing_before_the_sheet_exists_says_so(tmp_path: Path) -> None:
     resolved, configs, run = _world(tmp_path, [], [])
     with pytest.raises(ValueError, match="no calibration key"):
         compare(resolved, run, tmp_path / "scores.csv", SCALES, VERDICTS)
+
+
+# -------------------------------- a sheet shaped like a real filled-in one
+
+
+REAL_CSV = '''item_id,faithfulness,relevance,completeness,verdict,notes
+62a3df05,5,5,5,correct,"Directly matches reference; retrieved passage supports it, clearly."
+c280db9c,5,5,4,correct,"R2 and p-value match, but the F statistic was omitted."
+31598f5f,,,,abstained,"Abstained despite the passages containing the 70 ms and 88%/87% result."
+1799e7ec,1,3,1,incorrect,Reverses the timing and says loss is concentrated in hippocampus.
+aa11bb22,,,,abstained,
+'''
+
+
+def _write(tmp_path: Path, text: str) -> Path:
+    path = tmp_path / "calibration_scores.csv"
+    path.write_text(text, encoding="utf-8", newline="")
+    return path
+
+
+def test_a_notes_column_with_quoted_commas_parses(tmp_path: Path) -> None:
+    """The shape a filled-in sheet actually has: a trailing free-text column,
+    commas inside quoted notes, and abstention rows with every score blank."""
+    scored = read_scores(_write(tmp_path, REAL_CSV), SCALES, VERDICTS)
+    assert set(scored) == {"62a3df05", "c280db9c", "31598f5f", "1799e7ec", "aa11bb22"}
+    assert scored["c280db9c"]["completeness"] == 4.0
+    assert scored["1799e7ec"]["relevance"] == 3.0
+
+
+def test_abstention_rows_are_not_scored_rather_than_zero(tmp_path: Path) -> None:
+    """Blank is "no score", never a number. A zero would be off the 1-5 scale
+    and would drag every mean down with a value nobody entered."""
+    scored = read_scores(_write(tmp_path, REAL_CSV), SCALES, VERDICTS)
+    for row in ("31598f5f", "aa11bb22"):
+        assert scored[row]["verdict"] == "abstained"
+        assert all(scored[row][name] is None for name in SCALES)
+
+
+def test_a_row_whose_note_has_an_unquoted_comma_is_caught_with_its_line(
+    tmp_path: Path,
+) -> None:
+    """It shifts every later column, so the scores read back would be whichever
+    fields landed in those positions -- wrong numbers, not an error."""
+    broken = REAL_CSV + "cc33dd44,5,5,5,correct,Two clauses, unquoted, so three extra fields\n"
+    with pytest.raises(ValueError, match="more fields than the header"):
+        read_scores(_write(tmp_path, broken), SCALES, VERDICTS)
+
+
+def test_a_missing_column_is_caught_before_any_row_is_read(tmp_path: Path) -> None:
+    """Otherwise it reads as every row having left that score blank, which is a
+    different dataset rather than a failure."""
+    text = "item_id,faithfulness,relevance,verdict,notes\nab,5,5,correct,fine\n"
+    with pytest.raises(ValueError, match="missing column"):
+        read_scores(_write(tmp_path, text), SCALES, VERDICTS)
+
+
+def test_a_misspelled_verdict_is_refused_rather_than_silently_dropped(
+    tmp_path: Path,
+) -> None:
+    """It would pair against nothing and vanish from the comparison without
+    appearing in any count."""
+    text = "item_id,faithfulness,relevance,completeness,verdict,notes\nab,5,5,5,corect,typo\n"
+    with pytest.raises(ValueError, match="not one of"):
+        read_scores(_write(tmp_path, text), SCALES, VERDICTS)
+
+
+def test_every_parse_failure_names_the_file_the_row_and_the_expectation(
+    tmp_path: Path,
+) -> None:
+    """A message a person cannot act on sends them back to stare at a
+    spreadsheet."""
+    text = (
+        "item_id,faithfulness,relevance,completeness,verdict,notes\n"
+        "ab,5,5,5,correct,fine\n"
+        "cd,high,5,5,correct,not a number\n"
+    )
+    path = _write(tmp_path, text)
+    with pytest.raises(ValueError) as caught:
+        read_scores(path, SCALES, VERDICTS)
+    message = str(caught.value)
+    assert str(path) in message
+    assert ":3:" in message
+    assert "faithfulness" in message
+    assert "'high'" in message
+    assert "1 to 5" in message

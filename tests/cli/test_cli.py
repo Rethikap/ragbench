@@ -261,3 +261,56 @@ def test_the_rubric_is_not_a_command_line_option() -> None:
     options = {opt for prog, opt in _all_options(build_parser()) if prog.endswith("judge")}
     for forbidden in ("--rubric", "--prompt", "--system-prompt", "--temperature", "--passes"):
         assert forbidden not in options
+
+
+# ------------------------------------------------------- legible failures
+
+
+def test_a_failure_says_what_it_was_reading_not_just_what_broke() -> None:
+    """`report judge --calibration` once failed with the single line "1.5" -- a
+    KeyError whose key was a float, rendered by str() as the bare number. The
+    type, the inputs in play and the paths are the difference between a puzzle
+    and a place to look."""
+    import argparse
+    from pathlib import Path as _Path
+
+    from ragbench.cli.report_cmd import explain_failure
+
+    args = argparse.Namespace(
+        topic="judge", calibration=_Path("scores.csv"), config=_Path("configs/base.yaml")
+    )
+    message = explain_failure(KeyError(1.5), args, _Path("runs/abc"))
+    assert "KeyError" in message
+    assert "1.5" in message
+    assert "scores.csv" in message
+    assert "runs" in message and "abc" in message
+    assert "judge" in message
+
+
+def test_a_deliberate_error_is_not_labelled_as_coming_from_below() -> None:
+    """A ValueError raised by the reporting layer already carries its context;
+    telling the reader to fetch a traceback would be noise."""
+    import argparse
+    from pathlib import Path as _Path
+
+    from ragbench.cli.report_cmd import explain_failure
+
+    args = argparse.Namespace(topic="stats", calibration=None, config=_Path("c.yaml"))
+    deliberate = explain_failure(ValueError("scores.csv:3: bad"), args, _Path("runs/abc"))
+    assert "RAGBENCH_TRACEBACK" not in deliberate
+    unexpected = explain_failure(TypeError(), args, _Path("runs/abc"))
+    assert "RAGBENCH_TRACEBACK" in unexpected
+    assert "(no message)" in unexpected
+
+
+def test_the_traceback_switch_the_message_offers_actually_exists() -> None:
+    """A message naming a switch that does nothing is worse than silence."""
+    from ragbench.cli import report_cmd
+
+    assert report_cmd.TRACEBACK_ENV == "RAGBENCH_TRACEBACK"
+    source = (
+        __import__("pathlib").Path("src/ragbench/cli/report_cmd.py")
+        .read_text(encoding="utf-8")
+    )
+    assert "os.environ.get(TRACEBACK_ENV)" in source
+    assert "traceback.print_exc()" in source

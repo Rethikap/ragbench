@@ -68,7 +68,7 @@ def compare(
             "the sheet before scoring against it"
         )
     key = json.loads(key_path.read_text(encoding="utf-8"))
-    human = read_scores(Path(scores_path), scales)
+    human = read_scores(Path(scores_path), scales, verdicts)
     judge = _judge_view(resolved, Path(run_directory), scales)
 
     paired: list[dict[str, Any]] = []
@@ -101,6 +101,14 @@ def compare(
         summary["mean_judge"] = round(sum(b for _, b in both) / len(both), 3) if both else None
         summary["mean_difference"] = (
             round(summary["mean_judge"] - summary["mean_human"], 3) if both else None
+        )
+        # A judge score is the mean of its two passes, so a scale the passes
+        # disagreed on lands on a half-point -- 4.5 against a human's 4 or 5.
+        # Weighted kappa and Spearman handle that correctly, treating it as the
+        # near miss it is. EXACT agreement cannot: those rows can never match,
+        # so the count travels with the figure it depresses.
+        summary["judge_pass_means"] = sum(
+            1 for _, value in both if value is not None and value != int(value)
         )
         result["scales"][name] = summary
 

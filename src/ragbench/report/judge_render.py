@@ -150,6 +150,20 @@ def render_calibration(result: dict[str, Any], scales: list[str]) -> str:
         f"  {'verdict':<16}{verdict['n']:>5}{_num(verdict['kappa']):>10}{'--':>10}"
         f"{_pct(verdict['exact_agreement']):>8}"
     )
+    flagged = [
+        (name, summary["judge_pass_means"])
+        for name, summary in result["scales"].items()
+        if summary.get("judge_pass_means")
+    ]
+    if flagged:
+        add("")
+        for name, count in flagged:
+            add(
+                f"  {count} of {name}'s judge scores are the mean of two passes that"
+                " disagreed (e.g. 4.5),"
+            )
+        add("  so those rows CANNOT match an integer hand score and depress `exact`.")
+        add("  kappa_w and spearman treat them as the near misses they are.")
     add("")
     add("  kappa_w = quadratically weighted Cohen's kappa; the verdict's is unweighted,")
     add("  because its four categories have no order and weighting would invent one.")

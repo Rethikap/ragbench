@@ -877,7 +877,18 @@ ragbench report judge --config configs/base.yaml \
 
 That prints quadratically weighted Cohen's kappa and Spearman per scale, an
 unweighted kappa for the verdict, and the mean difference between you and the
-judge. Read kappa before the raw agreement figure: on a five-point scale where
+judge.
+
+**A judge score is the mean of its two passes**, so a scale the passes disagreed
+on lands on a half-point -- 4.5 against your 4 or 5. Kappa and Spearman treat
+that as the near miss it is; `exact` cannot, so the report says how many rows
+are affected beside the figure they depress.
+
+If the CSV will not parse, the error names the file, the line and what was
+expected. The most common cause is a comma inside an unquoted note, which shifts
+every later column so the scores read back are whichever fields landed in those
+positions -- quote the note and re-run. Set `RAGBENCH_TRACEBACK=1` for the full
+traceback. Read kappa before the raw agreement figure: on a five-point scale where
 most answers are good, two raters who never read anything would agree about a
 third of the time, and a reviewer will say so. A large mean difference with a
 high Spearman is a calibration offset — the judge is consistently harsher or
